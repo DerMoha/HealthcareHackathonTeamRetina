@@ -1,5 +1,7 @@
 # Deploying MedSim XR to a physical Vision Pro
 
+Requires **visionOS 26.0 or later** on the headset (minimum of the ElevenLabs/LiveKit SDK) and Xcode 26+ with the visionOS SDK.
+
 ## Steps
 
 1. **Developer Mode on the headset**: Settings > Privacy & Security > Developer Mode > On, restart.
