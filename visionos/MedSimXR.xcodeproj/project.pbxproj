@@ -1,0 +1,408 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		161515A51A5638D1AEAF8A8C /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85B90974265C58FFFAB6E33D /* Mocks.swift */; };
+		638950D355C4B2A3F8152287 /* wrist_trauma_001.json in Resources */ = {isa = PBXBuildFile; fileRef = CB6B263C048F155DE6E6A502 /* wrist_trauma_001.json */; };
+		8B146134406E931335A0A317 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 768CDF0F9495A8A476DC168D /* AppConfig.swift */; };
+		916D2455AD149648AF08F383 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */; };
+		9481626117F1BF11B3B59018 /* Contracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B46355DA7F1620E7187A59E3 /* Contracts.swift */; };
+		E056F5B5AD983F47572264A6 /* MedSimXRApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87ED0E452FE02E813528F56E /* MedSimXRApp.swift */; };
+		F2FCD2EC23CEA09C76DF3977 /* ElevenLabs in Frameworks */ = {isa = PBXBuildFile; productRef = F90D86F30FBC30CCC90AB615 /* ElevenLabs */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		768CDF0F9495A8A476DC168D /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		85B90974265C58FFFAB6E33D /* Mocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mocks.swift; sourceTree = "<group>"; };
+		87ED0E452FE02E813528F56E /* MedSimXRApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedSimXRApp.swift; sourceTree = "<group>"; };
+		9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		B46355DA7F1620E7187A59E3 /* Contracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contracts.swift; sourceTree = "<group>"; };
+		CB6B263C048F155DE6E6A502 /* wrist_trauma_001.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = wrist_trauma_001.json; sourceTree = "<group>"; };
+		E0FD86A45FCF0EBC8D43AB34 /* Default.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Default.xcconfig; sourceTree = "<group>"; };
+		E17397FE79DA6AC9B3CBF7A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		FB4FF19E7D6B4AD2ECB4AF67 /* MedSimXR.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MedSimXR.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FD08A6B3799232F369F1FFFC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F2FCD2EC23CEA09C76DF3977 /* ElevenLabs in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		24107CDA39844B2BFB9DA994 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FB4FF19E7D6B4AD2ECB4AF67 /* MedSimXR.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		2C4F4039934A2D83BA8BFD71 /* MedSimXR */ = {
+			isa = PBXGroup;
+			children = (
+				E17397FE79DA6AC9B3CBF7A5 /* Info.plist */,
+				C0FA38C3D3E01444BEB7618C /* App */,
+				9CBC795B7C42DB639938554E /* Models */,
+			);
+			path = MedSimXR;
+			sourceTree = "<group>";
+		};
+		3EE97465B116265790EE04FD = {
+			isa = PBXGroup;
+			children = (
+				4570B07E204D2F31998F8CAD /* Config */,
+				93868FB0EC32EDF65B43A4C2 /* hackathonaipatient */,
+				2C4F4039934A2D83BA8BFD71 /* MedSimXR */,
+				24107CDA39844B2BFB9DA994 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		4570B07E204D2F31998F8CAD /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				E0FD86A45FCF0EBC8D43AB34 /* Default.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		93868FB0EC32EDF65B43A4C2 /* hackathonaipatient */ = {
+			isa = PBXGroup;
+			children = (
+				94AB239597459752637ECE43 /* scenarios */,
+			);
+			name = hackathonaipatient;
+			path = ..;
+			sourceTree = "<group>";
+		};
+		94AB239597459752637ECE43 /* scenarios */ = {
+			isa = PBXGroup;
+			children = (
+				CB6B263C048F155DE6E6A502 /* wrist_trauma_001.json */,
+			);
+			path = scenarios;
+			sourceTree = "<group>";
+		};
+		9CBC795B7C42DB639938554E /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				768CDF0F9495A8A476DC168D /* AppConfig.swift */,
+				B46355DA7F1620E7187A59E3 /* Contracts.swift */,
+				85B90974265C58FFFAB6E33D /* Mocks.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		C0FA38C3D3E01444BEB7618C /* App */ = {
+			isa = PBXGroup;
+			children = (
+				9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */,
+				87ED0E452FE02E813528F56E /* MedSimXRApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D0DB2F25A631547ED3EC30E8 /* MedSimXR */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 605E24D8DE3868D77EA64F66 /* Build configuration list for PBXNativeTarget "MedSimXR" */;
+			buildPhases = (
+				FA1AFAF2DC9299AD2E5760E3 /* Sources */,
+				F6F96FA57F53517C7C1984C3 /* Resources */,
+				FD08A6B3799232F369F1FFFC /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MedSimXR;
+			packageProductDependencies = (
+				F90D86F30FBC30CCC90AB615 /* ElevenLabs */,
+			);
+			productName = MedSimXR;
+			productReference = FB4FF19E7D6B4AD2ECB4AF67 /* MedSimXR.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3E9E631666B222179CA73AA3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					D0DB2F25A631547ED3EC30E8 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 8C38EE8DF5FEE0FE33D8A960 /* Build configuration list for PBXProject "MedSimXR" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 3EE97465B116265790EE04FD;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				73733BCC8347C8A239EAF2FA /* XCRemoteSwiftPackageReference "elevenlabs-swift-sdk" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 24107CDA39844B2BFB9DA994 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D0DB2F25A631547ED3EC30E8 /* MedSimXR */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F6F96FA57F53517C7C1984C3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				638950D355C4B2A3F8152287 /* wrist_trauma_001.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		FA1AFAF2DC9299AD2E5760E3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8B146134406E931335A0A317 /* AppConfig.swift in Sources */,
+				916D2455AD149648AF08F383 /* AppModel.swift in Sources */,
+				9481626117F1BF11B3B59018 /* Contracts.swift in Sources */,
+				E056F5B5AD983F47572264A6 /* MedSimXRApp.swift in Sources */,
+				161515A51A5638D1AEAF8A8C /* Mocks.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		107FA597340CC6CED9275755 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E0FD86A45FCF0EBC8D43AB34 /* Default.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				XROS_DEPLOYMENT_TARGET = 2.0;
+			};
+			name = Debug;
+		};
+		2EA10289F2662581C211CBA6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				"EXCLUDED_ARCHS[sdk=xrsimulator*]" = x86_64;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MedSimXR/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.medsimxr.app;
+				SDKROOT = xros;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Debug;
+		};
+		61B2C478A6AEE7BA8F8FA07F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				"EXCLUDED_ARCHS[sdk=xrsimulator*]" = x86_64;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MedSimXR/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.medsimxr.app;
+				SDKROOT = xros;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Release;
+		};
+		A97DB14C0D3C7F2CE818EAC8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E0FD86A45FCF0EBC8D43AB34 /* Default.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				XROS_DEPLOYMENT_TARGET = 2.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		605E24D8DE3868D77EA64F66 /* Build configuration list for PBXNativeTarget "MedSimXR" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2EA10289F2662581C211CBA6 /* Debug */,
+				61B2C478A6AEE7BA8F8FA07F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8C38EE8DF5FEE0FE33D8A960 /* Build configuration list for PBXProject "MedSimXR" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				107FA597340CC6CED9275755 /* Debug */,
+				A97DB14C0D3C7F2CE818EAC8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		73733BCC8347C8A239EAF2FA /* XCRemoteSwiftPackageReference "elevenlabs-swift-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/elevenlabs/elevenlabs-swift-sdk.git";
+			requirement = {
+				kind = exactVersion;
+				version = 3.4.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F90D86F30FBC30CCC90AB615 /* ElevenLabs */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 73733BCC8347C8A239EAF2FA /* XCRemoteSwiftPackageReference "elevenlabs-swift-sdk" */;
+			productName = ElevenLabs;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 3E9E631666B222179CA73AA3 /* Project object */;
+}

@@ -1,0 +1,8 @@
+// Build-time defaults. Override in Config/Local.xcconfig (gitignored) or at
+// runtime in the app's Settings panel (runtime value wins).
+// NOTE: no scheme here — "//" starts a comment in xcconfig. App prepends http://
+MEDSIM_BACKEND_HOST = localhost:8000
+// Public ElevenLabs agent ID. Leave empty to fetch a token from the backend.
+ELEVENLABS_AGENT_ID =
+DEVELOPMENT_TEAM =
+#include? "Local.xcconfig"

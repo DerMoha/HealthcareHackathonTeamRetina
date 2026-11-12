@@ -1,0 +1,63 @@
+# Regenerate the Xcode project after adding/removing files:  cd visionos && xcodegen
+name: MedSimXR
+options:
+  bundleIdPrefix: dev.medsimxr
+  deploymentTarget:
+    visionOS: "2.0"
+  createIntermediateGroups: true
+configFiles:
+  Debug: Config/Default.xcconfig
+  Release: Config/Default.xcconfig
+packages:
+  ElevenLabs:
+    url: https://github.com/elevenlabs/elevenlabs-swift-sdk.git
+    exactVersion: 3.4.0
+targets:
+  MedSimXR:
+    type: application
+    platform: visionOS
+    sources:
+      - path: MedSimXR
+      # Single source of truth for cases; bundled for the offline engine.
+      - path: ../scenarios
+        buildPhase: resources
+    dependencies:
+      - package: ElevenLabs
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.medsimxr.app
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "7"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: NO
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        # LiveKit WebRTC ships no x86_64 simulator slice.
+        "EXCLUDED_ARCHS[sdk=xrsimulator*]": x86_64
+    info:
+      path: MedSimXR/Info.plist
+      properties:
+        CFBundleDisplayName: MedSim XR
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        MEDSIM_BACKEND_HOST: $(MEDSIM_BACKEND_HOST)
+        ELEVENLABS_AGENT_ID: $(ELEVENLABS_AGENT_ID)
+        NSMicrophoneUsageDescription: MedSim XR uses the microphone so you can talk to the virtual patient.
+        NSHandsTrackingUsageDescription: MedSim XR tracks your hands so you can examine the virtual patient by touch.
+        NSLocalNetworkUsageDescription: MedSim XR connects to the clinical scenario server on your local network.
+        NSAppTransportSecurity:
+          # Hackathon LAN backend is plain HTTP.
+          NSAllowsArbitraryLoads: true
+        UIApplicationSceneManifest:
+          UIApplicationPreferredDefaultSceneSessionRole: UIWindowSceneSessionRoleApplication
+          UIApplicationSupportsMultipleScenes: true
+          UISceneConfigurations:
+            UISceneSessionRoleImmersiveSpaceApplication:
+              - UISceneInitialImmersionStyle: UIImmersionStyleMixed
+schemes:
+  MedSimXR:
+    build:
+      targets:
+        MedSimXR: all
+    run:
+      config: Debug
