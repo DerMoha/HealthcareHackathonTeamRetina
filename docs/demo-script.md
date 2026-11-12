@@ -4,7 +4,7 @@
 
 1. Backend running on the laptop (`uvicorn app.main:app --host 0.0.0.0 --port 8000`), same Wi-Fi as the headset.
 2. App installed; Settings in the control panel show the right backend host and agent ID.
-3. Do one full dry run. Panel should read **Engine: Backend**, **AI: Connected**, **Mic: Live**.
+3. Do one full dry run. The status card should read **AI connection: Connected**, **Microphone: Live**, **Engine: Backend**.
 4. Stand where the patient should sit (clear floor ~1.5 m ahead), press **Reset Scenario**, then **Recenter Patient**.
 5. Turn **Debug mode** on and leave it on — it is your safety net.
 
@@ -22,7 +22,7 @@
 
 | Problem | Do |
 |---|---|
-| Patient does not answer / AI status shows an error | Debug mode → tap the scripted questions ("greeting", "mechanism", …). Alex answers with local audio and the transcript still counts. |
+| Patient does not answer / AI status shows an error | Debug mode → tap the scripted question buttons (each shows the question it asks). Alex answers with local audio and the transcript still counts. |
 | Pinch does not register on the wrist | Debug mode → zone buttons. Same reaction, same scoring. |
 | Engine shows **Offline** | Nothing — keep going. Findings and feedback are identical. |
 | Patient is in the wrong place | **Recenter Patient** while looking where Alex should sit. |
