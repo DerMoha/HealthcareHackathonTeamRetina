@@ -113,20 +113,25 @@ def test_empty_run(client, sid):
     fb = client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": "Sprain"}).json()
     assert fb["total_score"] == 0 and fb["max_score"] == 100
     assert fb["transcript_available"] is False
-    assert "could not be assessed from a transcript" in fb["summary"]
+    assert "could not be assessed" in fb["summary"]
     assert fb["strengths"] == [] and len(fb["missed"]) == 15
+
+
+def graded(client, sid):
+    """Feedback with criteria (they are redacted until a diagnosis exists)."""
+    return client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": "unsure"}).json()
 
 
 def test_permission_must_precede_first_exam(client, sid):
     examine(client, sid, "left_wrist")
     say(client, sid, "May I examine your wrist?")
-    fb = client.get(f"/sessions/{sid}/feedback").json()
+    fb = graded(client, sid)
     assert crit(fb, "permission")["met"] is False and crit(fb, "permission")["evidence"] is None
     # fresh session: permission asked first
     sid2 = client.post("/sessions", json={"case_id": "wrist_trauma_001"}).json()["session_id"]
     say(client, sid2, "May I examine your wrist?")
     examine(client, sid2, "left_wrist")
-    c = crit(client.get(f"/sessions/{sid2}/feedback").json(), "permission")
+    c = crit(graded(client, sid2), "permission")
     assert c["met"] and c["evidence"] == "May I examine your wrist?" and c["method"] == "keyword"
 
 
@@ -134,16 +139,16 @@ def test_response_must_follow_painful_exam(client, sid):
     say(client, sid, "Sorry about earlier")  # before any exam
     examine(client, sid, "left_wrist")  # pain 0, not painful
     say(client, sid, "I'm sorry")
-    assert crit(client.get(f"/sessions/{sid}/feedback").json(), "responded_to_pain")["met"] is False
+    assert crit(graded(client, sid), "responded_to_pain")["met"] is False
     examine(client, sid, "right_anatomical_snuffbox")  # pain 8
     say(client, sid, "I'll be gentle")
-    c = crit(client.get(f"/sessions/{sid}/feedback").json(), "responded_to_pain")
+    c = crit(graded(client, sid), "responded_to_pain")
     assert c["met"] and c["evidence"] == "I'll be gentle"
 
 
 def test_learner_avoided_and_diagnosis_rules(client, sid):
     say(client, sid, "Stop whining")
-    fb = client.get(f"/sessions/{sid}/feedback").json()
+    fb = graded(client, sid)
     assert crit(fb, "respectful")["met"] is False
     # significance needs the snuffbox examined even if diagnosis mentions it
     fb = client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": "scaphoid"}).json()
@@ -161,6 +166,10 @@ def test_feedback_before_diagnosis_leaks_nothing(client, sid):
                                            "explanation": "No diagnosis submitted yet."}
     assert fb["next_steps"] == [] and fb["diagnosis_submitted"] is None
     assert "Suspected" not in json.dumps(fb["diagnostic_assessment"])
+    # rubric wording names the diagnosis, so it is withheld until one is submitted
+    assert all(c["criteria"] == [] for c in fb["categories"])
+    assert fb["strengths"] == [] and fb["missed"] == []
+    assert "scaphoid" not in json.dumps(fb).lower() and "snuffbox" not in json.dumps(fb).lower()
 
 
 def test_patient_facing_responses_hide_diagnosis(client):

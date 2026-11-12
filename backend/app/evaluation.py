@@ -11,35 +11,25 @@ Conventions (shared with the Swift offline engine):
 - comment = met_text if met else missed_text.
 - learner_said_after_pain: learner turn seq > seq of the FIRST examination with pain_level >= 5.
 
-SUMMARY TEMPLATE (deterministic; sentences joined by one space):
-  S1  strengths non-empty: "Strength: " + strengths[0]
-      otherwise:           "No clear strengths were identified yet."
-  S2  missed non-empty:    "Main gap: " + missed[0]
-      otherwise:           "You covered every assessed area."
-  S3  by verdict: correct        -> "Your diagnosis was correct."
-                  partial        -> "Your diagnosis was partly correct."
-                  incorrect      -> "Your diagnosis did not match the expected one."
-                  not_submitted  -> "No diagnosis has been submitted yet."
-  S4  if transcript_available is false:
-        "No learner turns were recorded, so history and communication could not be assessed from a transcript."
-      else if verdict != not_submitted and next_steps non-empty:
-        "Review the suggested next steps below."
-      else: no S4.
-  strengths[0] / missed[0] are the first in rubric order (full met_text / missed_text).
+BEFORE A DIAGNOSIS IS SUBMITTED the rubric wording would give the answer away,
+so feedback is redacted: scores stay, but every category has criteria == [],
+strengths == [] and missed == [], and summary == PENDING_SUMMARY.
+
+SUMMARY TEMPLATE after a diagnosis (deterministic; sentences joined by one space):
+  S1  only if transcript_available is false: NO_TRANSCRIPT
+  S2  strengths[0], if any
+  S3  if any missed: "However, " + missed[0] with its first letter lower-cased
+  S4  the diagnostic explanation text for the verdict
+  strengths[0] / missed[0] are the first in rubric order.
 """
 from .models import (CategoryResult, CriterionResult, DiagnosticAssessment, Feedback)
 from .sessions import Session
 
 DISCLAIMER = ("Educational simulation only. Not a clinical diagnostic tool. "
               "Transcript-based criteria use simple keyword heuristics.")
-NO_TRANSCRIPT = ("No learner turns were recorded, so history and communication "
-                 "could not be assessed from a transcript.")
-VERDICT_TEXT = {
-    "correct": "Your diagnosis was correct.",
-    "partial": "Your diagnosis was partly correct.",
-    "incorrect": "Your diagnosis did not match the expected one.",
-    "not_submitted": "No diagnosis has been submitted yet.",
-}
+NO_TRANSCRIPT = ("No conversation transcript was recorded, so history-taking and "
+                 "communication could not be assessed.")
+PENDING_SUMMARY = "Submit a diagnosis to unlock detailed feedback."
 
 
 def _hit(text: str, keywords: list[str]) -> bool:
@@ -132,11 +122,15 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
                 for z in seen]
 
     has_transcript = any(t["role"] == "learner" for t in s.interactions)
+    summary = _summary(strengths, missed, text, has_transcript)
+    if verdict == "not_submitted":  # redact: rubric wording reveals the diagnosis
+        categories = [c.model_copy(update={"criteria": []}) for c in categories]
+        strengths, missed, summary = [], [], PENDING_SUMMARY
     next_steps = list(hidden["next_steps"]) if verdict != "not_submitted" else []
     return Feedback(
         session_id=s.id, case_id=s.case_id, diagnosis_submitted=s.diagnosis,
         total_score=sum(c.score for c in categories), max_score=sum(c.max_score for c in categories),
-        summary=_summary(strengths, missed, verdict, has_transcript, bool(next_steps)),
+        summary=summary,
         transcript_available=has_transcript,
         diagnostic_assessment=DiagnosticAssessment(
             verdict=verdict, explanation=text,
@@ -145,14 +139,11 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
         relevant_findings=relevant, next_steps=next_steps, disclaimer=DISCLAIMER)
 
 
-def _summary(strengths, missed, verdict, has_transcript, has_steps) -> str:
-    parts = [
-        f"Strength: {strengths[0]}" if strengths else "No clear strengths were identified yet.",
-        f"Main gap: {missed[0]}" if missed else "You covered every assessed area.",
-        VERDICT_TEXT[verdict],
-    ]
-    if not has_transcript:
-        parts.append(NO_TRANSCRIPT)
-    elif verdict != "not_submitted" and has_steps:
-        parts.append("Review the suggested next steps below.")
+def _summary(strengths, missed, explanation, has_transcript) -> str:
+    parts = [] if has_transcript else [NO_TRANSCRIPT]
+    if strengths:
+        parts.append(strengths[0])
+    if missed:
+        parts.append("However, " + missed[0][:1].lower() + missed[0][1:])
+    parts.append(explanation)
     return " ".join(parts)

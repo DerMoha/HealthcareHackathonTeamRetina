@@ -141,7 +141,7 @@ Private agents only. Backend calls ElevenLabs with `ELEVENLABS_API_KEY` + `ELEVE
 Request `{ "diagnosis": "Suspected scaphoid fracture" }` → `Feedback`. Re-submitting replaces the previous diagnosis.
 
 ### `GET /sessions/{session_id}/feedback` → `Feedback`
-Works at any time. Before a diagnosis is submitted: `diagnostic_assessment.verdict == "not_submitted"`, `expected == null`, `next_steps == []` (nothing hidden leaks).
+Works at any time. Before a diagnosis is submitted nothing hidden leaks: `diagnostic_assessment.verdict == "not_submitted"`, `expected == null`, `next_steps == []`, every category keeps its `score` but has `criteria == []`, `strengths == []`, `missed == []`, and `summary == "Submit a diagnosis to unlock detailed feedback."` (the rubric wording itself would reveal the diagnosis).
 
 ```json
 {
@@ -176,11 +176,11 @@ Works at any time. Before a diagnosis is submitted: `diagnostic_assessment.verdi
 ```
 - `verdict`: `correct | partial | incorrect | not_submitted`.
 - Category ids and order: `history` (30), `examination` (40), `communication` (20), `reasoning` (10).
-- `criteria[].evidence`: matching learner quote or examined zone label, `null` if unmet. `comment`: the criterion's `met_text` or `missed_text`.
+- `criteria[].evidence`: first matching learner quote (preferred over the diagnosis text), or examined zone label; `null` whenever `met` is false. `comment`: the criterion's `met_text` or `missed_text`.
 - `strengths` = `met_text` of met criteria; `missed` = `missed_text` of unmet criteria.
 - `relevant_findings`: one line per distinct examined zone, `"<label>: <finding with spaces> (pain <n>/10)"`.
-- `transcript_available`: false when no learner turns were recorded; then the summary must say that history and communication could not be assessed.
-- `summary`: deterministic template, 2–4 sentences, built from strengths/missed/verdict.
+- `transcript_available`: false when no learner turns were recorded.
+- `summary` (after a diagnosis), sentences joined by one space: (1) only if no transcript: "No conversation transcript was recorded, so history-taking and communication could not be assessed." (2) first strength, if any (3) if any missed: "However, " + first missed item, first letter lower-cased (4) `diagnostic_assessment.explanation`.
 
 ## 7. Swift-side interfaces
 

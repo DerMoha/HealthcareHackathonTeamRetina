@@ -30,10 +30,10 @@ final class ReactionPlayer {
     }
 
     func handle(_ r: ReactionEvent) async {
-        let pain = r.painLevel >= 5
-        if pain { playClip("ouch") }
-        guard r.speakLocally else { return }
-        if pain { try? await Task.sleep(nanoseconds: 700_000_000) } // let "Ow!" land first
-        speak(r.text, clip: r.clip)
+        if r.speakLocally {
+            speak(r.text, clip: r.clip)
+        } else if r.painLevel >= 5 {
+            playClip("ouch") // instant; the live agent's spoken reply follows
+        }
     }
 }

@@ -14,12 +14,11 @@ final class FallbackClinicalEngine: ClinicalEngine {
         self.offline = offline
     }
 
-    /// Runs `call` on the primary while healthy; a transport failure (anything but a
-    /// server-reported HTTP error) switches to `shadow` for the rest of the session.
+    /// Runs `call` on the primary while healthy; any failure (unreachable, or a restarted
+    /// backend answering 404 for our session) switches to `shadow` for the rest of the session.
     private func route<T>(_ call: () async throws -> T, shadow: () async throws -> T) async throws -> T {
         guard usingPrimary else { return try await shadow() }
         do { return try await call() }
-        catch let e as BackendHTTPError { throw e }
         catch { usingPrimary = false; return try await shadow() }
     }
 

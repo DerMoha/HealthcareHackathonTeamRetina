@@ -10,3 +10,4 @@ xcuserdata/
 *.xcuserstate
 visionos/Config/Local.xcconfig
 .codegraph/
+.claude/

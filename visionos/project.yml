@@ -3,7 +3,8 @@ name: MedSimXR
 options:
   bundleIdPrefix: dev.medsimxr
   deploymentTarget:
-    visionOS: "2.0"
+    # ElevenLabs/LiveKit package objects are built with minos 26.0.
+    visionOS: "26.0"
   createIntermediateGroups: true
 configFiles:
   Debug: Config/Default.xcconfig

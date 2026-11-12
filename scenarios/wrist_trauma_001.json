@@ -233,7 +233,7 @@
               "points": 5,
               "check": { "type": "learner_avoided", "keywords": ["shut up", "stop whining", "stop complaining", "don't be a baby", "hurry up", "stupid", "idiot", "nonsense", "man up"] },
               "met_text": "No disrespectful language was detected.",
-              "missed_text": "Some of your wording could come across as dismissive of the patient."
+              "missed_text": "Respectful communication could not be confirmed (no conversation recorded, or dismissive wording detected)."
             }
           ]
         },

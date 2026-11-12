@@ -68,8 +68,10 @@ do {
     let e = try await fresh()
     let f = try await e.feedback()
     check(f.diagnosticAssessment.verdict == "not_submitted" && f.diagnosticAssessment.expected == nil && f.nextSteps.isEmpty, "empty run hides hidden data")
-    check(!f.transcriptAvailable && f.summary.hasPrefix("No conversation transcript"), "empty run summary")
-    check(!met(f, "respectful").met, "learner_avoided needs a learner turn")
+    check(f.categories.allSatisfy { $0.criteria.isEmpty } && f.strengths.isEmpty && f.missed.isEmpty, "rubric detail redacted before diagnosis")
+    let g = try await e.diagnose("unsure")
+    check(!g.transcriptAvailable && g.summary.hasPrefix("No conversation transcript"), "empty run summary")
+    check(!met(g, "respectful").met, "learner_avoided needs a learner turn")
 }
 
 // Partial diagnosis, permission ordering, pain response ordering
@@ -84,7 +86,7 @@ do {
     _ = try await e.examine(zoneId: snuff, action: "palpation")
     await say(e, "Is it okay if I examine your wrist?")
     await say(e, "I'm sorry, I know that hurt.")
-    let f = try await e.feedback()
+    let f = try await e.diagnose("unsure")
     check(!met(f, "permission").met, "permission after exam earns nothing")
     check(met(f, "responded_to_pain").met, "empathy after painful exam earns responded_to_pain")
 }
@@ -92,7 +94,7 @@ do {
     let e = try await fresh()
     await say(e, "I'm sorry about your fall.")
     _ = try await e.examine(zoneId: snuff, action: "palpation")
-    let f = try await e.feedback()
+    let f = try await e.diagnose("unsure")
     check(!met(f, "responded_to_pain").met, "empathy before painful exam does not count")
 }
 
@@ -102,21 +104,25 @@ if let inData = try? Data(contentsOf: fx.appendingPathComponent("parity_input.js
    let exData = try? Data(contentsOf: fx.appendingPathComponent("parity_expected.json")) {
     let input = try JSONSerialization.jsonObject(with: inData) as! [String: Any]
     let e = try await fresh()
-    for ev in input["events"] as? [[String: Any]] ?? [] {
-        if ev["type"] as? String == "examine" {
-            _ = try await e.examine(zoneId: ev["body_part"] as! String, action: ev["action"] as? String ?? "palpation")
-        } else {
-            await say(e, ev["text"] as! String, SpeakerRole(rawValue: ev["role"] as! String) ?? .learner)
+    var f = try await e.feedback()
+    for step in input["steps"] as? [[String: Any]] ?? [] {
+        switch step["op"] as? String {
+        case "examine":
+            _ = try await e.examine(zoneId: step["body_part"] as! String, action: step["action"] as? String ?? "palpation")
+        case "interaction":
+            await say(e, step["text"] as! String, SpeakerRole(rawValue: step["role"] as! String) ?? .learner)
+        default:
+            f = try await e.diagnose(step["diagnosis"] as! String)
         }
     }
-    let f: Feedback
-    if let d = input["diagnosis"] as? String { f = try await e.diagnose(d) } else { f = try await e.feedback() }
     let enc = JSONEncoder.medsim
     var got = try JSONSerialization.jsonObject(with: enc.encode(f)) as! [String: Any]
     var want = try JSONSerialization.jsonObject(with: exData) as! [String: Any]
     got["session_id"] = nil; want["session_id"] = nil
     var diffs = 0
     func diff(_ a: Any?, _ b: Any?, _ path: String) {
+        // Swift omits nil keys, the backend writes JSON null: same thing.
+        let a: Any? = a is NSNull ? nil : a, b: Any? = b is NSNull ? nil : b
         if let a = a as? [String: Any], let b = b as? [String: Any] {
             for k in Set(a.keys).union(b.keys).sorted() { diff(a[k], b[k], "\(path).\(k)") }
         } else if let a = a as? [Any], let b = b as? [Any], a.count == b.count {
@@ -126,7 +132,7 @@ if let inData = try? Data(contentsOf: fx.appendingPathComponent("parity_input.js
         }
     }
     diff(got, want, "")
-    print("parity: \(diffs) field difference(s)")
+    print("parity: \(diffs) field difference(s)"); failures += diffs
 } else {
     print("parity: fixtures not present, skipped")
 }

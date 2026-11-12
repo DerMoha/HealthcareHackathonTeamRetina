@@ -59,7 +59,7 @@ final class AppModel {
         await run {
             let info = try await self.engine.startSession(caseId: AppConfig.defaultCaseId)
             self.apply(info)
-            await self.voice.start(caseContext: info.case.voiceContext)
+            Task { await self.voice.start(caseContext: info.case.voiceContext) }
         }
     }
 
@@ -73,7 +73,7 @@ final class AppModel {
         await run {
             let info = try await self.engine.reset()
             self.apply(info)
-            await self.voice.start(caseContext: info.case.voiceContext)
+            Task { await self.voice.start(caseContext: info.case.voiceContext) }
         }
     }
 

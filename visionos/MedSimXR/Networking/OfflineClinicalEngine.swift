@@ -209,12 +209,12 @@ final class OfflineClinicalEngine: ClinicalEngine {
             let required = c.check.requiresExamined ?? []
             guard required.isEmpty || exams.contains(where: { required.contains($0.zoneId) }) else { return keyword(nil) }
             let dxHit = dx.flatMap { hits($0, kw) ? $0 : nil }
-            return keyword(dxHit ?? firstLearnerQuote(kw))
+            return keyword(firstLearnerQuote(kw) ?? dxHit)
         case "diagnosis_matches":
             let d = scenario.hidden.diagnosis
             let text = dx ?? ""
             if hits(text, d.acceptedKeywords) { return Outcome(met: true, points: full, method: "rule", evidence: dx) }
-            if hits(text, d.partialKeywords) { return Outcome(met: false, points: full / 2, method: "rule", evidence: dx) }
+            if hits(text, d.partialKeywords) { return Outcome(met: false, points: full / 2, method: "rule", evidence: nil) }
             return Outcome(met: false, points: 0, method: "rule", evidence: nil)
         default:
             return Outcome(met: false, points: 0, method: "rule", evidence: nil)
@@ -226,7 +226,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
         let dx = diagnosis.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
         var strengths: [String] = [], missed: [String] = []
 
-        let categories = h.rubric.categories.map { cat -> CategoryResult in
+        var categories = h.rubric.categories.map { cat -> CategoryResult in
             let criteria = cat.criteria.map { c -> CriterionResult in
                 let o = evaluate(c, diagnosis: dx)
                 if o.met { strengths.append(c.metText) } else { missed.append(c.missedText) }
@@ -255,10 +255,16 @@ final class OfflineClinicalEngine: ClinicalEngine {
         }
 
         let transcript = !learnerTurns.isEmpty
+        var summary = Self.composeSummary(transcriptAvailable: transcript, strengths: strengths, missed: missed, explanation: explanation)
+        if dx == nil { // redact: rubric wording reveals the diagnosis
+            categories = categories.map { var c = $0; c.criteria = []; return c }
+            strengths = []; missed = []
+            summary = "Submit a diagnosis to unlock detailed feedback."
+        }
         return Feedback(
             sessionId: sessionId, caseId: scenario.caseId, diagnosisSubmitted: dx,
             totalScore: categories.reduce(0) { $0 + $1.score }, maxScore: categories.reduce(0) { $0 + $1.maxScore },
-            summary: Self.composeSummary(transcriptAvailable: transcript, strengths: strengths, missed: missed, explanation: explanation),
+            summary: summary,
             transcriptAvailable: transcript,
             diagnosticAssessment: DiagnosticAssessment(verdict: verdict, explanation: explanation, expected: dx == nil ? nil : d.name),
             categories: categories, strengths: strengths, missed: missed, relevantFindings: findings,

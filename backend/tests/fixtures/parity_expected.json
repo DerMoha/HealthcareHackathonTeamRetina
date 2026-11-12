@@ -4,7 +4,7 @@
   "diagnosis_submitted": "Probably a fracture of the wrist",
   "total_score": 76,
   "max_score": 100,
-  "summary": "Strength: You asked how the injury happened. Main gap: You did not ask when the injury happened or when the pain started. Your diagnosis was partly correct. Review the suggested next steps below.",
+  "summary": "You asked how the injury happened. However, you did not ask when the injury happened or when the pain started. Partly correct. A fracture is likely, but the specific concern here is the scaphoid: fall on an outstretched hand plus anatomical snuffbox tenderness.",
   "transcript_available": true,
   "diagnostic_assessment": {
     "verdict": "partial",

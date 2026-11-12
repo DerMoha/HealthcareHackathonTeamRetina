@@ -7,25 +7,73 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0219A7DC8303042BFE5A37FC /* VoiceTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C11CCF02C1CAFD450F38FDF /* VoiceTestView.swift */; };
+		109E81104F19251C7A2D3EB3 /* BackendClinicalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFD268A4A2F88FBD5FFD3A8 /* BackendClinicalEngine.swift */; };
+		11459C786F76FD1FE36A977E /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9C9B36CB6529DAFB8E3273 /* FeedbackView.swift */; };
+		146E4A52AB8914B79986F2D4 /* FallbackClinicalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E75741D34388289151EF4590 /* FallbackClinicalEngine.swift */; };
 		161515A51A5638D1AEAF8A8C /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85B90974265C58FFFAB6E33D /* Mocks.swift */; };
+		1A25FBC26C309092877AF002 /* ReactionPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5A25A3DADF9B4063BE901C /* ReactionPlayer.swift */; };
+		23D05D9AE53E1E394B6078C4 /* ImmersivePatientView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 813A01C10B111313CE1DDF90 /* ImmersivePatientView.swift */; };
+		27302329D0AE480B72155EA6 /* right_distal_forearm.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 77F70F9AD13AEC4D287EB3D4 /* right_distal_forearm.m4a */; };
+		2B18EB1CC30A4B01DF40F97C /* PatientAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F7E76829056B36B7903737C /* PatientAvatar.swift */; };
+		3447347B0B9F508CF35779E7 /* ExamZones.swift in Sources */ = {isa = PBXBuildFile; fileRef = 411341ADA2F30AA6C2CF194C /* ExamZones.swift */; };
+		3E1FE9490049D449411116FD /* mechanism.m4a in Resources */ = {isa = PBXBuildFile; fileRef = FEF53ACB82D050988FA827F7 /* mechanism.m4a */; };
+		41AD297898C27AB4EFECBB1A /* FingertipExaminer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C294E97270F41EF68340CFAC /* FingertipExaminer.swift */; };
+		45883C3FCB36D3A3F7708CE9 /* OfflineClinicalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E01D899BCF7FED4BE9771CAE /* OfflineClinicalEngine.swift */; };
+		459B23FC441D501F6C5AA983 /* ElevenLabsVoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010C4E1EF27A8CCED80291E9 /* ElevenLabsVoiceService.swift */; };
 		638950D355C4B2A3F8152287 /* wrist_trauma_001.json in Resources */ = {isa = PBXBuildFile; fileRef = CB6B263C048F155DE6E6A502 /* wrist_trauma_001.json */; };
+		69AFADE54BECA84E4EE361C0 /* permission.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 5AA46EA955BF17CD85554A2D /* permission.m4a */; };
+		6AE62016437F65B972D32412 /* greeting.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 41987FE7A5AF451369BD2C62 /* greeting.m4a */; };
+		725501C3499D636868D524FE /* severity.m4a in Resources */ = {isa = PBXBuildFile; fileRef = E6310C1B6E1AB9690C75362D /* severity.m4a */; };
+		79A4E8C2DA0DB6199BD911A8 /* ControlPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2D785B57B22AC62D89A38A1 /* ControlPanelView.swift */; };
 		8B146134406E931335A0A317 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 768CDF0F9495A8A476DC168D /* AppConfig.swift */; };
 		916D2455AD149648AF08F383 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */; };
 		9481626117F1BF11B3B59018 /* Contracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B46355DA7F1620E7187A59E3 /* Contracts.swift */; };
+		986565E468A45407EDBAFD10 /* left_wrist.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 870FD8DD945440A47FF1F123 /* left_wrist.m4a */; };
+		9F34C34513E345F55B19D8DB /* right_anatomical_snuffbox.m4a in Resources */ = {isa = PBXBuildFile; fileRef = DFD4D55943B774A35174DC6F /* right_anatomical_snuffbox.m4a */; };
+		A73EF3C9A3409AEA709C8FEA /* empathy.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7CA90764AA49279F0AD23A0E /* empathy.m4a */; };
+		A7E433B84AC1FC6322978380 /* Placement.swift in Sources */ = {isa = PBXBuildFile; fileRef = E06A41707145C15A77CD799E /* Placement.swift */; };
+		BAB62293E9693B4C029B5A5F /* location.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D5FA3ED3B156DCAED6F9F289 /* location.m4a */; };
+		C58D6A32827F0E9D044A117E /* numbness.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 8FAB4E7C3261A194949DF12A /* numbness.m4a */; };
+		D94BFB74632487EE524140D3 /* ouch.m4a in Resources */ = {isa = PBXBuildFile; fileRef = F92D79924D92B2B6DE8BBF1A /* ouch.m4a */; };
 		E056F5B5AD983F47572264A6 /* MedSimXRApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87ED0E452FE02E813528F56E /* MedSimXRApp.swift */; };
 		F2FCD2EC23CEA09C76DF3977 /* ElevenLabs in Frameworks */ = {isa = PBXBuildFile; productRef = F90D86F30FBC30CCC90AB615 /* ElevenLabs */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		010C4E1EF27A8CCED80291E9 /* ElevenLabsVoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElevenLabsVoiceService.swift; sourceTree = "<group>"; };
+		1AFD268A4A2F88FBD5FFD3A8 /* BackendClinicalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendClinicalEngine.swift; sourceTree = "<group>"; };
+		411341ADA2F30AA6C2CF194C /* ExamZones.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExamZones.swift; sourceTree = "<group>"; };
+		41987FE7A5AF451369BD2C62 /* greeting.m4a */ = {isa = PBXFileReference; path = greeting.m4a; sourceTree = "<group>"; };
+		5AA46EA955BF17CD85554A2D /* permission.m4a */ = {isa = PBXFileReference; path = permission.m4a; sourceTree = "<group>"; };
+		6C11CCF02C1CAFD450F38FDF /* VoiceTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceTestView.swift; sourceTree = "<group>"; };
 		768CDF0F9495A8A476DC168D /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		77F70F9AD13AEC4D287EB3D4 /* right_distal_forearm.m4a */ = {isa = PBXFileReference; path = right_distal_forearm.m4a; sourceTree = "<group>"; };
+		7CA90764AA49279F0AD23A0E /* empathy.m4a */ = {isa = PBXFileReference; path = empathy.m4a; sourceTree = "<group>"; };
+		7F7E76829056B36B7903737C /* PatientAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientAvatar.swift; sourceTree = "<group>"; };
+		813A01C10B111313CE1DDF90 /* ImmersivePatientView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImmersivePatientView.swift; sourceTree = "<group>"; };
 		85B90974265C58FFFAB6E33D /* Mocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mocks.swift; sourceTree = "<group>"; };
+		870FD8DD945440A47FF1F123 /* left_wrist.m4a */ = {isa = PBXFileReference; path = left_wrist.m4a; sourceTree = "<group>"; };
 		87ED0E452FE02E813528F56E /* MedSimXRApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedSimXRApp.swift; sourceTree = "<group>"; };
+		8FAB4E7C3261A194949DF12A /* numbness.m4a */ = {isa = PBXFileReference; path = numbness.m4a; sourceTree = "<group>"; };
 		9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		B2D785B57B22AC62D89A38A1 /* ControlPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlPanelView.swift; sourceTree = "<group>"; };
 		B46355DA7F1620E7187A59E3 /* Contracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contracts.swift; sourceTree = "<group>"; };
+		C294E97270F41EF68340CFAC /* FingertipExaminer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FingertipExaminer.swift; sourceTree = "<group>"; };
 		CB6B263C048F155DE6E6A502 /* wrist_trauma_001.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = wrist_trauma_001.json; sourceTree = "<group>"; };
+		D5FA3ED3B156DCAED6F9F289 /* location.m4a */ = {isa = PBXFileReference; path = location.m4a; sourceTree = "<group>"; };
+		DFD4D55943B774A35174DC6F /* right_anatomical_snuffbox.m4a */ = {isa = PBXFileReference; path = right_anatomical_snuffbox.m4a; sourceTree = "<group>"; };
+		E01D899BCF7FED4BE9771CAE /* OfflineClinicalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineClinicalEngine.swift; sourceTree = "<group>"; };
+		E06A41707145C15A77CD799E /* Placement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Placement.swift; sourceTree = "<group>"; };
 		E0FD86A45FCF0EBC8D43AB34 /* Default.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Default.xcconfig; sourceTree = "<group>"; };
 		E17397FE79DA6AC9B3CBF7A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E6310C1B6E1AB9690C75362D /* severity.m4a */ = {isa = PBXFileReference; path = severity.m4a; sourceTree = "<group>"; };
+		E75741D34388289151EF4590 /* FallbackClinicalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FallbackClinicalEngine.swift; sourceTree = "<group>"; };
+		EF5A25A3DADF9B4063BE901C /* ReactionPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReactionPlayer.swift; sourceTree = "<group>"; };
+		F92D79924D92B2B6DE8BBF1A /* ouch.m4a */ = {isa = PBXFileReference; path = ouch.m4a; sourceTree = "<group>"; };
 		FB4FF19E7D6B4AD2ECB4AF67 /* MedSimXR.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MedSimXR.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC9C9B36CB6529DAFB8E3273 /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
+		FEF53ACB82D050988FA827F7 /* mechanism.m4a */ = {isa = PBXFileReference; path = mechanism.m4a; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -40,6 +88,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		15F1100E490C4B5E287427CB /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B2D785B57B22AC62D89A38A1 /* ControlPanelView.swift */,
+				FC9C9B36CB6529DAFB8E3273 /* FeedbackView.swift */,
+				813A01C10B111313CE1DDF90 /* ImmersivePatientView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
 		24107CDA39844B2BFB9DA994 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -53,9 +111,24 @@
 			children = (
 				E17397FE79DA6AC9B3CBF7A5 /* Info.plist */,
 				C0FA38C3D3E01444BEB7618C /* App */,
+				37EFD4BD6E9EE4B433D7B781 /* Interaction */,
 				9CBC795B7C42DB639938554E /* Models */,
+				8813455D2E813E752B7C5574 /* Networking */,
+				E9533FE60A452B4E177CDE95 /* Reality */,
+				A97CD62E0511CDD96C46C52F /* Resources */,
+				15F1100E490C4B5E287427CB /* Views */,
+				E352599BCA112C9A89CF07B8 /* Voice */,
 			);
 			path = MedSimXR;
+			sourceTree = "<group>";
+		};
+		37EFD4BD6E9EE4B433D7B781 /* Interaction */ = {
+			isa = PBXGroup;
+			children = (
+				411341ADA2F30AA6C2CF194C /* ExamZones.swift */,
+				C294E97270F41EF68340CFAC /* FingertipExaminer.swift */,
+			);
+			path = Interaction;
 			sourceTree = "<group>";
 		};
 		3EE97465B116265790EE04FD = {
@@ -74,6 +147,16 @@
 				E0FD86A45FCF0EBC8D43AB34 /* Default.xcconfig */,
 			);
 			path = Config;
+			sourceTree = "<group>";
+		};
+		8813455D2E813E752B7C5574 /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				1AFD268A4A2F88FBD5FFD3A8 /* BackendClinicalEngine.swift */,
+				E75741D34388289151EF4590 /* FallbackClinicalEngine.swift */,
+				E01D899BCF7FED4BE9771CAE /* OfflineClinicalEngine.swift */,
+			);
+			path = Networking;
 			sourceTree = "<group>";
 		};
 		93868FB0EC32EDF65B43A4C2 /* hackathonaipatient */ = {
@@ -103,6 +186,32 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		A97CD62E0511CDD96C46C52F /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B3FBE6A650845E112C3FB3DF /* Audio */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		B3FBE6A650845E112C3FB3DF /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				7CA90764AA49279F0AD23A0E /* empathy.m4a */,
+				41987FE7A5AF451369BD2C62 /* greeting.m4a */,
+				870FD8DD945440A47FF1F123 /* left_wrist.m4a */,
+				D5FA3ED3B156DCAED6F9F289 /* location.m4a */,
+				FEF53ACB82D050988FA827F7 /* mechanism.m4a */,
+				8FAB4E7C3261A194949DF12A /* numbness.m4a */,
+				F92D79924D92B2B6DE8BBF1A /* ouch.m4a */,
+				5AA46EA955BF17CD85554A2D /* permission.m4a */,
+				DFD4D55943B774A35174DC6F /* right_anatomical_snuffbox.m4a */,
+				77F70F9AD13AEC4D287EB3D4 /* right_distal_forearm.m4a */,
+				E6310C1B6E1AB9690C75362D /* severity.m4a */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
 		C0FA38C3D3E01444BEB7618C /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -110,6 +219,25 @@
 				87ED0E452FE02E813528F56E /* MedSimXRApp.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		E352599BCA112C9A89CF07B8 /* Voice */ = {
+			isa = PBXGroup;
+			children = (
+				010C4E1EF27A8CCED80291E9 /* ElevenLabsVoiceService.swift */,
+				6C11CCF02C1CAFD450F38FDF /* VoiceTestView.swift */,
+			);
+			path = Voice;
+			sourceTree = "<group>";
+		};
+		E9533FE60A452B4E177CDE95 /* Reality */ = {
+			isa = PBXGroup;
+			children = (
+				7F7E76829056B36B7903737C /* PatientAvatar.swift */,
+				E06A41707145C15A77CD799E /* Placement.swift */,
+				EF5A25A3DADF9B4063BE901C /* ReactionPlayer.swift */,
+			);
+			path = Reality;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -177,6 +305,17 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A73EF3C9A3409AEA709C8FEA /* empathy.m4a in Resources */,
+				6AE62016437F65B972D32412 /* greeting.m4a in Resources */,
+				986565E468A45407EDBAFD10 /* left_wrist.m4a in Resources */,
+				BAB62293E9693B4C029B5A5F /* location.m4a in Resources */,
+				3E1FE9490049D449411116FD /* mechanism.m4a in Resources */,
+				C58D6A32827F0E9D044A117E /* numbness.m4a in Resources */,
+				D94BFB74632487EE524140D3 /* ouch.m4a in Resources */,
+				69AFADE54BECA84E4EE361C0 /* permission.m4a in Resources */,
+				9F34C34513E345F55B19D8DB /* right_anatomical_snuffbox.m4a in Resources */,
+				27302329D0AE480B72155EA6 /* right_distal_forearm.m4a in Resources */,
+				725501C3499D636868D524FE /* severity.m4a in Resources */,
 				638950D355C4B2A3F8152287 /* wrist_trauma_001.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -190,9 +329,22 @@
 			files = (
 				8B146134406E931335A0A317 /* AppConfig.swift in Sources */,
 				916D2455AD149648AF08F383 /* AppModel.swift in Sources */,
+				109E81104F19251C7A2D3EB3 /* BackendClinicalEngine.swift in Sources */,
 				9481626117F1BF11B3B59018 /* Contracts.swift in Sources */,
+				79A4E8C2DA0DB6199BD911A8 /* ControlPanelView.swift in Sources */,
+				459B23FC441D501F6C5AA983 /* ElevenLabsVoiceService.swift in Sources */,
+				3447347B0B9F508CF35779E7 /* ExamZones.swift in Sources */,
+				146E4A52AB8914B79986F2D4 /* FallbackClinicalEngine.swift in Sources */,
+				11459C786F76FD1FE36A977E /* FeedbackView.swift in Sources */,
+				41AD297898C27AB4EFECBB1A /* FingertipExaminer.swift in Sources */,
+				23D05D9AE53E1E394B6078C4 /* ImmersivePatientView.swift in Sources */,
 				E056F5B5AD983F47572264A6 /* MedSimXRApp.swift in Sources */,
 				161515A51A5638D1AEAF8A8C /* Mocks.swift in Sources */,
+				45883C3FCB36D3A3F7708CE9 /* OfflineClinicalEngine.swift in Sources */,
+				2B18EB1CC30A4B01DF40F97C /* PatientAvatar.swift in Sources */,
+				A7E433B84AC1FC6322978380 /* Placement.swift in Sources */,
+				1A25FBC26C309092877AF002 /* ReactionPlayer.swift in Sources */,
+				0219A7DC8303042BFE5A37FC /* VoiceTestView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -259,7 +411,7 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				XROS_DEPLOYMENT_TARGET = 2.0;
+				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
 		};
@@ -358,7 +510,7 @@
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
-				XROS_DEPLOYMENT_TARGET = 2.0;
+				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};
