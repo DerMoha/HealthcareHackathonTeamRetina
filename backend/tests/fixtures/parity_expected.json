@@ -1,0 +1,228 @@
+{
+  "session_id": "SESSION",
+  "case_id": "wrist_trauma_001",
+  "diagnosis_submitted": "Probably a fracture of the wrist",
+  "total_score": 76,
+  "max_score": 100,
+  "summary": "Strength: You asked how the injury happened. Main gap: You did not ask when the injury happened or when the pain started. Your diagnosis was partly correct. Review the suggested next steps below.",
+  "transcript_available": true,
+  "diagnostic_assessment": {
+    "verdict": "partial",
+    "explanation": "Partly correct. A fracture is likely, but the specific concern here is the scaphoid: fall on an outstretched hand plus anatomical snuffbox tenderness.",
+    "expected": "Suspected scaphoid fracture"
+  },
+  "categories": [
+    {
+      "id": "history",
+      "title": "History-taking",
+      "score": 18,
+      "max_score": 30,
+      "criteria": [
+        {
+          "id": "mechanism",
+          "label": "Mechanism of injury",
+          "met": true,
+          "points": 6,
+          "max_points": 6,
+          "method": "keyword",
+          "evidence": "Hello, I'm a medical student. What happened to you?",
+          "comment": "You asked how the injury happened."
+        },
+        {
+          "id": "onset",
+          "label": "Time of onset",
+          "met": false,
+          "points": 0,
+          "max_points": 6,
+          "method": "keyword",
+          "evidence": null,
+          "comment": "You did not ask when the injury happened or when the pain started."
+        },
+        {
+          "id": "location",
+          "label": "Location of pain",
+          "met": true,
+          "points": 6,
+          "max_points": 6,
+          "method": "keyword",
+          "evidence": "Where does it hurt, and how bad is it on a scale of ten?",
+          "comment": "You asked the patient to localise the pain."
+        },
+        {
+          "id": "severity",
+          "label": "Pain severity",
+          "met": true,
+          "points": 6,
+          "max_points": 6,
+          "method": "keyword",
+          "evidence": "Where does it hurt, and how bad is it on a scale of ten?",
+          "comment": "You assessed pain severity."
+        },
+        {
+          "id": "associated_symptoms",
+          "label": "Associated symptoms (numbness / altered sensation)",
+          "met": false,
+          "points": 0,
+          "max_points": 6,
+          "method": "keyword",
+          "evidence": null,
+          "comment": "You did not ask about numbness or altered sensation."
+        }
+      ]
+    },
+    {
+      "id": "examination",
+      "title": "Physical examination",
+      "score": 35,
+      "max_score": 40,
+      "criteria": [
+        {
+          "id": "examined_injured_wrist",
+          "label": "Examined the injured wrist",
+          "met": true,
+          "points": 10,
+          "max_points": 10,
+          "method": "rule",
+          "evidence": "Right anatomical snuffbox",
+          "comment": "You examined the injured right wrist."
+        },
+        {
+          "id": "examined_snuffbox",
+          "label": "Palpated the anatomical snuffbox",
+          "met": true,
+          "points": 15,
+          "max_points": 15,
+          "method": "rule",
+          "evidence": "Right anatomical snuffbox",
+          "comment": "You palpated the anatomical snuffbox and elicited marked tenderness, the key finding."
+        },
+        {
+          "id": "comparison",
+          "label": "Checked a comparison area",
+          "met": true,
+          "points": 10,
+          "max_points": 10,
+          "method": "rule",
+          "evidence": "Left wrist (comparison)",
+          "comment": "You examined a comparison area to confirm the tenderness is localised."
+        },
+        {
+          "id": "significance",
+          "label": "Recognised the significance of localised tenderness",
+          "met": false,
+          "points": 0,
+          "max_points": 5,
+          "method": "keyword",
+          "evidence": null,
+          "comment": "You did not show that you recognised what localised snuffbox tenderness means."
+        }
+      ]
+    },
+    {
+      "id": "communication",
+      "title": "Communication",
+      "score": 20,
+      "max_score": 20,
+      "criteria": [
+        {
+          "id": "introduction",
+          "label": "Introduced themselves",
+          "met": true,
+          "points": 5,
+          "max_points": 5,
+          "method": "keyword",
+          "evidence": "Hello, I'm a medical student. What happened to you?",
+          "comment": "You introduced yourself."
+        },
+        {
+          "id": "permission",
+          "label": "Asked permission before examining",
+          "met": true,
+          "points": 5,
+          "max_points": 5,
+          "method": "keyword",
+          "evidence": "May I examine your wrist?",
+          "comment": "You asked for permission before examining."
+        },
+        {
+          "id": "responded_to_pain",
+          "label": "Responded to the patient's pain",
+          "met": true,
+          "points": 5,
+          "max_points": 5,
+          "method": "keyword",
+          "evidence": "Sorry about that, I'll be gentle.",
+          "comment": "You acknowledged the patient's pain after the painful examination."
+        },
+        {
+          "id": "respectful",
+          "label": "Communicated respectfully",
+          "met": true,
+          "points": 5,
+          "max_points": 5,
+          "method": "keyword",
+          "evidence": null,
+          "comment": "No disrespectful language was detected."
+        }
+      ]
+    },
+    {
+      "id": "reasoning",
+      "title": "Clinical reasoning",
+      "score": 3,
+      "max_score": 10,
+      "criteria": [
+        {
+          "id": "scaphoid_considered",
+          "label": "Considered a scaphoid injury",
+          "met": false,
+          "points": 3,
+          "max_points": 6,
+          "method": "rule",
+          "evidence": null,
+          "comment": "You did not identify a possible scaphoid injury."
+        },
+        {
+          "id": "further_assessment",
+          "label": "Recognised the need for further assessment and imaging",
+          "met": false,
+          "points": 0,
+          "max_points": 4,
+          "method": "keyword",
+          "evidence": null,
+          "comment": "You did not mention further clinical assessment or imaging (for example scaphoid-view X-rays)."
+        }
+      ]
+    }
+  ],
+  "strengths": [
+    "You asked how the injury happened.",
+    "You asked the patient to localise the pain.",
+    "You assessed pain severity.",
+    "You examined the injured right wrist.",
+    "You palpated the anatomical snuffbox and elicited marked tenderness, the key finding.",
+    "You examined a comparison area to confirm the tenderness is localised.",
+    "You introduced yourself.",
+    "You asked for permission before examining.",
+    "You acknowledged the patient's pain after the painful examination.",
+    "No disrespectful language was detected."
+  ],
+  "missed": [
+    "You did not ask when the injury happened or when the pain started.",
+    "You did not ask about numbness or altered sensation.",
+    "You did not show that you recognised what localised snuffbox tenderness means.",
+    "You did not identify a possible scaphoid injury.",
+    "You did not mention further clinical assessment or imaging (for example scaphoid-view X-rays)."
+  ],
+  "relevant_findings": [
+    "Right anatomical snuffbox: marked tenderness (pain 8/10)",
+    "Left wrist (comparison): normal (pain 0/10)"
+  ],
+  "next_steps": [
+    "Complete the wrist examination: scaphoid tubercle tenderness and pain on axial thumb compression.",
+    "Request dedicated scaphoid-view radiographs; an initial X-ray can be normal.",
+    "If clinical suspicion remains despite normal X-rays: immobilise in a thumb spica splint and arrange repeat imaging or MRI.",
+    "Explain the plan and the risk of a missed scaphoid fracture (non-union, avascular necrosis) to the patient."
+  ],
+  "disclaimer": "Educational simulation only. Not a clinical diagnostic tool. Transcript-based criteria use simple keyword heuristics."
+}

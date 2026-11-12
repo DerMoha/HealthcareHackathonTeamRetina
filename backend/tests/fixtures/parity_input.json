@@ -1,0 +1,15 @@
+{
+  "_doc": "Fixed run for Swift/Python parity. Steps are applied in order against a fresh session of case_id; the final /diagnose response (session_id replaced by \"SESSION\") must equal parity_expected.json.",
+  "case_id": "wrist_trauma_001",
+  "steps": [
+    {"op": "interaction", "role": "learner", "text": "Hello, I'm a medical student. What happened to you?"},
+    {"op": "interaction", "role": "patient", "text": "I fell off my bike and landed on my right hand."},
+    {"op": "interaction", "role": "learner", "text": "Where does it hurt, and how bad is it on a scale of ten?"},
+    {"op": "interaction", "role": "learner", "text": "May I examine your wrist?"},
+    {"op": "examine", "body_part": "right_anatomical_snuffbox", "action": "palpation"},
+    {"op": "examine", "body_part": "right_anatomical_snuffbox", "action": "palpation"},
+    {"op": "interaction", "role": "learner", "text": "Sorry about that, I'll be gentle."},
+    {"op": "examine", "body_part": "left_wrist", "action": "palpation"},
+    {"op": "diagnose", "diagnosis": "Probably a fracture of the wrist"}
+  ]
+}
