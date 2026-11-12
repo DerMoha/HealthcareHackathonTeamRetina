@@ -16,15 +16,20 @@ final class ReactionPlayer {
 
     @discardableResult
     func playClip(_ name: String) -> Bool {
-        guard let url = Self.clipURL(name), let p = try? AVAudioPlayer(contentsOf: url) else { return false }
+        guard let url = Self.clipURL(name), let p = try? AVAudioPlayer(contentsOf: url) else {
+            SmokeLog.mark("audio clip=\(name) MISSING")
+            return false
+        }
         players.removeAll { !$0.isPlaying }
         players.append(p)
-        p.play()
-        return true
+        let started = p.play()
+        SmokeLog.mark("audio clip=\(name) started=\(started) duration=\(String(format: "%.2f", p.duration))s")
+        return started
     }
 
     func speak(_ text: String, clip: String?) {
         if let clip, playClip(clip) { return }
+        SmokeLog.mark("audio tts fallback")
         synth.stopSpeaking(at: .immediate)
         synth.speak(AVSpeechUtterance(string: text))
     }

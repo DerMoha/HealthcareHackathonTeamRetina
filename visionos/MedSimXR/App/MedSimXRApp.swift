@@ -2,13 +2,15 @@ import SwiftUI
 
 @main
 struct MedSimXRApp: App {
-    // Single construction point. Launch argument `-useMocks` selects the dev mocks.
+    // Single construction point. Launch arguments: `-useMocks` (mock engine and voice),
+    // `-mockVoice` (real engines, deterministic scripted voice instead of ElevenLabs).
     @State private var model: AppModel = {
-        if !ProcessInfo.processInfo.arguments.contains("-useMocks"),
+        let args = ProcessInfo.processInfo.arguments
+        if !args.contains("-useMocks"),
            let offline = try? OfflineClinicalEngine(caseId: AppConfig.defaultCaseId) {
             return AppModel(
                 engine: FallbackClinicalEngine(primary: BackendClinicalEngine(), offline: offline),
-                voice: ElevenLabsVoiceService()
+                voice: args.contains("-mockVoice") ? MockVoiceService(scripted: true) : ElevenLabsVoiceService()
             )
         }
         return AppModel(engine: MockClinicalEngine(), voice: MockVoiceService())

@@ -8,9 +8,7 @@ extension PatientAvatar {
         zoneEntities = []
         for zone in zones {
             guard let parent = anchors[zone.attachTo] else { continue }
-            var mat = UnlitMaterial(color: .white)
-            mat.blending = .transparent(opacity: .init(floatLiteral: 0.07))
-            let e = ModelEntity(mesh: .generateSphere(radius: zone.radius), materials: [mat])
+            let e = ModelEntity(mesh: .generateSphere(radius: zone.radius), materials: [Self.zoneMaterial(.white, 0.07)])
             e.name = zone.id
             let o = zone.offset
             e.position = o.count == 3 ? [o[0], o[1], o[2]] : .zero
@@ -20,5 +18,20 @@ extension PatientAvatar {
             parent.addChild(e)
             zoneEntities.append(e)
         }
+    }
+
+    private static func zoneMaterial(_ color: UIColor, _ opacity: Float) -> UnlitMaterial {
+        var mat = UnlitMaterial(color: color)
+        mat.blending = .transparent(opacity: .init(floatLiteral: opacity))
+        return mat
+    }
+
+    /// Brief coloured pulse on the examined zone: red when painful, green when not.
+    func flashZone(_ id: String?, painful: Bool) async {
+        guard let zone = zoneEntities.first(where: { $0.name == id }) as? ModelEntity else { return }
+        zone.model?.materials = [Self.zoneMaterial(painful ? .systemRed : .systemGreen, 0.55)]
+        SmokeLog.mark("zone flash \(zone.name) painful=\(painful)")
+        try? await Task.sleep(nanoseconds: 900_000_000)
+        zone.model?.materials = [Self.zoneMaterial(.white, 0.07)]
     }
 }

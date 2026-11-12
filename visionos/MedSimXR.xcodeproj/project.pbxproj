@@ -15,6 +15,7 @@
 		1A25FBC26C309092877AF002 /* ReactionPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5A25A3DADF9B4063BE901C /* ReactionPlayer.swift */; };
 		23D05D9AE53E1E394B6078C4 /* ImmersivePatientView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 813A01C10B111313CE1DDF90 /* ImmersivePatientView.swift */; };
 		27302329D0AE480B72155EA6 /* right_distal_forearm.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 77F70F9AD13AEC4D287EB3D4 /* right_distal_forearm.m4a */; };
+		280B93C210F798420183AF8B /* SmokeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC2A7B7B970B168F87EA0C7 /* SmokeLog.swift */; };
 		2B18EB1CC30A4B01DF40F97C /* PatientAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F7E76829056B36B7903737C /* PatientAvatar.swift */; };
 		3447347B0B9F508CF35779E7 /* ExamZones.swift in Sources */ = {isa = PBXBuildFile; fileRef = 411341ADA2F30AA6C2CF194C /* ExamZones.swift */; };
 		3E1FE9490049D449411116FD /* mechanism.m4a in Resources */ = {isa = PBXBuildFile; fileRef = FEF53ACB82D050988FA827F7 /* mechanism.m4a */; };
@@ -56,6 +57,7 @@
 		870FD8DD945440A47FF1F123 /* left_wrist.m4a */ = {isa = PBXFileReference; path = left_wrist.m4a; sourceTree = "<group>"; };
 		87ED0E452FE02E813528F56E /* MedSimXRApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedSimXRApp.swift; sourceTree = "<group>"; };
 		8FAB4E7C3261A194949DF12A /* numbness.m4a */ = {isa = PBXFileReference; path = numbness.m4a; sourceTree = "<group>"; };
+		9BC2A7B7B970B168F87EA0C7 /* SmokeLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeLog.swift; sourceTree = "<group>"; };
 		9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		B2D785B57B22AC62D89A38A1 /* ControlPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlPanelView.swift; sourceTree = "<group>"; };
 		B46355DA7F1620E7187A59E3 /* Contracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contracts.swift; sourceTree = "<group>"; };
@@ -182,6 +184,7 @@
 				768CDF0F9495A8A476DC168D /* AppConfig.swift */,
 				B46355DA7F1620E7187A59E3 /* Contracts.swift */,
 				85B90974265C58FFFAB6E33D /* Mocks.swift */,
+				9BC2A7B7B970B168F87EA0C7 /* SmokeLog.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -344,6 +347,7 @@
 				2B18EB1CC30A4B01DF40F97C /* PatientAvatar.swift in Sources */,
 				A7E433B84AC1FC6322978380 /* Placement.swift in Sources */,
 				1A25FBC26C309092877AF002 /* ReactionPlayer.swift in Sources */,
+				280B93C210F798420183AF8B /* SmokeLog.swift in Sources */,
 				0219A7DC8303042BFE5A37FC /* VoiceTestView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -34,3 +34,5 @@
 | Patient appears inside furniture or behind you | Face free floor space and press Recenter Patient. |
 | Pinch on the wrist does nothing | Session must be running (Start Session). Zones show a faint highlight when looked at. Use Debug mode buttons as fallback. |
 | Run without backend and voice for UI work | Add launch argument `-useMocks` to the scheme. |
+| Test the "voice connected" UI without ElevenLabs | Launch argument `-mockVoice` (scripted stand-in, real engines). |
+| Simulator smoke test says no runtime | `xcodebuild -downloadPlatform visionOS` (about 8 GB). |

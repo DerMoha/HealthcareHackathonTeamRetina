@@ -104,28 +104,30 @@ examination zone and scripted question).
 
 ## Status
 
-Verified here (macOS, Xcode 27.2, no headset, no ElevenLabs account):
+Launched and exercised in the visionOS 27.2 simulator: app start, mixed immersive space, seated
+patient, all three examinations with correct findings, flinch and arm withdrawal, zone flash,
+local clips started, diagnosis, feedback, reset, and backend killed mid-session with the session
+continuing offline. Details, evidence and the per-feature status table:
+[docs/simulator-test-report.md](docs/simulator-test-report.md).
 
-- Backend: 24 automated tests pass; served and exercised over HTTP.
-- Swift offline engine: assertion script passes and reproduces the backend's golden feedback exactly.
-- Swift HTTP client against the running backend; backend killed mid-session → app engine
-  continues offline with full state and the same score.
-- visionOS app compiles and links for device and simulator SDKs (including the ElevenLabs SDK 3.4.0).
+Re-run it:
+```bash
+visionos/scripts/simulator_smoke_test.sh --kill-backend   # needs: xcodebuild -downloadPlatform visionOS
+```
 
-**Not verified — needs the headset and/or credentials:**
+**Not verified:**
 
-- Anything visual or spatial: avatar look and scale, placement, gaze + pinch on zones, animations, panel ergonomics. No visionOS simulator runtime was installed, so the app has never been launched.
-- Live ElevenLabs conversation: connecting, audio in/out, transcripts, spoken reaction to examination events, reconnect. Written against the SDK source, never run.
-- `gpt-6-luna` availability on your ElevenLabs account (it is a dashboard setting; fallbacks are named in the setup guide).
-- ElevenLabs token endpoint and clip generator against the real API.
-- Fingertip (hand-tracking) examination — experimental, off by default.
+- Gaze + pinch on the avatar, typing, scrolling: nobody has operated the app by hand yet.
+- Audio was started, never listened to.
+- Live ElevenLabs conversation: no credentials on the development machine. `-mockVoice` is a scripted stand-in.
+- Anything that needs the headset: head-relative placement, passthrough, microphone, hand tracking.
 
-Checklist for the first session with the headset: [docs/vision-pro-setup.md](docs/vision-pro-setup.md).
+First session with the headset: [docs/tomorrow-headset-checklist.md](docs/tomorrow-headset-checklist.md).
 
 Known limits:
 
-- Transcript scoring is keyword matching (labelled "heuristic" in the feedback). It misfires on
-  substrings ("Scotland" contains "land") and cannot judge empathy.
+- Transcript scoring is whole-word keyword matching (labelled "heuristic" in the feedback). It
+  cannot judge empathy or meaning, only whether certain phrases were said.
 - Without live voice, history and communication points come only from the scripted Debug questions.
 - Procedural primitive avatar; drop a `Patient.usdz` into `visionos/MedSimXR/Resources/` to replace the visuals.
 - Offline speech uses macOS `say` placeholder clips until `generate_clips.py` is run.

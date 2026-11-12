@@ -23,6 +23,91 @@ struct ControlPanelView: View {
             }
         }
         .onChange(of: model.feedback) { hideFeedback = false }
+        .task { await autoDemo() }
+    }
+
+    /// Scripted run of the whole demo, driven by launch argument `-autoDemo`.
+    /// Used by visionos/scripts/simulator_smoke_test.sh; "STEP" lines are screenshot cues.
+    private func autoDemo() async {
+        guard SmokeLog.enabled else { return }
+        func pause(_ seconds: Double) async { try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
+        func state() -> String {
+            "engine=\(model.engineModeLabel) voice=\(model.voice.status.label) mic=\(model.voice.micStatus.rawValue) "
+                + "exams=\(model.examinations.count) turns=\(model.transcript.count) error=\(model.lastError ?? "none")"
+        }
+        func examine(_ zone: String) async {
+            await model.examine(zoneId: zone)
+            let r = model.examinations.last
+            SmokeLog.mark("examined \(zone) finding=\(r?.finding ?? "?") pain=\(r?.painLevel ?? -1) "
+                + "animation=\(model.reaction?.animation ?? "?") speakLocally=\(model.reaction?.speakLocally ?? false) \(state())")
+        }
+
+        await pause(3)
+        SmokeLog.mark("STEP 01-launch")
+        await pause(3)
+
+        if case .opened = await openImmersiveSpace(id: "patient") { immersed = true }
+        SmokeLog.mark("immersive opened=\(immersed)")
+        await model.startSession()
+        await pause(3)
+        SmokeLog.mark("session id=\(model.session?.sessionId ?? "none") zones=\(model.zones.map(\.id)) \(state())")
+        SmokeLog.mark("STEP 02-session")
+        await pause(3)
+
+        model.debugMode = true
+        for line in model.scriptedDialogue.prefix(2) {
+            model.askScripted(line)
+            SmokeLog.mark("asked \(line.id) \(state())")
+            await pause(4.5)
+        }
+        SmokeLog.mark("STEP 03-conversation")
+        await pause(3)
+
+        await examine("left_wrist")
+        await pause(3.5)
+        SmokeLog.mark("STEP 04-pain")
+        await examine("right_anatomical_snuffbox")
+        await pause(5)
+
+        SmokeLog.mark("STEP 05-killwindow") // the script may kill the backend here
+        await pause(8)
+        await examine("right_distal_forearm")
+        await pause(3)
+
+        model.recenter()
+        await pause(2)
+        SmokeLog.mark("recentered token=\(model.recenterToken)")
+
+        await model.loadFeedback()
+        SmokeLog.mark("pre-diagnosis feedback verdict=\(model.feedback?.diagnosticAssessment.verdict ?? "?") "
+            + "criteria=\(model.feedback?.categories.map(\.criteria.count) ?? [])")
+        await pause(1.5)
+        SmokeLog.mark("STEP 06-feedback-locked")
+        await pause(3)
+        hideFeedback = true
+
+        diagnosis = "Suspected scaphoid fracture"
+        await pause(1.5)
+        SmokeLog.mark("STEP 07-diagnosis-entered")
+        await pause(3)
+        await model.submitDiagnosis(diagnosis)
+        let f = model.feedback
+        SmokeLog.mark("diagnosed score=\(f?.totalScore ?? -1)/\(f?.maxScore ?? -1) verdict=\(f?.diagnosticAssessment.verdict ?? "?") "
+            + "categories=\(f?.categories.map { "\($0.id):\($0.score)" } ?? []) \(state())")
+        await pause(1.5)
+        SmokeLog.mark("STEP 08-feedback")
+        await pause(4)
+
+        await model.reset()
+        await pause(2)
+        SmokeLog.mark("reset feedback=\(model.feedback == nil ? "cleared" : "STILL SET") \(state())")
+        SmokeLog.mark("STEP 09-reset")
+        await pause(3)
+
+        await model.stopSession()
+        if immersed { await dismissImmersiveSpace(); immersed = false }
+        SmokeLog.mark("STEP 10-stopped")
+        SmokeLog.mark("DONE")
     }
 
     private func panel(model: AppModel) -> some View {
@@ -34,6 +119,7 @@ struct ControlPanelView: View {
                 sessionButtons
 
                 if model.phase == .running {
+                    if !model.examinations.isEmpty { lastExamCard }
                     diagnosisCard
                 }
 
@@ -43,8 +129,9 @@ struct ControlPanelView: View {
                             hideFeedback = false
                             Task { await model.loadFeedback() }
                         }
-                        Button("Reset Scenario", role: .destructive) { Task { await model.reset() } }
+                        Button("Reset Scenario") { Task { await model.reset() } }
                     }
+                    .buttonStyle(.bordered)
                     .disabled(model.isBusy)
                 }
 
@@ -86,7 +173,10 @@ struct ControlPanelView: View {
 
     private var statusCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            statusRow("brain.head.profile", "AI connection", model.voice.status.label, color: statusColor)
+            statusRow("brain.head.profile", "AI connection", voiceLabel, color: statusColor)
+            if case .failed(let reason) = model.voice.status {
+                Text(reason).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
             statusRow(model.voice.micStatus == .live ? "mic.fill" : "mic.slash", "Microphone", model.voice.micStatus.rawValue,
                       color: model.voice.micStatus == .live ? .green : .secondary)
             statusRow("server.rack", "Engine", model.engineModeLabel, color: .secondary)
@@ -98,10 +188,33 @@ struct ControlPanelView: View {
     private var statusColor: Color {
         switch model.voice.status {
         case .connected: .green
-        case .connecting: .orange
-        case .failed: .red
+        case .connecting, .failed: .orange
         case .disconnected: .secondary
         }
+    }
+
+    /// A failed voice connection is not fatal: the patient keeps talking through local clips.
+    private var voiceLabel: String {
+        if case .failed = model.voice.status { return "Unavailable · local voice" }
+        return model.voice.status.label + (model.voice.isAgentSpeaking ? " · speaking" : "")
+    }
+
+    private var lastExamCard: some View {
+        let exam = model.examinations.last
+        let painful = (exam?.painLevel ?? 0) >= 5
+        return HStack(spacing: 10) {
+            Image(systemName: painful ? "exclamationmark.triangle.fill" : "hand.point.up.left.fill")
+                .foregroundStyle(painful ? .red : .green)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(model.zones.first { $0.id == exam?.bodyPart }?.label ?? "").font(.subheadline.bold())
+                Text("\((exam?.finding ?? "").replacingOccurrences(of: "_", with: " ")) · pain \(exam?.painLevel ?? 0)/10")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text("\(model.examinations.count) examined").font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(14)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private func statusRow(_ icon: String, _ title: String, _ value: String, color: Color) -> some View {

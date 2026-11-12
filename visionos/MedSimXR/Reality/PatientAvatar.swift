@@ -178,8 +178,10 @@ final class PatientAvatar {
 
     func play(animation: String) async {
         guard animation == "arm_withdrawal" || animation == "flinch" else { return }
-        let upperBase = upper.transform
-        let armBase = rightArm.transform
+        SmokeLog.mark("animation \(animation)")
+        // Fixed rest poses, so a reaction that starts mid-animation cannot drift.
+        let upperBase = Transform(translation: [0, hipY, 0])
+        let armBase = Transform.identity
 
         var flinch = upperBase
         flinch.translation += [0, 0, -0.03]

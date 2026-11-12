@@ -1,0 +1,16 @@
+INFO:     Started server process [44312]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:60839 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60841 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60848 - "POST /sessions HTTP/1.1" 201 Created
+INFO:     127.0.0.1:60850 - "GET /elevenlabs/conversation-token HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:60854 - "POST /sessions/672a530f9c064bd0948dc6742fd92407/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60855 - "POST /sessions/672a530f9c064bd0948dc6742fd92407/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60854 - "POST /sessions/672a530f9c064bd0948dc6742fd92407/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60855 - "POST /sessions/672a530f9c064bd0948dc6742fd92407/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60870 - "POST /sessions/672a530f9c064bd0948dc6742fd92407/examine HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60870 - "POST /sessions/672a530f9c064bd0948dc6742fd92407/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60870 - "POST /sessions/672a530f9c064bd0948dc6742fd92407/examine HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60870 - "POST /sessions/672a530f9c064bd0948dc6742fd92407/interactions HTTP/1.1" 200 OK

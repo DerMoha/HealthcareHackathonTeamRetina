@@ -1,8 +1,10 @@
 import Foundation
 import Observation
 
-// Explicit, switchable development mocks. Selected in MedSimXRApp via
-// the `-useMocks` launch argument; never the default in a demo build.
+// Explicit, switchable development mocks, selected in MedSimXRApp by launch argument:
+//   -useMocks   mock engine + voice that never connects
+//   -mockVoice  real engines + deterministic scripted voice
+// Never the default in a demo build.
 
 @MainActor
 final class MockClinicalEngine: ClinicalEngine {
@@ -76,16 +78,44 @@ final class MockClinicalEngine: ClinicalEngine {
     }
 }
 
-/// Voice that never connects: forces the local-speech fallback path.
+/// `scripted == false`: never connects, which forces the local-speech fallback path.
+/// `scripted == true` (launch argument `-mockVoice`): a deterministic stand-in for the live
+/// agent. It "connects", shows a live microphone, and answers every examination event with
+/// the example line quoted in the stage direction. No network, no audio of its own.
 @MainActor
 @Observable
 final class MockVoiceService: VoiceService {
     private(set) var status: VoiceStatus = .disconnected
     private(set) var micStatus: MicStatus = .unknown
     private(set) var isAgentSpeaking = false
-    var onTranscript: ((TranscriptTurn) -> Void)?
+    @ObservationIgnored var onTranscript: ((TranscriptTurn) -> Void)?
+    @ObservationIgnored private let scripted: Bool
 
-    func start(caseContext: String) async {}
-    func stop() async {}
-    func sendExaminationEvent(_ text: String) async {}
+    init(scripted: Bool = false) { self.scripted = scripted }
+
+    func start(caseContext: String) async {
+        guard scripted else { return }
+        status = .connecting
+        try? await Task.sleep(nanoseconds: 600_000_000)
+        status = .connected
+        micStatus = .live
+    }
+
+    func stop() async {
+        status = .disconnected
+        micStatus = .unknown
+        isAgentSpeaking = false
+    }
+
+    func sendExaminationEvent(_ text: String) async {
+        guard scripted, status == .connected else { return }
+        // The stage direction ends with: for example: "<line>"]
+        let parts = text.components(separatedBy: "\"")
+        let line = parts.count >= 3 ? parts[parts.count - 2] : "Okay."
+        isAgentSpeaking = true
+        try? await Task.sleep(nanoseconds: 700_000_000)
+        onTranscript?(TranscriptTurn(role: .patient, text: line))
+        try? await Task.sleep(nanoseconds: 900_000_000)
+        isAgentSpeaking = false
+    }
 }
