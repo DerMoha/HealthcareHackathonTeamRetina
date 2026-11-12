@@ -1,7 +1,9 @@
 """Rubric engine and feedback builder: pure functions over a scenario and a Session.
 
 Conventions (shared with the Swift offline engine):
-- Keyword match = case-insensitive substring.
+- Keyword match = case-insensitive whole word/phrase (no letter or digit directly
+  before or after). A trailing "*" makes the keyword a stem: "numb*" also matches
+  "numbness". Typographic apostrophes are treated as "'". See _hit().
 - Learner turns = interactions with role "learner", ordered by shared `seq`.
 - evidence = full text of the FIRST qualifying learner turn (by seq); for
   diagnosis_or_learner_said a learner quote wins over the diagnosis text; for
@@ -22,6 +24,9 @@ SUMMARY TEMPLATE after a diagnosis (deterministic; sentences joined by one space
   S4  the diagnostic explanation text for the verdict
   strengths[0] / missed[0] are the first in rubric order.
 """
+import re
+from functools import lru_cache
+
 from .models import (CategoryResult, CriterionResult, DiagnosticAssessment, Feedback)
 from .sessions import Session
 
@@ -32,9 +37,16 @@ NO_TRANSCRIPT = ("No conversation transcript was recorded, so history-taking and
 PENDING_SUMMARY = "Submit a diagnosis to unlock detailed feedback."
 
 
+@lru_cache(maxsize=None)
+def _pattern(keyword: str) -> re.Pattern:
+    stem = keyword.endswith("*")
+    body = re.escape(keyword.rstrip("*").strip().lower())
+    return re.compile(r"(?<!\w)" + body + ("" if stem else r"(?!\w)"))
+
+
 def _hit(text: str, keywords: list[str]) -> bool:
-    low = text.lower()
-    return any(k.lower() in low for k in keywords)
+    low = text.lower().replace("\u2019", "'")
+    return any(_pattern(k).search(low) for k in keywords)
 
 
 def _first_quote(turns: list[dict], keywords: list[str]) -> str | None:

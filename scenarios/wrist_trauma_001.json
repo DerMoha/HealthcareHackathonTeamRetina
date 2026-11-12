@@ -15,7 +15,11 @@
       "id": "right_anatomical_snuffbox",
       "label": "Right anatomical snuffbox",
       "attach_to": "right_wrist",
-      "offset": [0.0, 0.0, 0.0],
+      "offset": [
+        0.0,
+        0.0,
+        0.0
+      ],
       "radius": 0.05,
       "result": {
         "finding": "marked_tenderness",
@@ -30,7 +34,11 @@
       "id": "right_distal_forearm",
       "label": "Right distal forearm",
       "attach_to": "right_forearm",
-      "offset": [0.0, 0.0, 0.0],
+      "offset": [
+        0.0,
+        0.0,
+        0.0
+      ],
       "radius": 0.06,
       "result": {
         "finding": "no_focal_tenderness",
@@ -45,7 +53,11 @@
       "id": "left_wrist",
       "label": "Left wrist (comparison)",
       "attach_to": "left_wrist",
-      "offset": [0.0, 0.0, 0.0],
+      "offset": [
+        0.0,
+        0.0,
+        0.0
+      ],
       "radius": 0.055,
       "result": {
         "finding": "normal",
@@ -97,8 +109,19 @@
   "hidden": {
     "diagnosis": {
       "name": "Suspected scaphoid fracture",
-      "accepted_keywords": ["scaphoid", "skaphoid", "kahnbein", "navicular fracture"],
-      "partial_keywords": ["fracture", "broken", "carpal", "fraktur", "bruch"],
+      "accepted_keywords": [
+        "scaphoid*",
+        "skaphoid*",
+        "kahnbein*",
+        "navicular fracture"
+      ],
+      "partial_keywords": [
+        "fracture*",
+        "broken",
+        "carpal",
+        "fraktur*",
+        "bruch"
+      ],
       "correct_text": "Correct. A fall on an outstretched hand with anatomical snuffbox tenderness makes a scaphoid fracture the key diagnosis to suspect and exclude.",
       "partial_text": "Partly correct. A fracture is likely, but the specific concern here is the scaphoid: fall on an outstretched hand plus anatomical snuffbox tenderness.",
       "incorrect_text": "Not quite. A fall on an outstretched hand with anatomical snuffbox tenderness should make you suspect a scaphoid fracture until proven otherwise.",
@@ -121,7 +144,23 @@
               "id": "mechanism",
               "label": "Mechanism of injury",
               "points": 6,
-              "check": { "type": "learner_said", "keywords": ["what happened", "how did", "what brings", "fall", "fell", "accident", "land", "injur"] },
+              "check": {
+                "type": "learner_said",
+                "keywords": [
+                  "what happened",
+                  "how did",
+                  "what brings",
+                  "fall",
+                  "falling",
+                  "fell",
+                  "accident",
+                  "land",
+                  "landed",
+                  "injur*",
+                  "hurt yourself",
+                  "crash*"
+                ]
+              },
               "met_text": "You asked how the injury happened.",
               "missed_text": "You did not ask about the mechanism of injury (how exactly the patient fell)."
             },
@@ -129,7 +168,19 @@
               "id": "onset",
               "label": "Time of onset",
               "points": 6,
-              "check": { "type": "learner_said", "keywords": ["when", "how long", "since", "start", "began", "yesterday", "today"] },
+              "check": {
+                "type": "learner_said",
+                "keywords": [
+                  "when",
+                  "how long",
+                  "since",
+                  "start*",
+                  "began",
+                  "begin",
+                  "yesterday",
+                  "today"
+                ]
+              },
               "met_text": "You established when the pain started.",
               "missed_text": "You did not ask when the injury happened or when the pain started."
             },
@@ -137,7 +188,17 @@
               "id": "location",
               "label": "Location of pain",
               "points": 6,
-              "check": { "type": "learner_said", "keywords": ["where", "which part", "point to", "show me", "location", "which side"] },
+              "check": {
+                "type": "learner_said",
+                "keywords": [
+                  "where",
+                  "which part",
+                  "point to",
+                  "show me",
+                  "location",
+                  "which side"
+                ]
+              },
               "met_text": "You asked the patient to localise the pain.",
               "missed_text": "You did not ask where exactly the pain is located."
             },
@@ -145,7 +206,24 @@
               "id": "severity",
               "label": "Pain severity",
               "points": 6,
-              "check": { "type": "learner_said", "keywords": ["how bad", "how severe", "how strong", "how much", "scale", "out of ten", "out of 10", "to ten", "to 10", "rate", "severity", "intens"] },
+              "check": {
+                "type": "learner_said",
+                "keywords": [
+                  "how bad",
+                  "how severe",
+                  "how strong",
+                  "how much",
+                  "how painful",
+                  "scale",
+                  "out of ten",
+                  "out of 10",
+                  "to ten",
+                  "to 10",
+                  "rate",
+                  "severity",
+                  "intens*"
+                ]
+              },
               "met_text": "You assessed pain severity.",
               "missed_text": "You did not ask how severe the pain is (for example on a 0-10 scale)."
             },
@@ -153,7 +231,20 @@
               "id": "associated_symptoms",
               "label": "Associated symptoms (numbness / altered sensation)",
               "points": 6,
-              "check": { "type": "learner_said", "keywords": ["numb", "tingl", "pins and needles", "sensation", "feeling in your", "weak", "swelling", "swollen", "move your fingers"] },
+              "check": {
+                "type": "learner_said",
+                "keywords": [
+                  "numb*",
+                  "tingl*",
+                  "pins and needles",
+                  "sensation",
+                  "feeling in your",
+                  "weak*",
+                  "swelling",
+                  "swollen",
+                  "move your fingers"
+                ]
+              },
               "met_text": "You screened for associated symptoms such as numbness.",
               "missed_text": "You did not ask about numbness or altered sensation."
             }
@@ -168,7 +259,13 @@
               "id": "examined_injured_wrist",
               "label": "Examined the injured wrist",
               "points": 10,
-              "check": { "type": "examined_any", "zones": ["right_anatomical_snuffbox", "right_distal_forearm"] },
+              "check": {
+                "type": "examined_any",
+                "zones": [
+                  "right_anatomical_snuffbox",
+                  "right_distal_forearm"
+                ]
+              },
               "met_text": "You examined the injured right wrist.",
               "missed_text": "You did not physically examine the injured right wrist."
             },
@@ -176,7 +273,12 @@
               "id": "examined_snuffbox",
               "label": "Palpated the anatomical snuffbox",
               "points": 15,
-              "check": { "type": "examined_any", "zones": ["right_anatomical_snuffbox"] },
+              "check": {
+                "type": "examined_any",
+                "zones": [
+                  "right_anatomical_snuffbox"
+                ]
+              },
               "met_text": "You palpated the anatomical snuffbox and elicited marked tenderness, the key finding.",
               "missed_text": "Critical finding missed: you did not palpate the anatomical snuffbox."
             },
@@ -184,7 +286,13 @@
               "id": "comparison",
               "label": "Checked a comparison area",
               "points": 10,
-              "check": { "type": "examined_any", "zones": ["left_wrist", "right_distal_forearm"] },
+              "check": {
+                "type": "examined_any",
+                "zones": [
+                  "left_wrist",
+                  "right_distal_forearm"
+                ]
+              },
               "met_text": "You examined a comparison area to confirm the tenderness is localised.",
               "missed_text": "You did not examine a comparison area (uninjured wrist or adjacent forearm)."
             },
@@ -192,7 +300,19 @@
               "id": "significance",
               "label": "Recognised the significance of localised tenderness",
               "points": 5,
-              "check": { "type": "diagnosis_or_learner_said", "keywords": ["scaphoid", "snuffbox", "snuff box", "kahnbein", "tabati"], "requires_examined": ["right_anatomical_snuffbox"] },
+              "check": {
+                "type": "diagnosis_or_learner_said",
+                "keywords": [
+                  "scaphoid*",
+                  "snuffbox",
+                  "snuff box",
+                  "kahnbein*",
+                  "tabati*"
+                ],
+                "requires_examined": [
+                  "right_anatomical_snuffbox"
+                ]
+              },
               "met_text": "You linked the localised snuffbox tenderness to a possible scaphoid injury.",
               "missed_text": "You did not show that you recognised what localised snuffbox tenderness means."
             }
@@ -207,7 +327,30 @@
               "id": "introduction",
               "label": "Introduced themselves",
               "points": 5,
-              "check": { "type": "learner_said", "keywords": ["my name is", "i'm a ", "i am a ", "i'm dr", "i am dr", "i'm the", "i am the", "i'm one of", "medical student", "doctor", "i'll be examining", "i will be examining"] },
+              "check": {
+                "type": "learner_said",
+                "keywords": [
+                  "my name is",
+                  "medical student",
+                  "student doctor",
+                  "i'm a doctor",
+                  "i am a doctor",
+                  "i'm the doctor",
+                  "i am the doctor",
+                  "i'm your doctor",
+                  "i am your doctor",
+                  "i'm dr",
+                  "i am dr",
+                  "i'm doctor",
+                  "i am doctor",
+                  "i'm one of the doctors",
+                  "i'm a nurse",
+                  "i am a nurse",
+                  "i'll be examining you",
+                  "i will be examining you",
+                  "i'll be looking after you"
+                ]
+              },
               "met_text": "You introduced yourself.",
               "missed_text": "You did not introduce yourself or your role."
             },
@@ -215,7 +358,45 @@
               "id": "permission",
               "label": "Asked permission before examining",
               "points": 5,
-              "check": { "type": "learner_said_before_exam", "keywords": ["can i", "may i", "could i", "is it ok", "is it okay", "is that ok", "would it be ok", "do you mind", "all right if", "alright if", "allow me", "permission", "i'd like to examine", "i would like to examine"] },
+              "check": {
+                "type": "learner_said_before_exam",
+                "keywords": [
+                  "can i examine",
+                  "may i examine",
+                  "could i examine",
+                  "can i have a look",
+                  "may i have a look",
+                  "could i have a look",
+                  "can i take a look",
+                  "may i take a look",
+                  "could i take a look",
+                  "can i look at",
+                  "may i look at",
+                  "can i touch",
+                  "may i touch",
+                  "can i check",
+                  "may i check",
+                  "can i feel",
+                  "may i feel",
+                  "can i press",
+                  "may i press",
+                  "is it ok if",
+                  "is it okay if",
+                  "is that ok",
+                  "is that okay",
+                  "would it be ok",
+                  "would it be okay",
+                  "would that be ok",
+                  "would that be okay",
+                  "do you mind",
+                  "all right if i",
+                  "alright if i",
+                  "ok if i",
+                  "okay if i",
+                  "permission",
+                  "like to examine"
+                ]
+              },
               "met_text": "You asked for permission before examining.",
               "missed_text": "You did not ask for permission before touching the patient."
             },
@@ -223,7 +404,22 @@
               "id": "responded_to_pain",
               "label": "Responded to the patient's pain",
               "points": 5,
-              "check": { "type": "learner_said_after_pain", "keywords": ["sorry", "apolog", "i'll be gentle", "i will be gentle", "careful", "are you ok", "are you okay", "take your time", "i understand", "i know that hurt", "didn't mean", "let me know if"] },
+              "check": {
+                "type": "learner_said_after_pain",
+                "keywords": [
+                  "sorry",
+                  "apolog*",
+                  "be gentle",
+                  "careful",
+                  "are you ok",
+                  "are you okay",
+                  "take your time",
+                  "i understand",
+                  "i know that hurt",
+                  "didn't mean",
+                  "let me know if"
+                ]
+              },
               "met_text": "You acknowledged the patient's pain after the painful examination.",
               "missed_text": "You did not acknowledge the patient's pain after a painful examination."
             },
@@ -231,7 +427,20 @@
               "id": "respectful",
               "label": "Communicated respectfully",
               "points": 5,
-              "check": { "type": "learner_avoided", "keywords": ["shut up", "stop whining", "stop complaining", "don't be a baby", "hurry up", "stupid", "idiot", "nonsense", "man up"] },
+              "check": {
+                "type": "learner_avoided",
+                "keywords": [
+                  "shut up",
+                  "stop whining",
+                  "stop complaining",
+                  "don't be a baby",
+                  "hurry up",
+                  "stupid",
+                  "idiot",
+                  "nonsense",
+                  "man up"
+                ]
+              },
               "met_text": "No disrespectful language was detected.",
               "missed_text": "Respectful communication could not be confirmed (no conversation recorded, or dismissive wording detected)."
             }
@@ -246,7 +455,9 @@
               "id": "scaphoid_considered",
               "label": "Considered a scaphoid injury",
               "points": 6,
-              "check": { "type": "diagnosis_matches" },
+              "check": {
+                "type": "diagnosis_matches"
+              },
               "met_text": "You correctly considered a scaphoid injury.",
               "missed_text": "You did not identify a possible scaphoid injury."
             },
@@ -254,7 +465,27 @@
               "id": "further_assessment",
               "label": "Recognised the need for further assessment and imaging",
               "points": 4,
-              "check": { "type": "diagnosis_or_learner_said", "keywords": ["x-ray", "xray", "x ray", "radiograph", "imaging", "mri", "ct scan", "scan", "splint", "immobil", "cast", "refer", "follow-up", "follow up", "röntgen"] },
+              "check": {
+                "type": "diagnosis_or_learner_said",
+                "keywords": [
+                  "x-ray*",
+                  "xray*",
+                  "x ray*",
+                  "radiograph*",
+                  "imaging",
+                  "mri",
+                  "ct",
+                  "scan",
+                  "scans",
+                  "splint*",
+                  "immobil*",
+                  "cast",
+                  "refer*",
+                  "follow-up",
+                  "follow up",
+                  "röntgen*"
+                ]
+              },
               "met_text": "You recognised that further assessment and imaging are needed.",
               "missed_text": "You did not mention further clinical assessment or imaging (for example scaphoid-view X-rays)."
             }

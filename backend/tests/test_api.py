@@ -245,3 +245,29 @@ def run_parity(client):
 def test_parity_golden(client):
     expected = json.loads((FIXTURES / "parity_expected.json").read_text(encoding="utf-8"))
     assert run_parity(client) == expected
+
+
+def test_keywords_match_whole_words_not_substrings(client, sid):
+    # Each line used to earn a criterion through a substring hit.
+    for t in ["I once toured Scotland by a waterfall.",       # land / fall -> mechanism
+              "That is an accurate broadcast.",               # rate -> severity, cast -> imaging
+              "What a scandal, I'm a bit worried.",           # scan -> imaging, "i'm a " -> introduction
+              "Where is the doctor? Let me scan it quickly.", # doctor -> introduction, "can i" -> permission
+              "Can I ask you something?"]:                    # generic "can i" -> permission
+        say(client, sid, t)
+    fb = graded(client, sid)
+    for cid in ["mechanism", "severity", "introduction", "permission"]:
+        assert crit(fb, cid)["met"] is False, cid
+    assert crit(fb, "location")["met"]  # "Where ..." is still a real location question
+
+
+def test_keyword_stems_and_typographic_apostrophe(client, sid):
+    say(client, sid, "Hi, I’m a medical student. Any numbness or tingling?")
+    say(client, sid, "Is it okay if I examine your wrist?")
+    examine(client, sid, "right_anatomical_snuffbox")
+    say(client, sid, "I apologise, I’ll be gentle.")
+    fb = client.post(f"/sessions/{sid}/diagnose",
+                     json={"diagnosis": "Scaphoidfraktur, X-rays and a CT needed"}).json()
+    for cid in ["introduction", "associated_symptoms", "permission", "responded_to_pain",
+                "scaphoid_considered", "further_assessment"]:
+        assert crit(fb, cid)["met"], cid

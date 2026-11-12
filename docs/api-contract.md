@@ -35,7 +35,7 @@ entity's local space; `radius` is the collision sphere radius in metres.
 
 ### Rubric check types (`hidden.rubric.categories[].criteria[].check`)
 
-Keyword matching = case-insensitive substring on the text. "Learner turns" =
+Keyword matching = case-insensitive **whole word or phrase**: no letter or digit may directly precede or follow the match (`land` does not match "Scotland", `ct` does not match "doctor"). A trailing `*` makes the keyword a stem (`numb*` matches "numbness"). Typographic apostrophes (’) count as `'`. "Learner turns" =
 interactions with `role == "learner"`. Ordering uses the session event
 sequence (interactions and examinations share one monotonically increasing `seq`).
 

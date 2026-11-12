@@ -170,9 +170,16 @@ final class OfflineClinicalEngine: ClinicalEngine {
 
     private var learnerTurns: [Turn] { turns.filter { $0.role == .learner } }
 
+    /// Whole word/phrase, case-insensitive; trailing "*" = stem ("numb*" matches "numbness").
+    /// Must stay identical to `_hit` in backend/app/evaluation.py.
     private func hits(_ text: String, _ keywords: [String]) -> Bool {
-        let t = text.lowercased()
-        return keywords.contains { t.contains($0.lowercased()) }
+        let t = text.lowercased().replacingOccurrences(of: "\u{2019}", with: "'")
+        return keywords.contains { keyword in
+            let stem = keyword.hasSuffix("*")
+            let body = keyword.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "* "))
+            let pattern = "(?<!\\w)" + NSRegularExpression.escapedPattern(for: body) + (stem ? "" : "(?!\\w)")
+            return t.range(of: pattern, options: .regularExpression) != nil
+        }
     }
 
     private func firstLearnerQuote(_ keywords: [String], where include: (Turn) -> Bool = { _ in true }) -> String? {

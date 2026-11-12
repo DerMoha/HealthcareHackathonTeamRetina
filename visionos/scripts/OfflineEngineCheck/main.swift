@@ -98,6 +98,30 @@ do {
     check(!met(f, "responded_to_pain").met, "empathy before painful exam does not count")
 }
 
+// Whole-word keyword matching: former substring false positives must not score
+do {
+    let e = try await fresh()
+    for t in ["I once toured Scotland by a waterfall.", "That is an accurate broadcast.",
+              "What a scandal, I'm a bit worried.", "Where is the doctor? Let me scan it quickly.",
+              "Can I ask you something?"] { await say(e, t) }
+    let f = try await e.diagnose("unsure")
+    for id in ["mechanism", "severity", "introduction", "permission"] {
+        check(!met(f, id).met, "substring false positive on \(id)")
+    }
+    check(met(f, "location").met, "'Where ...' still counts as a location question")
+}
+do {
+    let e = try await fresh()
+    await say(e, "Hi, I\u{2019}m a medical student. Any numbness or tingling?")
+    await say(e, "Is it okay if I examine your wrist?")
+    _ = try await e.examine(zoneId: snuff, action: "palpation")
+    await say(e, "I apologise, I\u{2019}ll be gentle.")
+    let f = try await e.diagnose("Scaphoidfraktur, X-rays and a CT needed")
+    for id in ["introduction", "associated_symptoms", "permission", "responded_to_pain", "scaphoid_considered", "further_assessment"] {
+        check(met(f, id).met, "stem/apostrophe match on \(id)")
+    }
+}
+
 // Optional parity replay against the backend's fixtures
 let fx = root.appendingPathComponent("backend/tests/fixtures")
 if let inData = try? Data(contentsOf: fx.appendingPathComponent("parity_input.json")),
