@@ -87,6 +87,86 @@ struct SessionInfo: Codable, Hashable, Sendable {
     var sessionId: String
     var startedAt: String
     var `case`: CaseInfo
+    /// Set when the session was launched from a published MedSim Studio scenario.
+    var scenario: ScenarioRuntime? = nil
+}
+
+// MARK: - MedSim Studio scenario (docs/studio-api.md)
+
+/// How a published scenario presents the case: setting, companions, equipment, coaching.
+/// It never carries findings; `CaseInfo` in the same session is already shaped to it.
+struct ScenarioRuntime: Codable, Hashable, Sendable {
+    struct Figure: Codable, Hashable, Sendable { var angleDeg: Float; var distanceM: Float }
+    struct Bystander: Codable, Hashable, Sendable {
+        var name: String
+        var roleLabel: String
+        /// calm | anxious
+        var mood: String
+        var lines: [String: [String]]
+        var interjectEveryS: Double
+    }
+    struct Teammate: Codable, Hashable, Sendable { var name: String; var roleLabel: String; var present: Bool }
+    struct Equipment: Codable, Hashable, Identifiable, Sendable {
+        var id: String; var label: String; var kind: String; var available: Bool
+    }
+    var scenarioId: String
+    var version: Int
+    var code: String
+    var title: String
+    /// draft | experimental | clinician_reviewed
+    var reviewState: String
+    var seed: Int
+    var environmentId: String
+    var environmentLabel: String
+    var difficulty: String
+    /// auto | on_request | off
+    var hintPolicy: String
+    /// 0...1
+    var noiseLevel: Double
+    var crowdFigures: [Figure]
+    var bystander: Bystander?
+    var teammate: Teammate
+    var equipment: [Equipment]
+
+    var reviewLabel: String {
+        reviewState == "clinician_reviewed" ? "Clinician-reviewed" : "\(reviewState.capitalized) · not clinician-reviewed"
+    }
+}
+
+/// A published scenario as the launch list shows it.
+struct ScenarioSummary: Codable, Hashable, Identifiable, Sendable {
+    var code: String
+    var title: String
+    var reviewState: String
+    var environment: String
+    var difficulty: String
+    var crowdedness: String
+    var id: String { code }
+}
+
+/// One instructor event from the Live Director, with the scenario and case as they are after it.
+struct DirectorEventMessage: Codable, Sendable {
+    struct Line: Codable, Hashable, Sendable { var speaker: String; var text: String }
+    var type: String
+    var seq: Int
+    var eventId: String
+    var kind: String
+    var label: String
+    var line: Line?
+    var voiceContext: String?
+    var scenario: ScenarioRuntime
+    var `case`: CaseInfo
+}
+
+/// The parts of GET /sessions/{id}/debrief the app shows next to the feedback.
+struct ScenarioDebrief: Codable, Hashable, Sendable {
+    struct Intervention: Codable, Hashable, Sendable { var seq: Int; var label: String; var acknowledged: Bool }
+    struct Hint: Codable, Hashable, Sendable { var seq: Int; var text: String }
+    struct Step: Codable, Hashable, Sendable { var seq: Int; var type: String; var label: String }
+    var interpretation: [String]
+    var interventions: [Intervention]
+    var hints: [Hint]
+    var timeline: [Step]
 }
 
 // MARK: - Examination

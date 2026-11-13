@@ -26,6 +26,7 @@ struct ControlPanelView: View {
                 Text(model.session?.case.learnerBrief
                      ?? "Start a session to meet your patient. Talk to them, examine them, and write your findings in the notebook beside them.")
                     .font(.callout).foregroundStyle(.secondary)
+                ScenarioCard()
                 sessionButtons
                 statusCard
                 if let err = model.lastError, !model.notebookOpen {
@@ -43,7 +44,7 @@ struct ControlPanelView: View {
     /// Scripted run of the whole demo, driven by launch argument `-autoDemo`.
     /// Used by visionos/scripts/simulator_smoke_test.sh; "STEP" lines are screenshot cues.
     private func autoDemo() async {
-        guard SmokeLog.enabled else { return }
+        guard SmokeLog.enabled, !SmokeLog.scenarioDemo else { return }
         func pause(_ seconds: Double) async { try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
         func state() -> String {
             "engine=\(model.engineModeLabel) voice=\(model.voice.status.label) mic=\(model.voice.micStatus.rawValue) "

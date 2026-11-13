@@ -22,7 +22,7 @@ final class BackendClinicalEngine: ClinicalEngine {
         session = URLSession(configuration: cfg)
     }
 
-    private struct StartBody: Encodable { var caseId: String }
+    private struct StartBody: Encodable { var caseId: String; var scenarioCode: String? = nil }
     private struct ExamineBody: Encodable { var bodyPart: String; var action: String }
     private struct InteractionBody: Encodable { var role: String; var text: String; var timestamp: String }
     private struct DiagnoseBody: Encodable { var diagnosis: String; var notes: ClinicalNotes }
@@ -35,7 +35,9 @@ final class BackendClinicalEngine: ClinicalEngine {
     func startSession(caseId: String) async throws -> SessionInfo {
         baseURL = AppConfig.backendURL // re-read so in-app settings changes apply
         sessionId = nil
-        let info: SessionInfo = try await send("POST", "/sessions", StartBody(caseId: caseId))
+        // A selected scenario configures the same case; the backend shapes the session to it.
+        let info: SessionInfo = try await send("POST", "/sessions",
+                                               StartBody(caseId: caseId, scenarioCode: AppConfig.scenarioCode))
         sessionId = info.sessionId
         return info
     }

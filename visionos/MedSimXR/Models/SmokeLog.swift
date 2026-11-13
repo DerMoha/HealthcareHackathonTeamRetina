@@ -4,7 +4,8 @@ import Foundation
 /// Lines go to stdout and to <app container>/Documents/smoke.log, which
 /// visionos/scripts/simulator_smoke_test.sh reads to time its screenshots.
 enum SmokeLog {
-    static let enabled = ProcessInfo.processInfo.arguments.contains("-autoDemo")
+    static let scenarioDemo = ProcessInfo.processInfo.arguments.contains("-scenarioDemo")
+    static let enabled = ProcessInfo.processInfo.arguments.contains("-autoDemo") || scenarioDemo
     private static let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("smoke.log")
 

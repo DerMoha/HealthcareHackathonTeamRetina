@@ -15,6 +15,7 @@ struct FeedbackView: View {
                         .buttonStyle(.borderedProminent).tint(.indigo)
                     }
                     Text(f.summary).font(.callout)
+                    if let s = model.scenario, let d = model.debrief { scenarioDebrief(s, d) }
 
                     section("Categories") {
                         ForEach(f.categories) { CategoryCard(category: $0) }
@@ -44,6 +45,18 @@ struct FeedbackView: View {
                     Text(f.disclaimer).font(.caption).foregroundStyle(.secondary)
                 }
                 .padding(4)
+            }
+        }
+    }
+
+    /// How to read the score: what this scenario offered and what the instructor changed.
+    private func scenarioDebrief(_ s: ScenarioRuntime, _ d: ScenarioDebrief) -> some View {
+        section("Scenario: \(s.title)") {
+            Text(s.reviewLabel).font(.caption).foregroundStyle(s.reviewState == "clinician_reviewed" ? .green : .orange)
+            ForEach(d.interpretation, id: \.self) { Text($0).font(.callout) }
+            ForEach(d.timeline.filter { $0.type == "intervention" || $0.type == "hint" }, id: \.seq) { step in
+                Label(step.label, systemImage: step.type == "hint" ? "lightbulb" : "person.wave.2")
+                    .font(.footnote).foregroundStyle(.secondary)
             }
         }
     }

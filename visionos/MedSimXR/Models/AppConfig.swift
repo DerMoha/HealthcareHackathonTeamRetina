@@ -6,6 +6,10 @@ enum AppConfig {
     static let backendHostKey = "MEDSIM_BACKEND_HOST"
     static let agentIdKey = "ELEVENLABS_AGENT_ID"
     static let defaultCaseId = "wrist_trauma_001"
+    /// Launch code of a published MedSim Studio scenario; empty = the fixed default case.
+    /// Also settable as a launch argument: `-MEDSIM_SCENARIO_CODE K7Q2MX`.
+    static let scenarioCodeKey = "MEDSIM_SCENARIO_CODE"
+    static var scenarioCode: String? { value(scenarioCodeKey)?.uppercased() }
 
     private static func value(_ key: String) -> String? {
         let candidates = [
