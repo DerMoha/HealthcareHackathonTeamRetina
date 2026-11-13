@@ -73,3 +73,12 @@ Needs a live ElevenLabs agent with the `perform_patient_action` client tool (ele
 - [ ] Zones cannot be pinched while he stands.
 - [ ] Standing distance: his head is about 1 m from you when standing (he steps back onto the stool when sitting). Adjust `Placement.distance` if too close.
 - [ ] No voice: the control panel shows "Ask Alex to sit down"; Debug has all four movements.
+
+## Investigations and management
+
+- [ ] Add the `order_investigation` client tool (elevenlabs/setup.md 5c) and re-paste the system prompt.
+- [ ] "I'd like an X-ray of his right wrist": viewer opens; Alex only acknowledges and never states a result.
+- [ ] Ask Alex "what did the X-ray show?": he must not know.
+- [ ] Viewer readable at the notebook's distance; pinch zoom and the magnifier buttons work; image pans when zoomed.
+- [ ] Back to notebook → Assessment: type or dictate the three plan fields; submit.
+- [ ] Feedback shows "Investigation and management · n/20" under the categories.

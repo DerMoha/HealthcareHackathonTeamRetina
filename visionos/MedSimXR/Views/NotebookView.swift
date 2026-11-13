@@ -24,7 +24,22 @@ struct NotebookView: View {
         }
     }
 
+    @ViewBuilder
     private var page: some View {
+        if let result = model.viewing, model.phase == .running {
+            RadiologyViewer(result: result).modifier(Page())
+        } else {
+            notebook.modifier(Page())
+        }
+    }
+
+    private struct Page: ViewModifier {
+        func body(content: Content) -> some View {
+            content.padding(24).frame(width: 720, height: 700, alignment: .top).glassBackgroundEffect()
+        }
+    }
+
+    private var notebook: some View {
         @Bindable var model = model
         return VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -51,12 +66,16 @@ struct NotebookView: View {
                 case .examination:
                     recorded
                     editor($model.notes.examination, "What did you examine, and what did you find?")
+                case .investigations:
+                    investigations
                 case .assessment:
-                    editor($model.notes.assessment, "Your reasoning and plan")
                     TextField("Suspected diagnosis", text: $model.diagnosis)
                         .textFieldStyle(.roundedBorder)
+                    editor($model.notes.interpretation, "Interpretation of investigations")
+                    editor($model.notes.management, "Immediate management")
+                    editor($model.notes.followUp, "Further imaging or follow-up plan")
                     Button { Task { await model.submitDiagnosis() } } label: {
-                        Label("Submit diagnosis", systemImage: "checkmark.seal.fill").frame(maxWidth: .infinity)
+                        Label("Submit diagnosis and plan", systemImage: "checkmark.seal.fill").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent).tint(.teal)
                     .disabled(model.diagnosis.trimmingCharacters(in: .whitespaces).isEmpty || model.isBusy)
@@ -68,9 +87,36 @@ struct NotebookView: View {
                 Label(error, systemImage: "exclamationmark.triangle.fill").font(.footnote).foregroundStyle(.red)
             }
         }
-        .padding(24)
-        .frame(width: 540, height: 660, alignment: .top)
-        .glassBackgroundEffect()
+    }
+
+    /// Every investigation the case offers, in a fixed order and without advice, then the
+    /// results received so far. Also the fallback when the voice tool is unavailable.
+    private var investigations: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Request an investigation").font(.subheadline).foregroundStyle(.secondary)
+            ForEach(model.session?.case.investigations ?? []) { item in
+                Button { Task { await model.orderInvestigation(item.id) } } label: {
+                    Label(item.label, systemImage: "plus.circle").frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.bordered).disabled(model.phase != .running)
+            }
+            Text("Results").font(.subheadline).foregroundStyle(.secondary).padding(.top, 6)
+            if model.investigationResults.isEmpty {
+                Text("Nothing requested yet.").foregroundStyle(.tertiary)
+            }
+            ForEach(model.investigationResults) { result in
+                HStack {
+                    Image(systemName: "doc.text.image").foregroundStyle(.teal)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(result.label).fontWeight(.medium)
+                        Text("Requested \(result.orderedAt)").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("View result") { model.show(result) }
+                }
+            }
+            Spacer(minLength: 0)
+        }
     }
 
     /// Free-text note. The system keyboard's dictation key gives speech-to-text.

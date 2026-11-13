@@ -145,16 +145,24 @@ else
   expect "recoil from the examination pose"  "^behavior arms_extended -> pain_recoil"
   expect "examination pose restored, one exam recorded per touch" "^after recoil state=arms_extended .*exams=2 "
 fi
+expect "X-ray result came from the engine"   "^investigation right_wrist_xray impression=\"No definite fracture visible.\" image=wrist_xray_pa imageFound=true"
+expect "viewer opened on the result"         "^viewer open=right_wrist_xray notebook=true"
+expect "back to notebook, Investigations tab" "^viewer closed=true tab=Investigations"
+expect "management scored separately"        "diagnosed score=[0-9]+/100 .*management=20/20"
+expect "MRI is a labelled report without image" "^investigation right_wrist_mri .*image=none imageFound=false"
+reject "X-ray order reveals nothing else"    "^investigation right_wrist_xray .*(scaphoid|MRI)"
 reject "no engine errors"                  "error=[^n]"
 if [ $MOCK_VOICE = 1 ]; then
   expect "scripted voice connected, mic live" "^session .*voice=Connected mic=Live"
   expect "exam reaction left to the agent"    "examined right_anatomical_snuffbox .*speakLocally=false"
   expect "pain clip played instantly"         "audio clip=ouch started=true"
   expect "notebook mutes the microphone"      "^notebook open=true .*mic=Muted"
+  expect "spoken order reached the engine"    "^heard \"I would like to order an X-ray of his right wrist.\" order=right_wrist_xray result=success"
   [ $PROCEDURAL = 1 ] || expect "spoken request triggered the action" "^heard \"Please have a seat.\" action=sit_down result=success"
 fi
 if [ $KILL = 1 ]; then
   expect "fell back to offline after kill" "examined right_distal_forearm .*engine=Offline .*exams=3 "
+  expect "investigation served offline"    "^investigation right_wrist_xray .*engine=Offline"
 elif [ $BACKEND = 1 ]; then
   expect "served by the backend"           "examined right_distal_forearm .*engine=Backend"
 fi

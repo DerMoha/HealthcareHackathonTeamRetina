@@ -7,14 +7,14 @@ avatar usdz joints=53 size=SIMD3<Float>(0.52524173, 1.37687, 0.78019935) minY=0.
 pose standing_idle right_wrist moved=0.54
 immersive scene built zones=3
 pose standing_idle right_wrist moved=0.54
-session id=b724c9e65c7e4975bcfaaa2cff25ebdc zones=["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"] engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=0 error=none
+session id=3c9441288c3d438282a31b5220d0e86e zones=["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"] engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=0 error=none
 STEP 02-session
 standing examine state=standing_idle engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=0 error=none
 STEP 03-sitting
 behavior standing_idle -> sitting_down
 action sit_down -> success: Alex is sitting down. exams=0 turns=0
 action sit_down -> success: Alex is already seated. exams=0 turns=0
-pose sitting_down right_wrist moved=0.01
+pose sitting_down right_wrist moved=0.00
 behavior sitting_down -> seated_idle
 pose seated_idle right_wrist moved=0.00
 STEP 03-seated
@@ -29,9 +29,9 @@ behavior extending_arms -> returning_to_rest
 action relax_arms -> success: Alex is resting his arms. exams=0 turns=4
 behavior returning_to_rest -> extending_arms
 action extend_both_arms -> success: Alex is holding both arms out. exams=0 turns=4
-pose extending_arms right_wrist moved=0.32
+pose extending_arms right_wrist moved=0.31
 behavior extending_arms -> arms_extended
-pose arms_extended right_wrist moved=0.32
+pose arms_extended right_wrist moved=0.31
 STEP 04-arms-extended
 behavior arms_extended -> indicating_wrist
 action indicate_right_wrist -> success: Alex is showing his right wrist. exams=0 turns=4
@@ -52,9 +52,9 @@ zone flash right_anatomical_snuffbox painful=true
 audio clip=right_anatomical_snuffbox started=true duration=2.99s
 pose pain_recoil right_wrist moved=0.23
 behavior pain_recoil -> returning_to_rest
-pose returning_to_rest right_wrist moved=0.31
+pose returning_to_rest right_wrist moved=0.32
 behavior returning_to_rest -> arms_extended
-pose arms_extended right_wrist moved=0.31
+pose arms_extended right_wrist moved=0.32
 after recoil state=arms_extended engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=2 turns=6 error=none
 STEP 05-killwindow
 examined right_distal_forearm finding=no_focal_tenderness pain=1 animation=none speakLocally=true engine=Offline voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=7 error=none
@@ -63,15 +63,23 @@ audio clip=right_distal_forearm started=true duration=1.74s
 placed at SIMD3<Float>(0.45, 0.0, -1.7) tracked=false
 recentered token=1
 pre-diagnosis feedback verdict=not_submitted criteria=[0, 0, 0, 0]
+investigation right_wrist_xray impression="No definite fracture visible." image=wrist_xray_pa imageFound=true engine=Offline results=1 exams=3 turns=7
+viewer open=right_wrist_xray notebook=true engine=Offline voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=7 error=none
+STEP 05-xray-viewer
+STEP 05-xray-zoom
+viewer closed=true tab=Investigations engine=Offline voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=7 error=none
+STEP 05-investigations
 notebook open=true engine=Offline voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=7 error=none
 STEP 06-notebook-history
 STEP 07-notebook-examination
 STEP 08-notebook-assessment
-diagnosed score=72/100 verdict=correct categories=["history:12", "examination:40", "communication:10", "reasoning:10"] notes=["mechanism:documented", "onset:documented", "location:unsupported", "associated_symptoms:unsupported", "examined_injured_wrist:documented", "examined_snuffbox:documented", "comparison:documented"] engine=Offline voice=Disconnected mic=Unknown exams=3 turns=7 error=none
+diagnosed score=72/100 verdict=correct categories=["history:12", "examination:40", "communication:10", "reasoning:10"] management=20/20 ["imaging_requested:true", "result_interpreted:true", "immobilisation:true", "further_assessment_plan:true", "no_false_reassurance:true"] notes=["mechanism:documented", "onset:documented", "location:unsupported", "associated_symptoms:unsupported", "examined_injured_wrist:documented", "examined_snuffbox:documented", "comparison:documented"] engine=Offline voice=Disconnected mic=Unknown exams=3 turns=7 error=none
 STEP 09-feedback
 behavior reset state=standing_idle
 pose standing_idle right_wrist moved=0.54
 reset feedback=cleared notes=blank engine=Offline voice=Error: No agent ID set and backend unreachable for voice token mic=Unknown exams=0 turns=0 error=none
 STEP 10-reset
+investigation right_wrist_mri impression="Findings consistent with a non-displaced fracture of the scaphoid waist." image=none imageFound=false engine=Offline results=1 exams=0 turns=0
+STEP 10-mri-report
 STEP 11-stopped
 DONE

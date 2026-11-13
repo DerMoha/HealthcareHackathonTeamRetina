@@ -1,34 +1,40 @@
-INFO:     Started server process [10355]
+INFO:     Started server process [38208]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:49302 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49304 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49312 - "POST /sessions HTTP/1.1" 201 Created
-INFO:     127.0.0.1:49312 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49315 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49315 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49316 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49315 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49324 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49325 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49325 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49324 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49332 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49332 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49332 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49332 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49332 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49332 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49332 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49332 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49332 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/examine HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49332 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49332 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/examine HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49332 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49417 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/examine HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49417 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49421 - "GET /sessions/fb709dd3c7134d8e9429942e22b94196/feedback HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49434 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/diagnose HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49439 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/reset HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49439 - "POST /sessions/fb709dd3c7134d8e9429942e22b94196/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51624 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51626 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51636 - "POST /sessions HTTP/1.1" 201 Created
+INFO:     127.0.0.1:51636 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51668 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51668 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51669 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51668 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51672 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51673 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51672 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51673 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/examine HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/examine HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51728 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/examine HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51728 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51732 - "GET /sessions/c7eaa53ba18142a8af51e63c31704f34/feedback HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51732 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51733 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/investigations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51732 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51779 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/diagnose HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51797 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/reset HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51797 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/interactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51797 - "POST /sessions/c7eaa53ba18142a8af51e63c31704f34/investigations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51879 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51879 - "GET /v1/models HTTP/1.1" 404 Not Found

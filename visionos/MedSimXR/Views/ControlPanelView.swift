@@ -66,6 +66,14 @@ struct ControlPanelView: View {
             }
         }
 
+        func order(_ text: String, _ id: String) async {
+            if let mock = model.voice as? MockVoiceService, mock.status == .connected {
+                await mock.hear(text)
+            } else {
+                await model.orderInvestigation(id)
+            }
+        }
+
         await pause(3)
         SmokeLog.mark("STEP 01-launch")
         await pause(3)
@@ -130,6 +138,23 @@ struct ControlPanelView: View {
         await model.loadFeedback()
         SmokeLog.mark("pre-diagnosis feedback verdict=\(model.feedback?.diagnosticAssessment.verdict ?? "?") "
             + "criteria=\(model.feedback?.categories.map(\.criteria.count) ?? [])")
+        // Investigation: ordered by voice (or the same hook), result opens in the viewer.
+        await order("I would like to order an X-ray of his right wrist.", "right_wrist_xray")
+        await pause(2)
+        SmokeLog.mark("viewer open=\(model.viewing?.investigationId ?? "none") notebook=\(model.notebookOpen) \(state())")
+        SmokeLog.mark("STEP 05-xray-viewer")
+        await pause(3)
+        model.viewerZoom = 2.5
+        await pause(1.5)
+        SmokeLog.mark("STEP 05-xray-zoom")
+        await pause(3)
+        model.closeViewer()
+        await pause(1.5)
+        SmokeLog.mark("viewer closed=\(model.viewing == nil) tab=\(model.notebookTab.rawValue) \(state())")
+        SmokeLog.mark("STEP 05-investigations")
+        await pause(3)
+        model.notebookTab = .history
+
         // The learner documents the case and formulates the diagnosis in the notebook.
         model.setNotebookOpen(true)
         model.notes.history = "Fell off bicycle yesterday, landed on outstretched right hand. Pain worse on gripping."
@@ -144,8 +169,10 @@ struct ControlPanelView: View {
         SmokeLog.mark("STEP 07-notebook-examination")
         await pause(3)
         model.notebookTab = .assessment
-        model.notes.assessment = "Plan: X-ray of the wrist, splint until reviewed."
         model.diagnosis = "Suspected scaphoid fracture"
+        model.notes.interpretation = "X-ray shows no fracture, but an occult scaphoid fracture cannot be excluded."
+        model.notes.management = "Thumb spica splint and analgesia."
+        model.notes.followUp = "MRI of the wrist, or review in the fracture clinic in 10 days."
         await pause(1.5)
         SmokeLog.mark("STEP 08-notebook-assessment")
         await pause(3)
@@ -153,6 +180,8 @@ struct ControlPanelView: View {
         let f = model.feedback
         SmokeLog.mark("diagnosed score=\(f?.totalScore ?? -1)/\(f?.maxScore ?? -1) verdict=\(f?.diagnosticAssessment.verdict ?? "?") "
             + "categories=\(f?.categories.map { "\($0.id):\($0.score)" } ?? []) "
+            + "management=\(f?.management.score ?? -1)/\(f?.management.maxScore ?? -1) "
+            + "\(f?.management.criteria.map { "\($0.id):\($0.met)" } ?? []) "
             + "notes=\(f?.documentation.map { "\($0.criterionId):\($0.status)" } ?? []) \(state())")
         await pause(1.5)
         SmokeLog.mark("STEP 09-feedback")
@@ -162,6 +191,11 @@ struct ControlPanelView: View {
         await pause(2)
         SmokeLog.mark("reset feedback=\(model.feedback == nil ? "cleared" : "STILL SET") notes=\(model.notes == ClinicalNotes() ? "blank" : "KEPT") \(state())")
         SmokeLog.mark("STEP 10-reset")
+        await pause(3)
+        // New encounter: a report-only study, requested from the notebook button path.
+        await model.orderInvestigation("right_wrist_mri")
+        await pause(2)
+        SmokeLog.mark("STEP 10-mri-report")
         await pause(3)
 
         await model.stopSession()

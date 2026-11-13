@@ -17,7 +17,8 @@ struct ReactionEvent: Identifiable, Equatable {
 }
 
 enum NotebookTab: String, CaseIterable, Identifiable {
-    case history = "History", examination = "Examination", assessment = "Assessment", conversation = "Conversation"
+    case history = "History", examination = "Examination", investigations = "Investigations",
+         assessment = "Assessment", conversation = "Transcript"
     var id: String { rawValue }
 }
 
@@ -52,6 +53,12 @@ final class AppModel {
     var notebookTab = NotebookTab.history
     private(set) var notebookOpen = false
 
+    /// Results the learner has received, latest order of each investigation.
+    private(set) var investigationResults: [InvestigationResult] = []
+    /// Result shown in the radiology viewer (takes the notebook's place while set).
+    private(set) var viewing: InvestigationResult?
+    var viewerZoom = 1.0
+
     /// Seconds between accepted examination events (gaze+pinch or fingertip).
     static let examineCooldown: TimeInterval = 1.5
     private var lastExamineAt = Date.distantPast
@@ -65,6 +72,7 @@ final class AppModel {
         self.voice = voice
         voice.onTranscript = { [weak self] turn in self?.record(turn) }
         voice.onAction = { [weak self] raw in self?.performPatientAction(raw) ?? "failure: unavailable" }
+        voice.onOrder = { [weak self] raw in await self?.orderInvestigation(raw) ?? "failure: unavailable" }
     }
 
     // MARK: Session
@@ -97,6 +105,7 @@ final class AppModel {
     /// dictated notes are not heard as speech to the patient.
     func setNotebookOpen(_ open: Bool) {
         notebookOpen = open
+        if !open { viewing = nil }
         Task { await voice.setMicMuted(open && phase == .running) }
     }
 
@@ -108,6 +117,48 @@ final class AppModel {
         let result = behavior.perform(raw).text
         SmokeLog.mark("action \(raw) -> \(result) exams=\(examinations.count) turns=\(transcript.count)")
         return result
+    }
+
+    // MARK: Investigations
+
+    /// Requested from the notebook or by the voice agent's client tool. `raw` must be one of
+    /// the case's investigation ids; the result comes from the clinical engine only. The
+    /// returned text goes back to the voice agent and deliberately leaves the result out.
+    @discardableResult
+    func orderInvestigation(_ raw: String) async -> String {
+        guard phase == .running, let offered = session?.case.investigations else { return "failure: no session is running" }
+        guard let info = offered.first(where: { $0.id == raw }) else {
+            return "failure: Unknown investigation. Allowed: \(offered.map(\.id).joined(separator: ", "))."
+        }
+        do {
+            let result = try await engine.orderInvestigation(raw)
+            investigationResults.removeAll { $0.investigationId == result.investigationId }
+            investigationResults.append(result)
+            show(result)
+            lastError = nil
+            SmokeLog.mark("investigation \(raw) impression=\"\(result.impression)\" image=\(result.image ?? "none") "
+                + "imageFound=\(result.image.map { RadiologyImage.url($0) != nil } ?? false) engine=\(engineModeLabel) "
+                + "results=\(investigationResults.count) exams=\(examinations.count) turns=\(transcript.count)")
+            return "success: \(info.label) requested. The result is shown to the student on screen. "
+                + "You do not know the result. Do not describe or guess it."
+        } catch {
+            lastError = error.localizedDescription
+            return "failure: The request could not be sent."
+        }
+    }
+
+    /// Opens the radiology viewer. It does not mute the microphone: only the notes pages do.
+    func show(_ result: InvestigationResult) {
+        viewerZoom = 1
+        viewing = result
+        notebookOpen = true
+    }
+
+    /// "Back to notebook": lands on the Investigations tab, in note-taking mode.
+    func closeViewer() {
+        viewing = nil
+        notebookTab = .investigations
+        setNotebookOpen(true)
     }
 
     // MARK: Examination
@@ -180,6 +231,8 @@ final class AppModel {
         diagnosis = ""
         notebookTab = .history
         notebookOpen = false
+        investigationResults = []
+        viewing = nil
         lastExamineAt = .distantPast
         behavior.reset()
         phase = .running

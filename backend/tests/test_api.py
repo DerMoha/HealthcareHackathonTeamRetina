@@ -236,6 +236,8 @@ def run_parity(client):
             say(client, sid, s["text"], s["role"])
         elif s["op"] == "examine":
             client.post(f"/sessions/{sid}/examine", json={"body_part": s["body_part"], "action": s["action"]})
+        elif s["op"] == "investigate":
+            client.post(f"/sessions/{sid}/investigations", json={"investigation_id": s["investigation_id"]})
         else:
             out = client.post(f"/sessions/{sid}/diagnose",
                               json={"diagnosis": s["diagnosis"], "notes": s.get("notes")}).json()
@@ -338,3 +340,106 @@ def test_diagnosis_synonyms(client):
         assert verdict(text) == "partial", text
     for text in ["sprain", "tendinitis", "arthritis"]:
         assert verdict(text) == "incorrect", text
+
+
+# ---- investigations and management (separate 20-point dimension)
+
+XRAY, MRI, CT = "right_wrist_xray", "right_wrist_mri", "right_wrist_ct"
+
+
+def order(client, sid, inv):
+    return client.post(f"/sessions/{sid}/investigations", json={"investigation_id": inv})
+
+
+def mgmt(client, sid, diagnosis="Suspected scaphoid fracture", **notes):
+    f = client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": diagnosis, "notes": notes}).json()
+    return f, {c["id"]: c for c in f["management"]["criteria"]}
+
+
+def test_investigation_results_come_from_the_scenario(client, sid):
+    case = client.get("/cases").json()[0]
+    assert [i["id"] for i in case["investigations"]] == [XRAY, MRI, CT]
+    assert all(set(i) == {"id", "label"} for i in case["investigations"])  # no results in the public case
+    x = order(client, sid, XRAY).json()
+    assert x["impression"] == "No definite fracture visible." and x["image"] == "wrist_xray_pa"
+    assert x["repeat_count"] == 1 and x["ordered_at"].endswith("Z")
+    assert "scaphoid fracture" not in (x["label"] + x["title"]).lower()  # viewer header stays neutral
+    m = order(client, sid, MRI).json()
+    assert "scaphoid" in m["impression"] and m["image"] is None and "Simulated report only" in m["image_credit"]
+    assert "scaphoid" in order(client, sid, CT).json()["impression"]
+    assert order(client, sid, XRAY).json()["repeat_count"] == 2
+    assert order(client, sid, "biopsy").status_code == 404
+    assert order(client, "nope", XRAY).status_code == 404
+
+
+def test_xray_does_not_reveal_mri_and_feedback_lists_only_ordered(client, sid):
+    x = order(client, sid, XRAY).json()
+    assert "MRI" not in json.dumps(x) and "scaphoid fracture" not in json.dumps(x).lower()
+    f = client.get(f"/sessions/{sid}/feedback").json()
+    assert f["investigations"] == ["Right wrist radiographs: No definite fracture visible."]
+    assert f["management"]["criteria"] == []  # redacted before a diagnosis
+    client.post(f"/sessions/{sid}/reset")
+    assert client.get(f"/sessions/{sid}/feedback").json()["investigations"] == []
+
+
+def test_management_is_separate_from_the_100_point_total(client, sid):
+    before = client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": "scaphoid fracture"}).json()
+    order(client, sid, XRAY)
+    after, c = mgmt(client, sid, "scaphoid fracture",
+                    interpretation="Normal X-ray does not exclude an occult scaphoid fracture.",
+                    management="Thumb spica splint, analgesia.", follow_up="MRI or fracture clinic review in 10 days.")
+    assert after["max_score"] == before["max_score"] == 100
+    assert after["management"]["score"] == after["management"]["max_score"] == 20
+    assert [x["area"] for x in after["management"]["criteria"]] == [
+        "investigation", "interpretation", "management", "management", "safety"]
+    assert all(x["area"] is None for cat in after["categories"] for x in cat["criteria"])
+    # the written plan also satisfies the existing reasoning criterion; nothing else moves
+    assert after["total_score"] - before["total_score"] == 4
+
+
+def test_occult_fracture_recognised_despite_negative_xray(client, sid):
+    order(client, sid, XRAY)
+    f, c = mgmt(client, sid, interpretation="X-ray negative but I still suspect a fracture clinically.")
+    assert c["result_interpreted"]["met"] and c["imaging_requested"]["evidence"] == "Right wrist radiographs"
+    assert not c["immobilisation"]["met"] and not c["further_assessment_plan"]["met"]
+    assert c["no_false_reassurance"]["met"] and f["management"]["score"] == 11
+
+
+def test_interpretation_needs_a_result(client, sid):
+    _, c = mgmt(client, sid, interpretation="Occult fracture cannot be excluded.")
+    assert not c["result_interpreted"]["met"] and not c["imaging_requested"]["met"]
+
+
+def test_unsafe_reassurance_after_negative_xray(client, sid):
+    order(client, sid, XRAY)
+    f, c = mgmt(client, sid, "Wrist sprain", interpretation="X-ray normal, fracture ruled out.",
+                management="Just a sprain. Reassure and discharge, no follow-up.")
+    assert not c["no_false_reassurance"]["met"] and not c["result_interpreted"]["met"]
+    assert f["management"]["score"] == 4  # only the imaging request
+
+
+def test_reasonable_alternative_pathways_get_credit(client, sid):
+    order(client, sid, MRI)  # MRI first-line, no radiograph
+    _, c = mgmt(client, sid, interpretation="MRI confirms a scaphoid waist fracture.",
+                management="Below-elbow cast.", follow_up="")
+    assert all(c[k]["met"] for k in ("imaging_requested", "result_interpreted", "immobilisation",
+                                     "further_assessment_plan"))
+    client.post(f"/sessions/{sid}/reset")
+    order(client, sid, XRAY)
+    _, c = mgmt(client, sid, management="Splint.", follow_up="Repeat radiographs and review in two weeks.")
+    assert c["immobilisation"]["met"] and c["further_assessment_plan"]["met"]
+
+
+def test_no_plan_written_earns_no_safety_credit(client, sid):
+    f = client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": " "})
+    order(client, sid, XRAY)
+    _, c = mgmt(client, sid, "x")
+    assert c["no_false_reassurance"]["met"]  # the diagnosis text counts as written
+    f = client.get(f"/sessions/{sid}/feedback").json()
+    assert f["management"]["score"] == 6
+
+
+def test_conversation_cannot_earn_management_points(client, sid):
+    say(client, sid, "I will order an MRI, put you in a splint and the X-ray does not exclude a fracture.")
+    _, c = mgmt(client, sid, "scaphoid fracture")
+    assert [k for k, v in c.items() if v["met"]] == ["no_false_reassurance"]

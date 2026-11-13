@@ -38,6 +38,11 @@ final class FallbackClinicalEngine: ClinicalEngine {
         return try await route({ try await primary.examine(zoneId: zoneId, action: action) }, shadow: { try shadow.get() })
     }
 
+    func orderInvestigation(_ id: String) async throws -> InvestigationResult {
+        let shadow = await Result { try await offline.orderInvestigation(id) }
+        return try await route({ try await primary.orderInvestigation(id) }, shadow: { try shadow.get() })
+    }
+
     func recordInteraction(_ turn: TranscriptTurn) async {
         await offline.recordInteraction(turn)
         if usingPrimary { await primary.recordInteraction(turn) }

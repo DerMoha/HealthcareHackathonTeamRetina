@@ -46,12 +46,19 @@ final class OfflineClinicalEngine: ClinicalEngine {
                 var keywords: [String]?
                 var zones: [String]?
                 var requiresExamined: [String]?
+                // investigation / management checks
+                var investigations: [String]?
+                var fields: [String]?
+                var requiresOrdered: [String]?
+                var ignoreNegated: Bool?
+                var checks: [Check]?
             }
             var id: String
             var label: String
             var points: Int
             var check: Check
             var noteKeywords: [String]?
+            var area: String?
             var metText: String
             var missedText: String
         }
@@ -62,10 +69,29 @@ final class OfflineClinicalEngine: ClinicalEngine {
             var criteria: [Criterion]
         }
         struct Rubric: Decodable { var categories: [Category] }
+        struct Management: Decodable {
+            var title: String
+            var maxScore: Int
+            var criteria: [Criterion]
+        }
+        struct Investigation: Decodable {
+            struct Result: Decodable {
+                var title: String
+                var report: String
+                var impression: String
+                var image: String?
+                var imageCredit: String
+            }
+            var id: String
+            var label: String
+            var modality: String
+            var result: Result
+        }
         struct Hidden: Decodable {
             var diagnosis: Diagnosis
             var nextSteps: [String]
             var rubric: Rubric
+            var management: Management
         }
 
         var caseId: String
@@ -75,6 +101,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
         var voiceContext: String
         var examinationZones: [Zone]
         var scriptedDialogue: [ScriptedLine]
+        var investigations: [Investigation]
         var hidden: Hidden
     }
 
@@ -86,6 +113,8 @@ final class OfflineClinicalEngine: ClinicalEngine {
     private var seq = 0
     private var exams: [Exam] = []
     private var turns: [Turn] = []
+    /// Ordered investigation ids, in order (repeats included).
+    private var orders: [String] = []
     private var diagnosis: String?
     private var notes = ClinicalNotes()
 
@@ -130,6 +159,21 @@ final class OfflineClinicalEngine: ClinicalEngine {
         )
     }
 
+    func orderInvestigation(_ id: String) async throws -> InvestigationResult {
+        guard sessionId != nil else { throw noSession }
+        guard let inv = scenario.investigations.first(where: { $0.id == id }) else {
+            throw OfflineEngineError(errorDescription: "Unknown investigation '\(id)'.")
+        }
+        seq += 1
+        orders.append(id)
+        let r = inv.result
+        return InvestigationResult(
+            investigationId: inv.id, label: inv.label, modality: inv.modality, title: r.title, report: r.report,
+            impression: r.impression, image: r.image, imageCredit: r.imageCredit,
+            orderedAt: ISO8601DateFormatter().string(from: Date()), repeatCount: orders.filter { $0 == id }.count
+        )
+    }
+
     func recordInteraction(_ turn: TranscriptTurn) async {
         guard sessionId != nil else { return }
         seq += 1
@@ -153,7 +197,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
     private var noSession: OfflineEngineError { OfflineEngineError(errorDescription: "No active session.") }
 
     private func clear() -> SessionInfo {
-        seq = 0; exams = []; turns = []; diagnosis = nil; notes = ClinicalNotes()
+        seq = 0; exams = []; turns = []; orders = []; diagnosis = nil; notes = ClinicalNotes()
         let s = scenario
         return SessionInfo(
             sessionId: sessionId ?? "", startedAt: ISO8601DateFormatter().string(from: Date()),
@@ -163,7 +207,8 @@ final class OfflineClinicalEngine: ClinicalEngine {
                 zones: s.examinationZones.map {
                     ZoneInfo(id: $0.id, label: $0.label, attachTo: $0.attachTo, offset: $0.offset, radius: $0.radius)
                 },
-                scriptedDialogue: s.scriptedDialogue
+                scriptedDialogue: s.scriptedDialogue,
+                investigations: s.investigations.map { InvestigationInfo(id: $0.id, label: $0.label) }
             )
         )
     }
@@ -234,6 +279,62 @@ final class OfflineClinicalEngine: ClinicalEngine {
         }
     }
 
+    // MARK: Investigation and management (separate from the 100-point rubric)
+
+    /// Must stay identical to `_management_check` in backend/app/evaluation.py.
+    private func managementCheck(_ check: Scenario.Criterion.Check, ordered: [String], texts: [String: String]) -> Outcome {
+        let kw = check.keywords ?? []
+        switch check.type {
+        case "ordered_any":
+            let hit = ordered.first { (check.investigations ?? []).contains($0) }
+            let label = hit.flatMap { id in scenario.investigations.first { $0.id == id }?.label }
+            return Outcome(met: hit != nil, points: 0, method: "rule", evidence: label)
+        case "any_of":
+            var result = Outcome(met: false, points: 0, method: "rule", evidence: nil)
+            for sub in check.checks ?? [] {
+                result = managementCheck(sub, ordered: ordered, texts: texts)
+                if result.met { break }
+            }
+            return result
+        case "notes_avoided":
+            let written = (check.fields ?? []).map { texts[$0] ?? "" }
+            let met = written.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                && !written.contains { hits($0, kw) }
+            return Outcome(met: met, points: 0, method: "keyword", evidence: nil)
+        default: // notes_said
+            var written = (check.fields ?? []).map { texts[$0] ?? "" }
+            if check.ignoreNegated == true { // "no follow-up" must not count as arranging follow-up
+                written = written.map {
+                    $0.lowercased().replacingOccurrences(
+                        of: "(?<!\\w)(?:no|not|without|kein\\w*|ohne)\\s+[\\w-]+(?:\\s+[\\w-]+)?",
+                        with: " ", options: .regularExpression)
+                }
+            }
+            var quote = written.first { hits($0, kw) }
+            if let need = check.requiresOrdered, !ordered.contains(where: { need.contains($0) }) { quote = nil }
+            return Outcome(met: quote != nil, points: 0, method: "keyword", evidence: quote)
+        }
+    }
+
+    private func buildManagement(diagnosis dx: String?, redact: Bool) -> (ManagementAssessment, [String]) {
+        let spec = scenario.hidden.management
+        var seen = Set<String>()
+        let ordered = orders.filter { seen.insert($0).inserted }
+        let texts = ["diagnosis": dx ?? "", "assessment": notes.assessment, "interpretation": notes.interpretation,
+                     "management": notes.management, "follow_up": notes.followUp]
+        let criteria = spec.criteria.map { c -> CriterionResult in
+            let o = managementCheck(c.check, ordered: ordered, texts: texts)
+            return CriterionResult(id: c.id, label: c.label, met: o.met, points: o.met ? c.points : 0, maxPoints: c.points,
+                                   method: o.method, evidence: o.met ? o.evidence : nil,
+                                   comment: o.met ? c.metText : c.missedText, area: c.area)
+        }
+        let lines = ordered.compactMap { id in
+            scenario.investigations.first { $0.id == id }.map { "\($0.label): \($0.result.impression)" }
+        }
+        return (ManagementAssessment(title: spec.title, score: criteria.reduce(0) { $0 + $1.points },
+                                     maxScore: spec.maxScore, criteria: redact ? [] : criteria), lines)
+    }
+
     private func buildFeedback(sessionId: String) -> Feedback {
         let h = scenario.hidden
         let dx = diagnosis.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
@@ -242,8 +343,9 @@ final class OfflineClinicalEngine: ClinicalEngine {
         let noteText = [notes.history, notes.examination, notes.assessment].joined(separator: "\n")
         let hasNotes = !noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         // The written assessment is read together with the diagnosis (reasoning, not examination).
-        let assessment = notes.assessment.trimmingCharacters(in: .whitespacesAndNewlines)
-        let plan = dx.map { assessment.isEmpty ? $0 : $0 + "\n" + notes.assessment }
+        let written = [notes.assessment, notes.interpretation, notes.management, notes.followUp]
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let plan = dx.map { ([$0] + written).joined(separator: "\n") }
 
         var categories = h.rubric.categories.map { cat -> CategoryResult in
             let criteria = cat.criteria.map { c -> CriterionResult in
@@ -298,6 +400,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
         } else if documentation.contains(where: { $0.status == "unsupported" }) {
             summary += " Some of your notes are not supported by what was actually asked or examined."
         }
+        let (management, investigations) = buildManagement(diagnosis: dx, redact: dx == nil)
         return Feedback(
             sessionId: sessionId, caseId: scenario.caseId, diagnosisSubmitted: dx,
             totalScore: categories.reduce(0) { $0 + $1.score }, maxScore: categories.reduce(0) { $0 + $1.maxScore },
@@ -306,6 +409,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
             diagnosticAssessment: DiagnosticAssessment(verdict: verdict, explanation: explanation, expected: dx == nil ? nil : d.name),
             categories: categories, strengths: strengths, missed: missed, relevantFindings: findings,
             nextSteps: dx == nil ? [] : h.nextSteps, documentation: documentation,
+            management: management, investigations: investigations,
             disclaimer: "Educational simulation only. Not a clinical diagnostic tool. Transcript-based criteria use simple keyword heuristics."
         )
     }

@@ -14,7 +14,7 @@ struct ImmersivePatientView: View {
             content.add(avatar.root)
             if let notebook = attachments.entity(for: "notebook") {
                 // Beside the patient (the wearer's right), at chest height, turned to the wearer.
-                notebook.position = [0.5, 1.3, 0.3]
+                notebook.position = [0.42, 1.3, 0.5]
                 notebook.orientation = simd_quatf(angle: -0.35, axis: [0, 1, 0])
                 avatar.root.addChild(notebook)
             }

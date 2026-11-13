@@ -26,6 +26,7 @@ final class BackendClinicalEngine: ClinicalEngine {
     private struct ExamineBody: Encodable { var bodyPart: String; var action: String }
     private struct InteractionBody: Encodable { var role: String; var text: String; var timestamp: String }
     private struct DiagnoseBody: Encodable { var diagnosis: String; var notes: ClinicalNotes }
+    private struct InvestigationBody: Encodable { var investigationId: String }
     private struct Detail: Decodable { var detail: String }
 
     func startSession(caseId: String) async throws -> SessionInfo {
@@ -42,6 +43,10 @@ final class BackendClinicalEngine: ClinicalEngine {
 
     func examine(zoneId: String, action: String) async throws -> ExaminationResult {
         try await send("POST", "\(try path())/examine", ExamineBody(bodyPart: zoneId, action: action))
+    }
+
+    func orderInvestigation(_ id: String) async throws -> InvestigationResult {
+        try await send("POST", "\(try path())/investigations", InvestigationBody(investigationId: id))
     }
 
     func recordInteraction(_ turn: TranscriptTurn) async {

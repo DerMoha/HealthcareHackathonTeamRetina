@@ -161,3 +161,23 @@ Scripted `-autoDemo` runs in the visionOS simulator; nobody spoke, pinched or li
 | Walking into the room | Not built | stretch goal |
 
 Known limits: the standing arm pose is plain (elbows slightly out); fingers do not move; sitting keeps the shins vertical; no offline spoken greeting.
+
+## Investigations and management pass (2026-11-13)
+
+Scripted `-autoDemo` runs; nobody pinched, typed or listened.
+
+| Item | Result | How |
+|---|---|---|
+| Results come from the scenario, via backend and offline engine | Pass | backend tests, `check_offline_engine.sh`, smoke log `investigation …` |
+| Backend/Swift parity incl. orders and plan notes | Pass | golden fixture, 0 differences |
+| X-ray order reveals nothing about MRI or the diagnosis | Pass | backend test + smoke check |
+| Viewer opens with the CC0 example image, zoom to 250 % | Pass | `05-xray-viewer`, `05-xray-zoom` |
+| Back to notebook lands on Investigations | Pass | `05-investigations` |
+| MRI: labelled report without image | Pass | `10-mri-report` |
+| Spoken order through the scripted mock voice | Pass | `--mock-voice` |
+| Order after backend kill served offline | Pass | `--kill-backend` |
+| Management scored /20 beside an unchanged /100 | Pass | backend tests, smoke log `management=20/20` |
+| Unsafe reassurance, negated plans ("no follow-up"), conversation-only plans earn nothing | Pass | backend tests |
+| Live agent calls `order_investigation` | **Not tested** | no ElevenLabs credentials |
+| Pinch-to-zoom, typing the plan | **Not tested** | needs a person |
+| Rubric reviewed by a clinician | **Not done** | written against NICE NG38; needs review before teaching use |

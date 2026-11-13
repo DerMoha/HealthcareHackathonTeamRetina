@@ -31,6 +31,23 @@ notes (all sections joined by newlines):
 No notes, or no diagnosis yet -> documentation == [].
 If any entry is unsupported, the summary ends with UNSUPPORTED_SUMMARY.
 
+INVESTIGATIONS AND MANAGEMENT: `hidden.management` is a separate 20-point dimension reported
+as Feedback.management. It is NOT added to total_score/max_score (still the 100-point rubric).
+Its checks read the ordered investigations and the written texts
+  diagnosis, assessment, interpretation, management, follow_up
+and never the conversation, so nothing the LLM says can earn or lose these points:
+  ordered_any    first ordered investigation (by seq) in `investigations`; evidence = its label
+  notes_said     first of `fields` (in list order) whose text hits `keywords`; evidence = that
+                 text; `requires_ordered` = at least one of these must have been ordered;
+                 `ignore_negated` = each text is lower-cased and NEGATED phrases ("no follow-up",
+                 "without splint") are blanked first, and evidence is that processed text
+  notes_avoided  met when at least one of `fields` is non-blank and none hits `keywords`
+  any_of         result of the first met sub-check, else unmet with the last sub-check's method
+Criteria are redacted (criteria == []) before a diagnosis, like the categories.
+Feedback.investigations = "<label>: <impression>" per distinct ordered investigation, in order.
+The plan text used by diagnosis_or_learner_said is the diagnosis followed by every non-blank
+note among assessment, interpretation, management, follow_up (joined by newlines).
+
 SUMMARY TEMPLATE after a diagnosis (deterministic; sentences joined by one space):
   S1  only if transcript_available is false: NO_TRANSCRIPT
   S2  strengths[0], if any
@@ -42,7 +59,7 @@ import re
 from functools import lru_cache
 
 from .models import (CategoryResult, CriterionResult, DiagnosticAssessment, DocumentationItem,
-                     Feedback)
+                     Feedback, ManagementAssessment)
 from .sessions import Session
 
 DISCLAIMER = ("Educational simulation only. Not a clinical diagnostic tool. "
@@ -69,6 +86,56 @@ def _pattern(keyword: str) -> re.Pattern:
 def _hit(text: str, keywords: list[str]) -> bool:
     low = text.lower().replace("\u2019", "'")
     return any(_pattern(k).search(low) for k in keywords)
+
+
+# "no|not|without|kein*|ohne" plus the next one or two words (same sentence part).
+NEGATED = re.compile(r"(?<!\w)(?:no|not|without|kein\w*|ohne)\s+[\w-]+(?:\s+[\w-]+)?")
+PLAN_FIELDS = ("assessment", "interpretation", "management", "follow_up")
+
+
+def _management_check(check: dict, ordered: list[str], texts: dict[str, str], labels: dict[str, str]):
+    """Return (met, evidence, method) for one investigation/management check."""
+    kind = check["type"]
+    if kind == "ordered_any":
+        hit = next((o for o in ordered if o in check["investigations"]), None)
+        return hit is not None, labels.get(hit), "rule"
+    if kind == "any_of":
+        result = (False, None, "rule")
+        for sub in check["checks"]:
+            result = _management_check(sub, ordered, texts, labels)
+            if result[0]:
+                break
+        return result
+    written = [texts.get(f, "") for f in check["fields"]]
+    if kind == "notes_avoided":
+        met = any(t.strip() for t in written) and not any(_hit(t, check["keywords"]) for t in written)
+        return met, None, "keyword"
+    if kind == "notes_said":
+        need = check.get("requires_ordered")
+        if check.get("ignore_negated"):  # "no follow-up" must not count as arranging follow-up
+            written = [NEGATED.sub(" ", t.lower()) for t in written]
+        quote = next((t for t in written if _hit(t, check["keywords"])), None)
+        if need and not any(o in need for o in ordered):
+            quote = None
+        return quote is not None, quote, "keyword"
+    raise ValueError(f"unknown management check type {kind!r}")
+
+
+def _management(scenario: dict, s: Session, redact: bool):
+    spec = scenario["hidden"]["management"]
+    invs = {i["id"]: i for i in scenario.get("investigations", [])}
+    ordered = list(dict.fromkeys(o["investigation_id"] for o in sorted(s.investigations, key=lambda o: o["seq"])))
+    texts = {"diagnosis": s.diagnosis or "", **(s.notes or {})}
+    results = []
+    for c in spec["criteria"]:
+        met, ev, method = _management_check(c["check"], ordered, texts, {k: v["label"] for k, v in invs.items()})
+        results.append(CriterionResult(
+            id=c["id"], label=c["label"], met=met, points=c["points"] if met else 0, max_points=c["points"],
+            method=method, evidence=ev if met else None, comment=c["met_text"] if met else c["missed_text"],
+            area=c["area"]))
+    assessment = ManagementAssessment(title=spec["title"], score=sum(r.points for r in results),
+                                      max_score=spec["max_score"], criteria=[] if redact else results)
+    return assessment, [f"{invs[o]['label']}: {invs[o]['result']['impression']}" for o in ordered]
 
 
 def _first_quote(turns: list[dict], keywords: list[str]) -> str | None:
@@ -121,9 +188,9 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
     labels = {z["id"]: z.get("clinical_label", z["label"]) for z in scenario["examination_zones"]}
     notes = s.notes or {}
     note_text = "\n".join(notes.get(k, "") for k in ("history", "examination", "assessment"))
-    plan = s.diagnosis  # diagnosis plus the written assessment
-    if plan and notes.get("assessment", "").strip():
-        plan = plan + "\n" + notes["assessment"]
+    plan = s.diagnosis  # diagnosis plus the written assessment and plan
+    if plan:
+        plan = "\n".join([plan] + [notes[k] for k in PLAN_FIELDS if notes.get(k, "").strip()])
     findings = {z["id"]: z["result"] for z in scenario["examination_zones"]}
 
     # verdict
@@ -179,6 +246,7 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
     elif any(d.status == "unsupported" for d in documentation):
         summary += " " + UNSUPPORTED_SUMMARY
     next_steps = list(hidden["next_steps"]) if verdict != "not_submitted" else []
+    management, investigations = _management(scenario, s, redact=verdict == "not_submitted")
     return Feedback(
         session_id=s.id, case_id=s.case_id, diagnosis_submitted=s.diagnosis,
         total_score=sum(c.score for c in categories), max_score=sum(c.max_score for c in categories),
@@ -189,6 +257,7 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
             expected=diag["name"] if verdict != "not_submitted" else None),
         categories=categories, strengths=strengths, missed=missed,
         relevant_findings=relevant, next_steps=next_steps, documentation=documentation,
+        management=management, investigations=investigations,
         disclaimer=DISCLAIMER)
 
 

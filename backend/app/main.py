@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException
 
 from . import evaluation, examination
 from .models import (DiagnoseRequest, ExamineRequest, ExamineResult, Feedback, Health,
-                     InteractionCount, InteractionRequest, SessionCreate, SessionInfo,
+                     InteractionCount, InteractionRequest, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
                      TokenResponse, CasePublic)
 from .sessions import SESSIONS, Session, create_session, load_scenarios, now_iso, public_case
 
@@ -72,6 +72,15 @@ def examine(session_id: str, req: ExamineRequest):
     result = examination.examine(SCENARIOS[s.case_id], s, req.body_part, req.action)
     if result is None:
         raise HTTPException(404, f"Unknown examination zone '{req.body_part}'")
+    return result
+
+
+@app.post("/sessions/{session_id}/investigations", response_model=InvestigationResult)
+def investigations(session_id: str, req: InvestigationRequest):
+    s = _session(session_id)
+    result = examination.investigate(SCENARIOS[s.case_id], s, req.investigation_id)
+    if result is None:
+        raise HTTPException(404, f"Unknown investigation '{req.investigation_id}'")
     return result
 
 

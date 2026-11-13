@@ -26,7 +26,8 @@
           "max_points": 6,
           "method": "keyword",
           "evidence": "Hello, I'm a medical student. What happened to you?",
-          "comment": "You asked how the injury happened."
+          "comment": "You asked how the injury happened.",
+          "area": null
         },
         {
           "id": "onset",
@@ -36,7 +37,8 @@
           "max_points": 6,
           "method": "keyword",
           "evidence": null,
-          "comment": "You did not ask when the injury happened or when the pain started."
+          "comment": "You did not ask when the injury happened or when the pain started.",
+          "area": null
         },
         {
           "id": "location",
@@ -46,7 +48,8 @@
           "max_points": 6,
           "method": "keyword",
           "evidence": "Where does it hurt, and how bad is it on a scale of ten?",
-          "comment": "You asked the patient to localise the pain."
+          "comment": "You asked the patient to localise the pain.",
+          "area": null
         },
         {
           "id": "severity",
@@ -56,7 +59,8 @@
           "max_points": 6,
           "method": "keyword",
           "evidence": "Where does it hurt, and how bad is it on a scale of ten?",
-          "comment": "You assessed pain severity."
+          "comment": "You assessed pain severity.",
+          "area": null
         },
         {
           "id": "associated_symptoms",
@@ -66,7 +70,8 @@
           "max_points": 6,
           "method": "keyword",
           "evidence": null,
-          "comment": "You did not ask about numbness or altered sensation."
+          "comment": "You did not ask about numbness or altered sensation.",
+          "area": null
         }
       ]
     },
@@ -84,7 +89,8 @@
           "max_points": 10,
           "method": "rule",
           "evidence": "Right anatomical snuffbox",
-          "comment": "You examined the injured right wrist."
+          "comment": "You examined the injured right wrist.",
+          "area": null
         },
         {
           "id": "examined_snuffbox",
@@ -94,7 +100,8 @@
           "max_points": 15,
           "method": "rule",
           "evidence": "Right anatomical snuffbox",
-          "comment": "You palpated the anatomical snuffbox and elicited marked tenderness, the key finding."
+          "comment": "You palpated the anatomical snuffbox and elicited marked tenderness, the key finding.",
+          "area": null
         },
         {
           "id": "comparison",
@@ -104,7 +111,8 @@
           "max_points": 10,
           "method": "rule",
           "evidence": "Left wrist (comparison)",
-          "comment": "You examined a comparison area to confirm the tenderness is localised."
+          "comment": "You examined a comparison area to confirm the tenderness is localised.",
+          "area": null
         },
         {
           "id": "significance",
@@ -114,7 +122,8 @@
           "max_points": 5,
           "method": "keyword",
           "evidence": null,
-          "comment": "You did not show that you recognised what localised snuffbox tenderness means."
+          "comment": "You did not show that you recognised what localised snuffbox tenderness means.",
+          "area": null
         }
       ]
     },
@@ -132,7 +141,8 @@
           "max_points": 5,
           "method": "keyword",
           "evidence": "Hello, I'm a medical student. What happened to you?",
-          "comment": "You introduced yourself."
+          "comment": "You introduced yourself.",
+          "area": null
         },
         {
           "id": "permission",
@@ -142,7 +152,8 @@
           "max_points": 5,
           "method": "keyword",
           "evidence": "May I examine your wrist?",
-          "comment": "You asked for permission before examining."
+          "comment": "You asked for permission before examining.",
+          "area": null
         },
         {
           "id": "responded_to_pain",
@@ -152,7 +163,8 @@
           "max_points": 5,
           "method": "keyword",
           "evidence": "Sorry about that, I'll be gentle.",
-          "comment": "You acknowledged the patient's pain after the painful examination."
+          "comment": "You acknowledged the patient's pain after the painful examination.",
+          "area": null
         },
         {
           "id": "respectful",
@@ -162,7 +174,8 @@
           "max_points": 5,
           "method": "keyword",
           "evidence": null,
-          "comment": "No disrespectful language was detected."
+          "comment": "No disrespectful language was detected.",
+          "area": null
         }
       ]
     },
@@ -180,7 +193,8 @@
           "max_points": 6,
           "method": "rule",
           "evidence": null,
-          "comment": "You did not identify a possible scaphoid injury."
+          "comment": "You did not identify a possible scaphoid injury.",
+          "area": null
         },
         {
           "id": "further_assessment",
@@ -189,8 +203,9 @@
           "points": 4,
           "max_points": 4,
           "method": "keyword",
-          "evidence": "Probably a fracture of the wrist\nNeeds an X-ray and a splint.",
-          "comment": "You recognised that further assessment and imaging are needed."
+          "evidence": "Probably a fracture of the wrist\nNeeds an X-ray and a splint.\nX-ray shows no fracture, but an occult fracture cannot be excluded.\nThumb spica splint.",
+          "comment": "You recognised that further assessment and imaging are needed.",
+          "area": null
         }
       ]
     }
@@ -273,6 +288,71 @@
       "status": "documented",
       "comment": "Documented, and supported by the session record."
     }
+  ],
+  "management": {
+    "title": "Investigation and management",
+    "score": 16,
+    "max_score": 20,
+    "criteria": [
+      {
+        "id": "imaging_requested",
+        "label": "Requested appropriate imaging of the injured wrist",
+        "met": true,
+        "points": 4,
+        "max_points": 4,
+        "method": "rule",
+        "evidence": "Right wrist radiographs",
+        "comment": "You requested imaging of the injured wrist.",
+        "area": "investigation"
+      },
+      {
+        "id": "result_interpreted",
+        "label": "Interpreted the imaging result correctly",
+        "met": true,
+        "points": 5,
+        "max_points": 5,
+        "method": "keyword",
+        "evidence": "X-ray shows no fracture, but an occult fracture cannot be excluded.",
+        "comment": "You interpreted the imaging correctly: a normal first radiograph does not exclude a scaphoid fracture, and MRI or CT can show it.",
+        "area": "interpretation"
+      },
+      {
+        "id": "immobilisation",
+        "label": "Planned immobilisation of the wrist",
+        "met": true,
+        "points": 5,
+        "max_points": 5,
+        "method": "keyword",
+        "evidence": "needs an x-ray and a splint.",
+        "comment": "You planned to immobilise the wrist.",
+        "area": "management"
+      },
+      {
+        "id": "further_assessment_plan",
+        "label": "Arranged further imaging or follow-up",
+        "met": false,
+        "points": 0,
+        "max_points": 4,
+        "method": "keyword",
+        "evidence": null,
+        "comment": "You did not arrange further imaging (MRI, CT or repeat radiographs) or a follow-up review.",
+        "area": "management"
+      },
+      {
+        "id": "no_false_reassurance",
+        "label": "Avoided unsafe reassurance after inconclusive imaging",
+        "met": true,
+        "points": 2,
+        "max_points": 2,
+        "method": "keyword",
+        "evidence": null,
+        "comment": "You did not falsely reassure the patient that a fracture was excluded.",
+        "area": "safety"
+      }
+    ]
+  },
+  "investigations": [
+    "Right wrist radiographs: No definite fracture visible."
   ],
   "disclaimer": "Educational simulation only. Not a clinical diagnostic tool. Transcript-based criteria use simple keyword heuristics."
 }

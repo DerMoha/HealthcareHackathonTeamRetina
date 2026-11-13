@@ -35,6 +35,7 @@ def public_case(s: dict) -> CasePublic:
         zones=[{k: z[k] for k in ("id", "label", "attach_to", "offset", "radius")}
                for z in s["examination_zones"]],
         scripted_dialogue=s["scripted_dialogue"],
+        investigations=[{"id": i["id"], "label": i["label"]} for i in s.get("investigations", [])],
     )
 
 
@@ -46,8 +47,9 @@ class Session:
     seq: int = 0  # shared by interactions and examinations
     interactions: list[dict] = field(default_factory=list)  # seq, role, text, timestamp
     examinations: list[dict] = field(default_factory=list)  # seq, zone_id, action, pain_level
+    investigations: list[dict] = field(default_factory=list)  # seq, investigation_id, ordered_at
     diagnosis: str | None = None
-    notes: dict | None = None  # history, examination, assessment (set on diagnose)
+    notes: dict | None = None  # see models.Notes (set on diagnose)
 
     def next_seq(self) -> int:
         self.seq += 1

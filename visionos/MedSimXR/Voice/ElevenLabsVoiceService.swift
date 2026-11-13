@@ -23,6 +23,7 @@ final class ElevenLabsVoiceService: VoiceService {
     private(set) var isAgentSpeaking = false
     @ObservationIgnored var onTranscript: ((TranscriptTurn) -> Void)?
     @ObservationIgnored var onAction: ((String) -> String)?
+    @ObservationIgnored var onOrder: ((String) async -> String)?
 
     @ObservationIgnored private var conversation: Conversation?
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
@@ -147,14 +148,18 @@ final class ElevenLabsVoiceService: VoiceService {
         return config
     }
 
-    /// Client tool `perform_patient_action(action:)`. The action string is validated by the
-    /// app (PatientBehaviorController); the agent always gets an explicit result back.
+    /// Client tools `perform_patient_action(action:)` and `order_investigation(investigation:)`.
+    /// Both strings are validated by the app; the agent always gets an explicit result back.
     private func handleTool(_ call: ClientToolCallEvent, gen: Int) async {
         guard gen == generation, let conversation else { return }
         var result = "failure: unknown tool \(call.toolName)"
         if call.toolName == "perform_patient_action" {
             let action = (try? call.getParameters())?["action"] as? String ?? ""
             result = onAction?(action) ?? "failure: unavailable"
+        } else if call.toolName == "order_investigation" {
+            // The app asks the clinical engine; the agent only learns that the order was placed.
+            let id = (try? call.getParameters())?["investigation"] as? String ?? ""
+            result = await onOrder?(id) ?? "failure: unavailable"
         }
         guard call.expectsResponse else { return conversation.markToolCallCompleted(call.toolCallId) }
         try? await conversation.sendToolResult(for: call.toolCallId, result: result, isError: !result.hasPrefix("success"))

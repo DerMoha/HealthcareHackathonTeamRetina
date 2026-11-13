@@ -13,6 +13,8 @@ struct FeedbackView: View {
                     section("Categories") {
                         ForEach(f.categories) { CategoryCard(category: $0) }
                     }
+                    management(f.management)
+                    list("Investigations requested", f.investigations, "rays", .teal)
                     list("Strengths", f.strengths, "checkmark.circle.fill", .green)
                     list("Missed", f.missed, "exclamationmark.circle.fill", .orange)
                     list("Relevant findings", f.relevantFindings, "stethoscope", .teal)
@@ -27,6 +29,35 @@ struct FeedbackView: View {
                     Text(f.disclaimer).font(.caption).foregroundStyle(.secondary)
                 }
                 .padding(4)
+            }
+        }
+    }
+
+    private static let areas = [
+        ("investigation", "Investigation choices"), ("interpretation", "Interpretation of results"),
+        ("management", "Management decisions"), ("safety", "Safety after inconclusive imaging"),
+    ]
+
+    /// Separate dimension: shown with its own score, never added to the 100 points.
+    @ViewBuilder
+    private func management(_ m: ManagementAssessment) -> some View {
+        if !m.criteria.isEmpty {
+            section("\(m.title) · \(m.score)/\(m.maxScore)") {
+                Text("Scored separately from the 100 points above.").font(.caption).foregroundStyle(.secondary)
+                ForEach(Self.areas, id: \.0) { area, title in
+                    Text(title).font(.subheadline.bold())
+                    ForEach(m.criteria.filter { $0.area == area }) { c in
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(c.label) · \(c.points)/\(c.maxPoints)").font(.callout.weight(.medium))
+                                Text(c.comment).font(.caption).foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: c.met ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(c.met ? .green : .red)
+                        }
+                    }
+                }
             }
         }
     }

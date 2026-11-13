@@ -26,6 +26,11 @@ class DialogueLine(BaseModel):
     patient: str
 
 
+class InvestigationInfo(BaseModel):
+    id: str
+    label: str
+
+
 class CasePublic(BaseModel):
     case_id: str
     title: str
@@ -34,6 +39,7 @@ class CasePublic(BaseModel):
     voice_context: str
     zones: list[Zone]
     scripted_dialogue: list[DialogueLine]
+    investigations: list[InvestigationInfo] = []
 
 
 class Health(BaseModel):
@@ -69,6 +75,23 @@ class ExamineResult(BaseModel):
     repeat_count: int
 
 
+class InvestigationRequest(BaseModel):
+    investigation_id: str
+
+
+class InvestigationResult(BaseModel):
+    investigation_id: str
+    label: str
+    modality: str
+    title: str
+    report: str
+    impression: str
+    image: str | None  # bundled image name in the app, or null: report only
+    image_credit: str
+    ordered_at: str
+    repeat_count: int
+
+
 class InteractionRequest(BaseModel):
     role: Literal["learner", "patient"]
     text: str
@@ -84,6 +107,9 @@ class Notes(BaseModel):
     history: str = ""
     examination: str = ""
     assessment: str = ""
+    interpretation: str = ""  # what the investigation results mean
+    management: str = ""      # immediate management
+    follow_up: str = ""       # further imaging / follow-up plan
 
 
 class DiagnoseRequest(BaseModel):
@@ -113,10 +139,19 @@ class CriterionResult(BaseModel):
     method: Literal["keyword", "rule"]
     evidence: str | None
     comment: str
+    area: str | None = None  # management criteria only: investigation | interpretation | management | safety
 
 
 class CategoryResult(BaseModel):
     id: str
+    title: str
+    score: int
+    max_score: int
+    criteria: list[CriterionResult]
+
+
+class ManagementAssessment(BaseModel):
+    """Investigation and management: scored separately, not part of total_score."""
     title: str
     score: int
     max_score: int
@@ -138,6 +173,8 @@ class Feedback(BaseModel):
     relevant_findings: list[str]
     next_steps: list[str]
     documentation: list[DocumentationItem]
+    management: ManagementAssessment
+    investigations: list[str]
     disclaimer: str
 
 

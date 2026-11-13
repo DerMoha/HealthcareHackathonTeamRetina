@@ -44,6 +44,12 @@ struct ScriptedLine: Codable, Hashable, Identifiable, Sendable {
     var patient: String
 }
 
+/// An investigation the learner may request. The result stays with the clinical engine.
+struct InvestigationInfo: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var label: String
+}
+
 struct CaseInfo: Codable, Hashable, Sendable {
     var caseId: String
     var title: String
@@ -52,6 +58,7 @@ struct CaseInfo: Codable, Hashable, Sendable {
     var voiceContext: String
     var zones: [ZoneInfo]
     var scriptedDialogue: [ScriptedLine]
+    var investigations: [InvestigationInfo] = []
 }
 
 struct SessionInfo: Codable, Hashable, Sendable {
@@ -74,6 +81,24 @@ struct ExaminationResult: Codable, Hashable, Sendable {
     var animation: String
     var voiceContext: String
     var repeatCount: Int
+}
+
+// MARK: - Investigations
+
+/// Predefined result from the case engine. Never produced by the voice model.
+struct InvestigationResult: Codable, Hashable, Identifiable, Sendable {
+    var investigationId: String
+    var label: String
+    var modality: String
+    var title: String
+    var report: String
+    var impression: String
+    /// Bundled image name (Resources/Radiology), or nil: report only.
+    var image: String?
+    var imageCredit: String
+    var orderedAt: String
+    var repeatCount: Int
+    var id: String { investigationId }
 }
 
 // MARK: - Transcript
@@ -110,6 +135,8 @@ struct CriterionResult: Codable, Hashable, Identifiable, Sendable {
     var method: String
     var evidence: String?
     var comment: String
+    /// Management criteria only: investigation | interpretation | management | safety
+    var area: String? = nil
 }
 
 struct CategoryResult: Codable, Hashable, Identifiable, Sendable {
@@ -125,6 +152,12 @@ struct ClinicalNotes: Codable, Hashable, Sendable {
     var history = ""
     var examination = ""
     var assessment = ""
+    /// What the investigation results mean.
+    var interpretation = ""
+    /// Immediate management.
+    var management = ""
+    /// Further imaging or follow-up plan.
+    var followUp = ""
 }
 
 struct DocumentationItem: Codable, Hashable, Identifiable, Sendable {
@@ -134,6 +167,14 @@ struct DocumentationItem: Codable, Hashable, Identifiable, Sendable {
     var status: String
     var comment: String
     var id: String { criterionId }
+}
+
+/// Investigation and management: scored separately, not part of `totalScore`.
+struct ManagementAssessment: Codable, Hashable, Sendable {
+    var title: String
+    var score: Int
+    var maxScore: Int
+    var criteria: [CriterionResult]
 }
 
 struct Feedback: Codable, Hashable, Sendable {
@@ -151,6 +192,9 @@ struct Feedback: Codable, Hashable, Sendable {
     var relevantFindings: [String]
     var nextSteps: [String]
     var documentation: [DocumentationItem]
+    var management: ManagementAssessment
+    /// "<label>: <impression>" for each investigation that was ordered.
+    var investigations: [String]
     var disclaimer: String
 }
 
@@ -163,6 +207,8 @@ protocol ClinicalEngine: AnyObject {
     var modeLabel: String { get }
     func startSession(caseId: String) async throws -> SessionInfo
     func examine(zoneId: String, action: String) async throws -> ExaminationResult
+    /// Records the order and returns the scenario's predefined result.
+    func orderInvestigation(_ id: String) async throws -> InvestigationResult
     /// Best effort; must never throw into the UI.
     func recordInteraction(_ turn: TranscriptTurn) async
     func diagnose(_ diagnosis: String, notes: ClinicalNotes) async throws -> Feedback
@@ -206,6 +252,9 @@ protocol VoiceService: AnyObject {
     /// Called when the agent's client tool `perform_patient_action` fires, with the raw
     /// `action` string. Returns the tool result ("success: …", "invalid_state: …", "failure: …").
     var onAction: ((String) -> String)? { get set }
+    /// Called when the agent's client tool `order_investigation` fires, with the raw
+    /// `investigation` string. Returns the tool result; it never contains the test result.
+    var onOrder: ((String) async -> String)? { get set }
 
     /// Connects and passes `caseContext` as dynamic variable `case_context`.
     func start(caseContext: String) async

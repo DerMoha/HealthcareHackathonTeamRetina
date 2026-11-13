@@ -38,6 +38,15 @@ Agent > Tools > Add tool > **Client tool**. The app (`ElevenLabsVoiceService.han
 
 Tool calls are not transcript turns and are not examinations: they never reach the scoring. NOT verified against a live agent (no credentials during development): that the dashboard forwards the tool to SDK 3.4.0 as `client_tool_call` with these field names. The app-side handler is exercised only through the scripted mock voice.
 
+## 5c. Client tool: ordering investigations
+Agent > Tools > Add tool > **Client tool**.
+- Name: `order_investigation` (exact).
+- Description: `Places an order for an imaging investigation when the student asks for one. The result is shown to the student by the app; it is not returned to you.`
+- **Wait for response: ON.**
+- Parameter `investigation`: type string, required, enum `right_wrist_xray`, `right_wrist_mri`, `right_wrist_ct`. Description: `The investigation the student asked for.`
+
+The app validates the id against the case, asks the clinical engine for the predefined result, opens the viewer, and returns only `success: … requested …` or `failure: …` to the agent. The result text never reaches the model. Fallback without voice: notebook > Investigations. NOT verified against a live agent.
+
 ## 6. Public vs private agent
 - **Public** (simplest for a hackathon): Security > "Enable authentication" OFF. Copy the Agent ID (`agent_...`). Put it either in `visionos/Config/Local.xcconfig` as `ELEVENLABS_AGENT_ID = agent_...` (rebuild) or in the in-app Settings field.
 - **Private**: enable authentication. In the backend `.env` set `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID`. Leave the app's agent ID EMPTY. The app then calls `GET /elevenlabs/conversation-token` on the backend and connects with that token. The API key never ships in the app.

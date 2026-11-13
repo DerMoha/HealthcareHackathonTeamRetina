@@ -144,6 +144,27 @@ do {
     check(f.documentation.first { $0.criterionId == "examined_snuffbox" }?.status == "undocumented", "examined but not written down")
 }
 
+// Investigations and management (separate 20 points)
+do {
+    let e = try await fresh()
+    let x = try await e.orderInvestigation("right_wrist_xray")
+    check(x.impression == "No definite fracture visible." && x.image == "wrist_xray_pa" && x.repeatCount == 1, "x-ray result")
+    check(!(x.label + x.title + x.report + x.impression).lowercased().contains("scaphoid fracture"), "x-ray reveals nothing")
+    do { _ = try await e.orderInvestigation("biopsy"); check(false, "unknown investigation should throw") } catch {}
+    await say(e, "I will order an MRI and put you in a splint.")
+    let f = try await e.diagnose("Wrist sprain", notes: ClinicalNotes(
+        interpretation: "X-ray normal, fracture ruled out.", management: "Just a sprain, no follow-up."))
+    check(f.maxScore == 100 && f.management.maxScore == 20 && f.management.score == 4, "unsafe plan scores 4/20, total stays /100")
+    check(f.investigations == ["Right wrist radiographs: No definite fracture visible."], "ordered list")
+    let m = try await e.orderInvestigation("right_wrist_mri")
+    check(m.image == nil && m.impression.contains("scaphoid"), "mri result")
+    let g = try await e.diagnose("Scaphoid fracture", notes: ClinicalNotes(
+        interpretation: "Occult fracture not excluded by X-ray; MRI confirms it.", management: "Thumb spica cast."))
+    check(g.management.score == 20, "safe plan scores 20/20")
+    _ = try await e.reset()
+    check(try await e.feedback().investigations.isEmpty, "reset clears orders")
+}
+
 // Optional parity replay against the backend's fixtures
 let fx = root.appendingPathComponent("backend/tests/fixtures")
 if let inData = try? Data(contentsOf: fx.appendingPathComponent("parity_input.json")),
@@ -157,10 +178,13 @@ if let inData = try? Data(contentsOf: fx.appendingPathComponent("parity_input.js
             _ = try await e.examine(zoneId: step["body_part"] as! String, action: step["action"] as? String ?? "palpation")
         case "interaction":
             await say(e, step["text"] as! String, SpeakerRole(rawValue: step["role"] as! String) ?? .learner)
+        case "investigate":
+            _ = try await e.orderInvestigation(step["investigation_id"] as! String)
         default:
             let n = step["notes"] as? [String: String] ?? [:]
             f = try await e.diagnose(step["diagnosis"] as! String, notes: ClinicalNotes(
-                history: n["history"] ?? "", examination: n["examination"] ?? "", assessment: n["assessment"] ?? ""))
+                history: n["history"] ?? "", examination: n["examination"] ?? "", assessment: n["assessment"] ?? "",
+                interpretation: n["interpretation"] ?? "", management: n["management"] ?? "", followUp: n["follow_up"] ?? ""))
         }
     }
     let enc = JSONEncoder.medsim

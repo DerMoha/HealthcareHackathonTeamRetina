@@ -29,3 +29,16 @@
 | Engine shows **Offline** | Nothing — keep going. Findings and feedback are identical. |
 | Patient is in the wrong place | **Recenter Patient** while looking where Alex should sit. |
 | No network at all | Start Session still works: patient, examination, pain reaction, diagnosis, feedback. Only the live conversation is missing. |
+
+## Investigations and management (added)
+
+After examining the wrist:
+
+1. Say **"I would like to order an X-ray of his right wrist"** (or notebook → **Investigations** → Right wrist radiographs). The radiology viewer opens beside the patient.
+2. Zoom with the magnifier buttons or a pinch. Read the short report: no definite fracture visible.
+3. **Back to notebook** → **Assessment**. Fill in: suspected diagnosis, interpretation of investigations, immediate management, further imaging or follow-up.
+4. **Submit diagnosis and plan**. Feedback shows the usual 100-point score plus a separate "Investigation and management" score out of 20.
+
+Talking point: "The X-ray is normal. The teaching point is what the student does next: a normal first X-ray does not exclude a scaphoid fracture." Do not order the MRI in front of the audience unless you want to show the answer.
+
+If voice ordering fails: the notebook buttons do the same thing, also offline.

@@ -1,5 +1,5 @@
 {
-  "_doc": "Fixed run for Swift/Python parity. Steps are applied in order against a fresh session of case_id; the final /diagnose response (session_id replaced by \"SESSION\") must equal parity_expected.json. The diagnose step carries notebook notes: some supported by the record, some not (numbness never asked).",
+  "_doc": "Fixed run for Swift/Python parity. Steps are applied in order against a fresh session of case_id; the final /diagnose response (session_id replaced by \"SESSION\") must equal parity_expected.json. The diagnose step carries notebook notes: some supported by the record, some not (numbness never asked). Radiographs are ordered twice; the plan immobilises but arranges no follow-up.",
   "case_id": "wrist_trauma_001",
   "steps": [
     {
@@ -43,12 +43,23 @@
       "action": "palpation"
     },
     {
+      "op": "investigate",
+      "investigation_id": "right_wrist_xray"
+    },
+    {
+      "op": "investigate",
+      "investigation_id": "right_wrist_xray"
+    },
+    {
       "op": "diagnose",
       "diagnosis": "Probably a fracture of the wrist",
       "notes": {
         "history": "Fell off bike yesterday, landed on outstretched right hand. No numbness.",
         "examination": "Tender at the base of the thumb on the right. Forearm and left wrist normal.",
-        "assessment": "Needs an X-ray and a splint."
+        "assessment": "Needs an X-ray and a splint.",
+        "interpretation": "X-ray shows no fracture, but an occult fracture cannot be excluded.",
+        "management": "Thumb spica splint.",
+        "follow_up": ""
       }
     }
   ]

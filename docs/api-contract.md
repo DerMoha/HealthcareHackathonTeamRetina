@@ -213,3 +213,28 @@ Not a backend endpoint: handled entirely in the headset app.
 - `VoiceService.onAction: (String) -> String` receives the raw string. `AppModel.performPatientAction` validates it against `PatientAction` and returns `success: …`, `invalid_state: …` or `failure: …`.
 - States (`PatientBehavior`): `standing_idle → sitting_down → seated_idle ⇄ extending_arms → arms_extended`, plus `indicating_wrist`, `pain_recoil`, `returning_to_rest`. Examination is accepted only when seated (`canExamine`).
 - An action never creates an examination event or a transcript turn. `pain_recoil` is entered only from a real `/examine` result whose `animation` is not `none`.
+
+## Investigations and management
+
+`CasePublic.investigations`: `[{id, label}]` only. Results stay server-side until ordered.
+
+### `POST /sessions/{id}/investigations`
+Body `{"investigation_id": "right_wrist_xray"}`. 404 for an unknown id or session. Records `{seq, investigation_id, ordered_at}` and returns the scenario's predefined result:
+
+```json
+{"investigation_id": "right_wrist_xray", "label": "Right wrist radiographs", "modality": "X-ray",
+ "title": "Right wrist radiographs, four views", "report": "…", "impression": "No definite fracture visible.",
+ "image": "wrist_xray_pa", "image_credit": "…", "ordered_at": "2026-11-13T09:00:00Z", "repeat_count": 1}
+```
+`image` is a bundled image name in the app (`Resources/Radiology/<name>.jpg`) or `null` (report only). Ordering one investigation never returns or mentions another.
+
+### Notes
+`notes` in `/diagnose` gains `interpretation`, `management`, `follow_up` (all default `""`). The existing reasoning criterion `further_assessment` now reads the diagnosis plus `assessment`, `interpretation`, `management` and `follow_up` (previously diagnosis plus `assessment`). This is the only change to the 100-point rubric, and it only moves where the same text may be written.
+
+### Feedback
+- `management`: `{title, score, max_score: 20, criteria[]}`; criteria are `CriterionResult` with `area` = `investigation | interpretation | management | safety`. **Not included in `total_score` / `max_score`, which remain the 100-point rubric.** `criteria` is `[]` before a diagnosis.
+- `investigations`: `"<label>: <impression>"` per distinct investigation ordered.
+- Check types (`hidden.management`, see `backend/app/evaluation.py`): `ordered_any`, `notes_said` (`requires_ordered`, `ignore_negated`), `notes_avoided`, `any_of`. They read orders and written text only, never the conversation.
+
+### Client tool
+`order_investigation(investigation)` with the three ids above → `VoiceService.onOrder` → `AppModel.orderInvestigation`. The tool result tells the agent only that the order was placed.

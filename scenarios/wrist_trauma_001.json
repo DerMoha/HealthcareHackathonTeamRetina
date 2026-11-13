@@ -1,8 +1,8 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "case_id": "wrist_trauma_001",
   "title": "Clinic patient: Alex, 28",
-  "learner_brief": "Alex, 28, is waiting to be seen. Take a history, examine the patient, and record your findings and suspected diagnosis in the notebook.",
+  "learner_brief": "Alex, 28, is waiting to be seen. Take a history, examine the patient, request any investigations you need, and record your findings, suspected diagnosis and management plan in the notebook.",
   "patient": {
     "name": "Alex",
     "age": 28,
@@ -107,6 +107,44 @@
       "id": "empathy",
       "learner": "I'm sorry, I know that hurt. I'll be gentle.",
       "patient": "Thanks. It's okay, I just wasn't expecting it to hurt that much."
+    }
+  ],
+  "investigations": [
+    {
+      "id": "right_wrist_xray",
+      "label": "Right wrist radiographs",
+      "modality": "X-ray",
+      "result": {
+        "title": "Right wrist radiographs, four views",
+        "report": "Bone alignment is normal. Joint spaces are preserved. No cortical break or lucent line is identified in the distal radius, ulna or carpal bones. Mild soft-tissue swelling on the radial side of the wrist.",
+        "impression": "No definite fracture visible.",
+        "image": "wrist_xray_pa",
+        "image_credit": "Illustrative example image only: a normal wrist radiograph (mirrored), by Mikael Häggström, M.D., CC0, Wikimedia Commons. It is not an image of this simulated patient."
+      }
+    },
+    {
+      "id": "right_wrist_mri",
+      "label": "MRI of the right wrist",
+      "modality": "MRI",
+      "result": {
+        "title": "MRI right wrist without contrast",
+        "report": "Linear low-signal line across the waist of the scaphoid on T1-weighted images, with surrounding bone-marrow oedema on fluid-sensitive sequences. No displacement. Remaining carpal bones, distal radius and ulna are intact. Scapholunate ligament intact.",
+        "impression": "Findings consistent with a non-displaced fracture of the scaphoid waist.",
+        "image": null,
+        "image_credit": "Simulated report only. No example image is shown for this study because no suitably licensed image matching the case was available."
+      }
+    },
+    {
+      "id": "right_wrist_ct",
+      "label": "CT of the right wrist",
+      "modality": "CT",
+      "result": {
+        "title": "CT right wrist, bone algorithm",
+        "report": "Fine non-displaced lucent line through the waist of the scaphoid with a subtle cortical break on the radial side. No comminution, no humpback deformity. Other carpal bones, distal radius and ulna are intact.",
+        "impression": "Findings consistent with a non-displaced fracture of the scaphoid waist.",
+        "image": null,
+        "image_credit": "Simulated report only. No example image is shown for this study because no suitably licensed image matching the case was available."
+      }
     }
   ],
   "hidden": {
@@ -574,6 +612,242 @@
               "missed_text": "You did not mention further clinical assessment or imaging (for example scaphoid-view X-rays)."
             }
           ]
+        }
+      ]
+    },
+    "management": {
+      "_doc": "Separate dimension, NOT part of the 100-point total. Written against NICE NG38 (fractures, non-complex: consider MRI first-line for suspected scaphoid fracture) and common practice (immobilise and re-assess or image again when initial radiographs are negative). Not reviewed by a clinician.",
+      "title": "Investigation and management",
+      "max_score": 20,
+      "criteria": [
+        {
+          "id": "imaging_requested",
+          "area": "investigation",
+          "label": "Requested appropriate imaging of the injured wrist",
+          "points": 4,
+          "check": {
+            "type": "ordered_any",
+            "investigations": [
+              "right_wrist_xray",
+              "right_wrist_mri",
+              "right_wrist_ct"
+            ]
+          },
+          "met_text": "You requested imaging of the injured wrist.",
+          "missed_text": "You did not request any imaging of the injured wrist."
+        },
+        {
+          "id": "result_interpreted",
+          "area": "interpretation",
+          "label": "Interpreted the imaging result correctly",
+          "points": 5,
+          "check": {
+            "type": "any_of",
+            "checks": [
+              {
+                "type": "notes_said",
+                "fields": [
+                  "diagnosis",
+                  "assessment",
+                  "interpretation",
+                  "management",
+                  "follow_up"
+                ],
+                "requires_ordered": [
+                  "right_wrist_xray"
+                ],
+                "keywords": [
+                  "occult*",
+                  "not exclude*",
+                  "doesn't exclude",
+                  "does not exclude",
+                  "cannot exclude",
+                  "can't exclude",
+                  "cannot be excluded",
+                  "not excluded",
+                  "not rule out",
+                  "not ruled out",
+                  "doesn't rule out",
+                  "does not rule out",
+                  "cannot rule out",
+                  "can't rule out",
+                  "can be missed",
+                  "may be missed",
+                  "often missed",
+                  "not visible initially",
+                  "false negative",
+                  "false-negative",
+                  "despite normal",
+                  "despite negative",
+                  "despite the normal",
+                  "despite the negative",
+                  "still suspect*",
+                  "still possible",
+                  "clinical suspicion",
+                  "clinically suspect*",
+                  "nicht ausgeschlossen",
+                  "okkult*"
+                ]
+              },
+              {
+                "type": "notes_said",
+                "fields": [
+                  "diagnosis",
+                  "assessment",
+                  "interpretation",
+                  "management",
+                  "follow_up"
+                ],
+                "requires_ordered": [
+                  "right_wrist_mri",
+                  "right_wrist_ct"
+                ],
+                "keywords": [
+                  "confirm*",
+                  "consistent with",
+                  "shows a",
+                  "shows the",
+                  "demonstrat*",
+                  "fracture line",
+                  "marrow oedema",
+                  "marrow edema",
+                  "bestätig*"
+                ]
+              }
+            ]
+          },
+          "met_text": "You interpreted the imaging correctly: a normal first radiograph does not exclude a scaphoid fracture, and MRI or CT can show it.",
+          "missed_text": "Your notes did not show the key interpretation: a normal first radiograph does not exclude a scaphoid fracture."
+        },
+        {
+          "id": "immobilisation",
+          "area": "management",
+          "label": "Planned immobilisation of the wrist",
+          "points": 5,
+          "check": {
+            "type": "notes_said",
+            "fields": [
+              "assessment",
+              "management",
+              "follow_up"
+            ],
+            "keywords": [
+              "immobil*",
+              "splint*",
+              "cast",
+              "casting",
+              "plaster",
+              "spica",
+              "backslab",
+              "back slab",
+              "brace",
+              "schiene*",
+              "gips*",
+              "ruhigstell*"
+            ],
+            "ignore_negated": true
+          },
+          "met_text": "You planned to immobilise the wrist.",
+          "missed_text": "Your plan did not include immobilising the wrist (for example a splint or cast including the thumb)."
+        },
+        {
+          "id": "further_assessment_plan",
+          "area": "management",
+          "label": "Arranged further imaging or follow-up",
+          "points": 4,
+          "check": {
+            "type": "any_of",
+            "checks": [
+              {
+                "type": "ordered_any",
+                "investigations": [
+                  "right_wrist_mri",
+                  "right_wrist_ct"
+                ]
+              },
+              {
+                "type": "notes_said",
+                "fields": [
+                  "assessment",
+                  "management",
+                  "follow_up"
+                ],
+                "keywords": [
+                  "mri",
+                  "ct",
+                  "repeat x-ray*",
+                  "repeat xray*",
+                  "repeat radiograph*",
+                  "repeat imaging",
+                  "repeat the x-ray*",
+                  "re-x-ray*",
+                  "review in",
+                  "fracture clinic",
+                  "hand clinic",
+                  "follow-up",
+                  "follow up",
+                  "orthopaedic*",
+                  "orthopedic*",
+                  "re-examin*",
+                  "reassess*",
+                  "re-assess*",
+                  "refer*",
+                  "10 days",
+                  "14 days",
+                  "two weeks",
+                  "2 weeks",
+                  "kontroll*",
+                  "überweis*"
+                ],
+                "ignore_negated": true
+              }
+            ]
+          },
+          "met_text": "You arranged further imaging or follow-up.",
+          "missed_text": "You did not arrange further imaging (MRI, CT or repeat radiographs) or a follow-up review."
+        },
+        {
+          "id": "no_false_reassurance",
+          "area": "safety",
+          "label": "Avoided unsafe reassurance after inconclusive imaging",
+          "points": 2,
+          "check": {
+            "type": "notes_avoided",
+            "fields": [
+              "diagnosis",
+              "assessment",
+              "interpretation",
+              "management",
+              "follow_up"
+            ],
+            "keywords": [
+              "just a sprain",
+              "only a sprain",
+              "simple sprain",
+              "sprain only",
+              "fracture excluded",
+              "fracture ruled out",
+              "fracture is excluded",
+              "fracture is ruled out",
+              "rules out a fracture",
+              "rules out fracture",
+              "excludes a fracture",
+              "excludes fracture",
+              "no fracture, discharge",
+              "nothing broken",
+              "not broken",
+              "no further imaging",
+              "no follow-up",
+              "no follow up",
+              "no immobil*",
+              "discharge without",
+              "reassure and discharge",
+              "nur verstaucht",
+              "fraktur ausgeschlossen"
+            ]
+          },
+          "met_text": "You did not falsely reassure the patient that a fracture was excluded.",
+          "missed_text": "Your notes treat the injury as excluded or minor. With snuffbox tenderness, a normal radiograph is not enough to reassure and discharge."
         }
       ]
     }

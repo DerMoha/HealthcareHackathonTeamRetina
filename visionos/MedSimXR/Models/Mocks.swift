@@ -50,6 +50,13 @@ final class MockClinicalEngine: ClinicalEngine {
         )
     }
 
+    func orderInvestigation(_ id: String) async throws -> InvestigationResult {
+        InvestigationResult(investigationId: id, label: "Mock investigation", modality: "Mock", title: "Mock study",
+                            report: "Mock report.", impression: "Mock impression.", image: nil,
+                            imageCredit: "Simulated report only.", orderedAt: ISO8601DateFormatter().string(from: Date()),
+                            repeatCount: 1)
+    }
+
     func diagnose(_ diagnosis: String, notes: ClinicalNotes) async throws -> Feedback { makeFeedback(diagnosis) }
     func feedback() async throws -> Feedback { makeFeedback(nil) }
 
@@ -74,6 +81,8 @@ final class MockClinicalEngine: ClinicalEngine {
             relevantFindings: ["Right anatomical snuffbox: marked tenderness (pain 8/10)"],
             nextSteps: diagnosis == nil ? [] : ["Request dedicated scaphoid-view radiographs."],
             documentation: [],
+            management: ManagementAssessment(title: "Investigation and management", score: 0, maxScore: 20, criteria: []),
+            investigations: [],
             disclaimer: "Educational simulation only."
         )
     }
@@ -91,6 +100,7 @@ final class MockVoiceService: VoiceService {
     private(set) var isAgentSpeaking = false
     @ObservationIgnored var onTranscript: ((TranscriptTurn) -> Void)?
     @ObservationIgnored var onAction: ((String) -> String)?
+    @ObservationIgnored var onOrder: ((String) async -> String)?
     @ObservationIgnored private let scripted: Bool
 
     init(scripted: Bool = false) { self.scripted = scripted }
@@ -113,9 +123,16 @@ final class MockVoiceService: VoiceService {
             ("sit_down", ["sit", "seat"]), ("extend_both_arms", ["stretch", "hold", "extend"]),
             ("relax_arms", ["relax", "rest your"]), ("indicate_right_wrist", ["which wrist", "show me", "where"]),
         ]
+        let orders: [(String, [String])] = [
+            ("right_wrist_xray", ["x-ray", "xray", "radiograph"]), ("right_wrist_mri", ["mri"]),
+            ("right_wrist_ct", ["ct scan", "a ct"]),
+        ]
         let lower = text.lowercased()
         var reply = "Okay."
-        if let action = phrases.first(where: { $0.1.contains { lower.contains($0) } })?.0 {
+        if let order = orders.first(where: { $0.1.contains { lower.contains($0) } })?.0 {
+            let result = await onOrder?(order) ?? "failure: unavailable"
+            SmokeLog.mark("heard \"\(text)\" order=\(order) result=\(result)")
+        } else if let action = phrases.first(where: { $0.1.contains { lower.contains($0) } })?.0 {
             let result = onAction?(action) ?? "failure: unavailable"
             SmokeLog.mark("heard \"\(text)\" action=\(action) result=\(result)")
             reply = result.hasPrefix("success") ? "Of course." : "Sorry, I can't do that right now."
