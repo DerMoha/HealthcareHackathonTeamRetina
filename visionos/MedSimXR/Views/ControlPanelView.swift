@@ -11,7 +11,8 @@ struct ControlPanelView: View {
     @AppStorage(AppConfig.agentIdKey) private var agentId = ""
     @AppStorage("fingertipExam") private var fingertip = false
 
-    @State private var immersed = false
+    /// Tracked by the model: the Studio window can open the patient's space too.
+    private var immersed: Bool { model.immersiveOpen }
 
     var body: some View {
         @Bindable var model = model
@@ -79,8 +80,8 @@ struct ControlPanelView: View {
         SmokeLog.mark("STEP 01-launch")
         await pause(3)
 
-        if case .opened = await openImmersiveSpace(id: "patient") { immersed = true }
-        SmokeLog.mark("immersive opened=\(immersed)")
+        let opened = await openImmersiveSpace(id: "patient")
+        SmokeLog.mark("immersive opened=\({ if case .opened = opened { true } else { false } }())")
         await model.startSession()
         await pause(3.5)
         SmokeLog.mark("session id=\(model.session?.sessionId ?? "none") zones=\(model.zones.map(\.id)) \(state())")
@@ -271,7 +272,7 @@ struct ControlPanelView: View {
         await pause(3)
 
         await model.stopSession()
-        if immersed { await dismissImmersiveSpace(); immersed = false }
+        if immersed { await dismissImmersiveSpace() }
         SmokeLog.mark("STEP 11-stopped")
         SmokeLog.mark("DONE")
     }
@@ -344,9 +345,7 @@ struct ControlPanelView: View {
             if model.phase == .idle {
                 Button {
                     Task {
-                        if !immersed {
-                            if case .opened = await openImmersiveSpace(id: "patient") { immersed = true }
-                        }
+                        if !immersed { _ = await openImmersiveSpace(id: "patient") }
                         await model.startSession()
                     }
                 } label: { Label("Start Session", systemImage: "play.fill").frame(maxWidth: .infinity) }
@@ -355,7 +354,7 @@ struct ControlPanelView: View {
                 Button {
                     Task {
                         await model.stopSession()
-                        if immersed { await dismissImmersiveSpace(); immersed = false }
+                        if immersed { await dismissImmersiveSpace() }
                     }
                 } label: { Label("Stop Session", systemImage: "stop.fill").frame(maxWidth: .infinity) }
                     .buttonStyle(.borderedProminent).tint(.red)

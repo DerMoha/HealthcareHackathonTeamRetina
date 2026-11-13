@@ -34,7 +34,9 @@ while [ $# -gt 0 ]; do
 done
 
 BUNDLE=dev.medsimxr.app
-DEVICE_NAME="MedSimXR Vision Pro"
+DEVICE_NAME="${MEDSIM_SIM_DEVICE:-MedSimXR Vision Pro}"   # another name = a separate simulator, for parallel runs
+# MEDSIM_SMOKE_PORT: run the test backend elsewhere when 8000 is taken (the app is told via a launch argument).
+PORT="${MEDSIM_SMOKE_PORT:-8000}"
 DD="${MEDSIM_DERIVED_DATA:-$ROOT/visionos/build/smoke}"
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"   # absolute: later steps run from other directories
@@ -59,10 +61,10 @@ cleanup() { [ -n "$BACKEND_PID" ] && kill -9 "$BACKEND_PID" 2>/dev/null || true;
 trap cleanup EXIT
 if [ $BACKEND = 1 ]; then
   echo "== backend"
-  (cd "$ROOT/backend" && exec .venv/bin/python -m uvicorn app.main:app --port 8000 >"$OUT/backend.log" 2>&1) &
+  (cd "$ROOT/backend" && exec .venv/bin/python -m uvicorn app.main:app --port "$PORT" >"$OUT/backend.log" 2>&1) &
   BACKEND_PID=$!
-  for _ in $(seq 1 40); do curl -s -m 1 localhost:8000/health >/dev/null && break; sleep 0.25; done
-  curl -s -m 1 localhost:8000/health >/dev/null || { echo "backend did not start, see $OUT/backend.log" >&2; exit 1; }
+  for _ in $(seq 1 40); do curl -s -m 1 "localhost:$PORT/health" >/dev/null && break; sleep 0.25; done
+  curl -s -m 1 "localhost:$PORT/health" >/dev/null || { echo "backend did not start, see $OUT/backend.log" >&2; exit 1; }
 fi
 
 echo "== boot + install"
@@ -72,7 +74,7 @@ xcrun simctl uninstall "$UDID" $BUNDLE 2>/dev/null || true
 xcrun simctl install "$UDID" "$APP"
 xcrun simctl privacy "$UDID" grant microphone $BUNDLE 2>/dev/null || true
 
-ARGS=(-autoDemo)
+ARGS=(-autoDemo -MEDSIM_BACKEND_HOST "localhost:$PORT")
 [ $MOCK_VOICE = 1 ] && ARGS+=(-mockVoice)
 [ $PROCEDURAL = 1 ] && ARGS+=(-proceduralAvatar)
 [ -n "$OFFSET" ] && ARGS+=(-patientOffset "@$OFFSET")

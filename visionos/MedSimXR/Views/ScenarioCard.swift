@@ -6,6 +6,9 @@ struct ScenarioCard: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(StudioState.self) private var studio
     @AppStorage(AppConfig.scenarioCodeKey) private var code = ""
     @State private var published: [ScenarioSummary] = []
     @State private var loaded = false
@@ -20,7 +23,7 @@ struct ScenarioCard: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-        .task { await load(); await scenarioDemo() }
+        .task { await load(); await scenarioDemo(); await studioDemo() }
     }
 
     private func load() async {
@@ -35,6 +38,10 @@ struct ScenarioCard: View {
                 Spacer()
                 Button { Task { await load() } } label: { Image(systemName: "arrow.clockwise") }.buttonStyle(.borderless)
             }
+            Button { studio.tab = .overview; openWindow(id: StudioView.windowId) } label: {
+                Label("Open MedSim Studio", systemImage: "square.grid.2x2").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
             TextField("Launch code (empty: default case)", text: $code)
                 .textInputAutocapitalization(.characters).autocorrectionDisabled()
             ForEach(published) { s in
@@ -89,7 +96,7 @@ struct ScenarioCard: View {
     /// it sends director events while this waits at the "await-director" steps.
     /// `-eventsA N` / `-eventsB N`: how many events to wait for before and after the link drop.
     private func scenarioDemo() async {
-        guard SmokeLog.scenarioDemo else { return }
+        guard SmokeLog.scenarioDemo, !SmokeLog.studioDemo else { return }
         func pause(_ seconds: Double) async { try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
         func events(_ count: Int, within seconds: Double) async {
             let end = Date().addingTimeInterval(seconds)
@@ -178,6 +185,78 @@ struct ScenarioCard: View {
 
         await model.stopSession()
         await dismissImmersiveSpace()
+        SmokeLog.mark("DONE")
+    }
+
+    /// Scripted run of the in-headset Studio for `scenario_smoke_test.sh --variant studio`
+    /// (launch argument `-studioDemo`, no launch code). Opens the Studio, downloads a marketplace
+    /// copy, launches the walk-in scenario from the Marketplace, waits while the script sends
+    /// one director event, submits, then shows that session's debrief in the Studio.
+    private func studioDemo() async {
+        guard SmokeLog.studioDemo else { return }
+        func pause(_ seconds: Double) async { try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
+        let walkIn = "5344E7"
+
+        await pause(3)
+        studio.tab = .overview
+        openWindow(id: StudioView.windowId)
+        await pause(4)
+        SmokeLog.mark("studio opened library=\(studio.library.count) market=\(studio.market.map(\.code)) error=\(studio.error ?? "none")")
+        SmokeLog.mark("STEP t01-overview")
+        await pause(2)
+
+        studio.tab = .marketplace
+        await pause(3)
+        SmokeLog.mark("STEP t02-marketplace")
+        await pause(2)
+
+        if let item = studio.market.first(where: { $0.code == walkIn }) { await studio.download(item) }
+        await pause(3)
+        let copy = studio.downloaded.first { $0.origin?.code == walkIn }
+        SmokeLog.mark("studio downloaded tab=\(studio.tab.rawValue) copy=\(copy?.scenarioId ?? "none") state=\(copy?.reviewState ?? "none") "
+            + "published=\(copy?.isPublished ?? false) inMine=\(studio.mine.contains { $0.scenarioId == copy?.scenarioId }) error=\(studio.error ?? "none")")
+        SmokeLog.mark("STEP t03-downloaded")
+        await pause(2)
+
+        studio.tab = .mine
+        studio.selected = studio.mine.first?.scenarioId
+        await pause(3)
+        SmokeLog.mark("STEP t04-mine")
+        await pause(2)
+
+        studio.tab = .marketplace
+        await pause(2)
+        await studio.launch(code: walkIn, model: model, openSpace: openImmersiveSpace) { dismissWindow(id: StudioView.windowId) }
+        await pause(4)
+        SmokeLog.mark("session id=\(model.session?.sessionId ?? "none") scenario=\(model.scenario?.code ?? "none") phase=\(model.phase) "
+            + "immersive=\(model.immersiveOpen) error=\(model.lastError ?? "none")")
+        SmokeLog.mark("STEP t05-launched")
+        guard model.phase == .running else { SmokeLog.mark("DONE"); return }
+        await pause(2)
+
+        SmokeLog.mark("STEP t06-await-director") // the script sends one event now
+        let end = Date().addingTimeInterval(25)
+        while model.directorLog.isEmpty, Date() < end { await pause(0.25) }
+        SmokeLog.mark("director events seen=\(model.directorLog.count) \(model.directorLog)")
+        await pause(3)
+        SmokeLog.mark("STEP t07-after-event")
+
+        await model.examine(zoneId: "right_anatomical_snuffbox", source: .script)
+        model.diagnosis = "Suspected scaphoid fracture"
+        await model.submitDiagnosis()
+        SmokeLog.mark("diagnosed score=\(model.feedback?.totalScore ?? -1)/\(model.feedback?.maxScore ?? -1)")
+        let sid = model.session?.sessionId
+        await pause(2)
+        await model.stopSession()
+        await dismissImmersiveSpace()
+        await pause(2)
+
+        studio.debriefSession = sid
+        studio.tab = .debrief
+        openWindow(id: StudioView.windowId)
+        await pause(5)
+        SmokeLog.mark("STEP t08-debrief")
+        await pause(2)
         SmokeLog.mark("DONE")
     }
 }

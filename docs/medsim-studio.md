@@ -6,8 +6,10 @@ debrief that says what the score was earned under. API: [studio-api.md](studio-a
 ```
  studio/ (React, Vite)                backend/ (FastAPI)                     Vision Pro app
 ┌────────────────────────┐   HTTP   ┌─────────────────────────────┐  HTTP  ┌──────────────────────────┐
-│ Overview  Library      │◄────────►│ studio.py   validate,        │◄──────►│ ScenarioCard  pick / code │
-│ Marketplace Generator  │          │             generate, library│        │ AppModel      scenario    │
+│ Overview  Library      │◄────────►│ studio.py   validate,        │◄──────►│ StudioView    library,    │
+│ Marketplace Generator  │          │             generate, library│        │   market, launch, debrief │
+│                        │          │                              │        │ ScenarioCard  pick / code │
+│                        │          │                              │        │ AppModel      scenario    │
 │                        │    WS    │ director.py events, hints,   │   WS   │ DirectorLink  ack, replay │
 │ Director  Debrief (WS) │◄────────►│             debrief          │◄──────►│ ScenarioStage room        │
 └────────────────────────┘          │ assist.py   optional LLM     │        └──────────────────────────┘
@@ -118,14 +120,43 @@ The Studio is a dashboard with a side menu:
 1. **Scenario generator**: pick the template, change the conditions (for example community clinic, busy,
    anxious partner, remove the medium support). Issues appear as you go. Step 6 shows the generated definition.
 2. *Save to my scenarios*, then **My scenarios**: *Publish*. Note the launch code (it also appears in the **Marketplace**).
-3. Vision Pro app: enter the code under *Scenario* (or pick it from the list), *Start Session*.
+3. Vision Pro app: *Open MedSim Studio* in the control panel, find the scenario under
+   **My scenarios** or **Marketplace**, *Launch*. (Or enter the code under *Scenario*, *Start Session*.)
 4. **Director**: the session appears; trigger *A helper arrives* or *Deliver an equipment
    item*. The log shows the headset's acknowledgement.
 5. The student submits a diagnosis. **Debrief** (and the feedback page in the app) shows the
    configuration, interventions and how to read the score.
 
 Without a headset the same path runs in the simulator:
-`visionos/scripts/scenario_smoke_test.sh --variant walkin` plays the instructor.
+`visionos/scripts/scenario_smoke_test.sh --variant walkin` plays the instructor, and
+`--variant studio` goes through the Studio window in the headset.
+
+### MedSim Studio in the headset
+
+*Open MedSim Studio* in the control panel opens a second window (`Views/Studio/StudioView.swift`)
+with a side tab bar. It talks to the same backend endpoints as the web Studio.
+
+| Tab | What it does |
+|---|---|
+| Overview | Last session (open its debrief), last scenario (*Launch*, *Open*), counts |
+| My scenarios | Created in the web generator or duplicated: details, equipment, earnable points; *Launch*, *Publish*, *Unpublish*, *Duplicate* |
+| Downloaded | Marketplace copies and imports. Drafts; the original's review state is shown, not inherited |
+| Marketplace | Published scenarios; search, clinician-reviewed filter, *Launch*, *Download a copy* |
+| Debrief | Scores against what was earnable, how to read them, interventions, resources, the student's steps |
+| Create | Where to author (the web generator's address) and the duplicate-to-vary shortcut |
+
+*Launch* does exactly what typing the code and pressing *Start Session* does (same
+`AppModel.startSession`, same code check), opens the patient's space and closes the Studio
+window so the room is clear. It is disabled while a session runs.
+
+Two things stay in the web Studio on purpose:
+
+- **The scenario generator.** Six steps with free text are slow with the floating keyboard.
+  Variations without typing: *Duplicate*, then publish.
+- **The Live Director.** The instructor steers while the student wears the headset; event
+  buttons in the student's view would give away what is coming.
+- Clinician review and import/export also stay on the web: review needs a name and an
+  attestation, and files live on the instructor's machine.
 
 ## What was verified, and how
 
@@ -138,6 +169,8 @@ Without a headset the same path runs in the simulator:
 | Scenario launch changes the running app; two variants differ | `scenario_smoke_test.sh --variant walkin` and `--variant clinic`, Vision Pro simulator | passed; logs and screenshots in `docs/screenshots/scenario-*` |
 | Director events reach the app, are acknowledged, change the scene; repeated event id applied once; event sent while the link was down arrives after reconnect | walk-in run | passed |
 | Unknown code is an error; unreachable backend runs the default case offline | `--variant unknown`, `--variant offline` | passed |
+| Studio window in the headset: opens on the overview, reads library and marketplace, a marketplace download lands in Downloaded as an unpublished draft, *Launch* from the Marketplace starts that scenario and closes the window, an instructor event reaches the app, the Debrief tab shows that session (1 acknowledged intervention, scores) | `scenario_smoke_test.sh --variant studio`, Vision Pro simulator | passed, 18 checks; screenshots in `docs/screenshots/scenario-studio/` |
+| After the Studio window was added: walk-in, clinic, original flow with backend kill, Swift parity, backend tests | same scripts as above | all passed |
 | The whole path through the Studio interface: author in the form (clinical title rejected, X-ray disabled in the community clinic, warnings shown), save, publish, launch that code in the simulator, click *Bystander becomes anxious* in the Director tab, app acknowledges, Debrief tab shows it | Studio served at `/app/`, driven by script in a browser tab; app log in `docs/screenshots/scenario-studio-ui/smoke.log` | passed, no console errors |
 
 Not verified:
@@ -153,6 +186,10 @@ Not verified:
   were not clicked (their endpoints are covered by the backend tests), nor was the panel's
   own socket reconnect.
 
+- **The Studio window by hand.** The simulator run sets the tab and calls the same actions the
+  buttons call; it does not tap them. Search, the clinician-reviewed filter, Publish/Unpublish
+  and Duplicate in the headset were not exercised (their endpoints are covered by the backend tests).
+  The window opens where visionOS puts new windows, in front of the user.
 - **On a real Vision Pro.** Everything above ran in the simulator. How loud the room noise
   and the bystander's system voice are on the device, and whether the live ElevenLabs agent
   hears them through the microphone and reacts, is untested. The noise is capped at half

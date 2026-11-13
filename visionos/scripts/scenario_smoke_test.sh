@@ -12,6 +12,8 @@
 #   clinic            "Quiet clinic, full kit (guided)": the same case with everything available.
 #   unknown           a launch code that does not exist: the session must not start.
 #   offline           a valid code but no backend: the fixed default case must run offline, with a notice.
+#   studio            the in-headset Studio window (-studioDemo): overview, marketplace, download a copy,
+#                     launch the walk-in scenario from the marketplace, one director event, debrief page.
 #
 # The two variants are the seeded library entries, so their launch codes are fixed.
 # Cannot test: what the room noise and the companion's voice sound like on the headset, whether
@@ -34,6 +36,7 @@ case "$VARIANT" in
   clinic) CODE=LKGLZX; EVENTS_A=1; EVENTS_B=0 ;;
   unknown) CODE=NOPE00; EVENTS_A=0; EVENTS_B=0 ;;
   offline) CODE=5344E7; EVENTS_A=0; EVENTS_B=0 ;;
+  studio) CODE=5344E7; EVENTS_A=0; EVENTS_B=0 ;;
   *) echo "unknown variant $VARIANT" >&2; exit 2 ;;
 esac
 OUT="${OUT:-$ROOT/docs/screenshots/scenario-$VARIANT}"
@@ -41,9 +44,11 @@ mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)"
 rm -f "$OUT"/*.jpg "$OUT"/*.png "$OUT"/*.log "$OUT"/*.json
 
 BUNDLE=dev.medsimxr.app
-DEVICE_NAME="MedSimXR Vision Pro"
+DEVICE_NAME="${MEDSIM_SIM_DEVICE:-MedSimXR Vision Pro}"   # another name = a separate simulator, for parallel runs
 DD="${MEDSIM_DERIVED_DATA:-$ROOT/visionos/build/smoke}"
-API=http://localhost:8000
+# MEDSIM_SMOKE_PORT: run the test backend elsewhere when 8000 is taken (the app is told via a launch argument).
+PORT="${MEDSIM_SMOKE_PORT:-8000}"
+API=http://localhost:$PORT
 
 RUNTIME=$(xcrun simctl list runtimes | grep -E "^(visionOS|xrOS)" | grep -v unavailable | tail -1 | awk '{print $NF}')
 [ -n "$RUNTIME" ] || { echo "No visionOS simulator runtime. Install: xcodebuild -downloadPlatform visionOS" >&2; exit 1; }
@@ -65,7 +70,7 @@ BACKEND_PID=""
 cleanup() { [ -n "$BACKEND_PID" ] && kill -9 "$BACKEND_PID" 2>/dev/null || true; }
 trap cleanup EXIT
 if [ $VARIANT != offline ]; then
-  (cd "$ROOT/backend" && MEDSIM_STUDIO_DB="$OUT/library.json" exec .venv/bin/python -m uvicorn app.main:app --port 8000 >"$OUT/backend.log" 2>&1) &
+  (cd "$ROOT/backend" && MEDSIM_STUDIO_DB="$OUT/library.json" exec .venv/bin/python -m uvicorn app.main:app --port "$PORT" >"$OUT/backend.log" 2>&1) &
   BACKEND_PID=$!
   for _ in $(seq 1 40); do curl -s -m 1 $API/health >/dev/null && break; sleep 0.25; done
   [ $VARIANT = unknown ] || curl -s -m 1 "$API/scenarios/launch/$CODE" | grep -q "\"code\":\"$CODE\"" \
@@ -79,6 +84,9 @@ xcrun simctl uninstall "$UDID" $BUNDLE 2>/dev/null || true
 xcrun simctl install "$UDID" "$APP"
 xcrun simctl privacy "$UDID" grant microphone $BUNDLE 2>/dev/null || true
 ARGS=(-scenarioDemo -mockVoice -MEDSIM_SCENARIO_CODE "$CODE" -eventsA $EVENTS_A -eventsB $EVENTS_B -patientOffset "@0,0,-1.2")
+# The Studio picks the scenario itself, so no launch code is passed.
+if [ $VARIANT = studio ]; then ARGS=(-studioDemo -mockVoice -patientOffset "@0,0,-1.2"); fi
+ARGS+=(-MEDSIM_BACKEND_HOST "localhost:$PORT")
 echo "== launch ${ARGS[*]}"
 xcrun simctl launch "$UDID" $BUNDLE "${ARGS[@]}"
 LOG="$(xcrun simctl get_app_container "$UDID" $BUNDLE data)/Documents/smoke.log"
@@ -120,6 +128,8 @@ for _ in $(seq 1 800); do
             send 409 bystander_anxious                       # there is no bystander
             send 200 crowd_noise_up
           fi ;;
+        "STEP t06-await-director")
+          send 200 helper_arrives ;;
         "STEP s05-link-dropped")
           sleep 1; send 200 crowd_noise_up while-down-1 ;;   # the app is disconnected right now
         STEP*) xcrun simctl io "$UDID" screenshot "$OUT/${line#STEP }.png" >/dev/null 2>&1 ;;
@@ -133,6 +143,7 @@ cp "$LOG" "$OUT/smoke.log" 2>/dev/null || true
 if [ -n "$BACKEND_PID" ] && [ -n "$SID" ] && [ "$SID" != none ]; then
   curl -s "$API/sessions/$SID/director" >"$OUT/director-state.json" || true
   curl -s "$API/sessions/$SID/debrief" >"$OUT/debrief.json" || true
+  if [ $VARIANT = studio ]; then curl -s "$API/studio/scenarios" >"$OUT/library-rows.json" || true; fi
 fi
 for f in "$OUT"/*.png; do
   [ -e "$f" ] || continue
@@ -147,11 +158,26 @@ count() { if [ "$(grep -cE "$2" "$OUT/smoke.log")" = "$3" ]; then echo "  ok   $
 state() { if python3 -c "import json,sys; d=json.load(open('$OUT/$2')); sys.exit(0 if ($3) else 1)" 2>/dev/null; then echo "  ok   $1"; else echo "  FAIL $1"; fail=1; fi; }
 
 expect "demo ran to the end"                 "^DONE$"
-expect "immersive space opened"              "immersive opened=true"
+if [ $VARIANT = studio ]; then expect "immersive space opened" "immersive=true"; else expect "immersive space opened" "immersive opened=true"; fi
 if [ $VARIANT = unknown ]; then
   expect "unknown code is an error"          "^scenario code=NOPE00 unknown, session not started"
   expect "no session, not the default case"  "^session id=none scenario=none phase=idle notice=none error=No published scenario with code NOPE00"
   reject "nothing was examined"              "^examined "
+elif [ $VARIANT = studio ]; then
+  expect "Studio window opened on the overview" "^studio window shown tab=overview"
+  expect "Studio read library and marketplace" "^studio opened library=2 market=.*5344E7.* error=none"
+  expect "marketplace copy is a draft in Downloaded" "^studio downloaded tab=downloaded copy=[a-z0-9_]+ state=draft published=false inMine=false"
+  expect "launched from the Studio"          "^studio launch code=5344E7 phase=running scenario=5344E7 error=none"
+  expect "Studio closed for the session"     "^studio window closed"
+  expect "session runs the chosen scenario"  "^session id=.+ scenario=5344E7 phase=running immersive=true error=none"
+  expect "director link connected"           "^director link connected"
+  expect "event applied in the app"          "^director applied seq=[0-9]+ kind=helper_arrives .*helper=true"
+  expect "the event reached the app"         "^director events seen=1 "
+  expect "score computed"                    "^diagnosed score=[0-9]+/100"
+  expect "Studio debrief shows the session"  "^studio debrief shown code=5344E7 interventions=1 acknowledged=1 score=[0-9]+/100 resources=[0-9]+"
+  reject "no engine errors"                  "error=[^n]"
+  state  "backend: the download is an unpublished draft" library-rows.json "any((r['origin'] or {}).get('code')=='5344E7' and r['review_state']=='draft' and r['published_version'] is None for r in d)"
+  state  "backend recorded the acknowledged event" director-state.json "len(d['interventions'])==1 and d['interventions'][0]['acknowledged']"
 elif [ $VARIANT = offline ]; then
   expect "default case runs offline, with a notice" "^session id=.+ scenario=none phase=running notice=Scenario 5344E7 needs the backend, which is not reachable. Running the fixed default case offline. error=none"
   expect "same finding from the offline engine" "^examined right_anatomical_snuffbox finding=marked_tenderness pain=8 engine=Offline"

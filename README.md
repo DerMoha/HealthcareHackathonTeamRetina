@@ -171,10 +171,15 @@ Scenarios never hold or change clinical facts. Overview, demo path and what was 
 ```bash
 cd studio && npm install && npm run build      # then open http://localhost:8000/app/
 visionos/scripts/scenario_smoke_test.sh --variant walkin   # scenario + director in the simulator
+visionos/scripts/scenario_smoke_test.sh --variant studio   # the Studio window inside the headset
 ```
 
 Seeded launch codes: `LKGLZX` (quiet clinic, full kit, guided) and `5344E7` (busy walk-in,
 limited kit, challenging). Both are experimental, not clinician-reviewed.
+
+In the app, *Open MedSim Studio* (control panel) browses My scenarios, Downloaded and the
+Marketplace, launches a scenario without typing its code, and shows debriefs. Authoring and
+the Live Director stay in the web Studio, on the instructor's screen.
 
 ## Orthotics lab
 

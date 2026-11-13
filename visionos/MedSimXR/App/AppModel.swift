@@ -36,6 +36,9 @@ final class AppModel {
     let behavior = PatientBehaviorController()
 
     private(set) var phase: SessionPhase = .idle
+    /// Whether the patient's immersive space is open (set by the space itself), so the control
+    /// panel and the Studio window can both start and stop sessions.
+    var immersiveOpen = false
     private(set) var session: SessionInfo?
     private(set) var transcript: [TranscriptTurn] = []
     private(set) var examinations: [ExaminationResult] = []
