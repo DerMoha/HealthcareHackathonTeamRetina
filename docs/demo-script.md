@@ -3,10 +3,10 @@
 ## Before going on stage
 
 1. Backend running on the laptop (`uvicorn app.main:app --host 0.0.0.0 --port 8000`), same Wi-Fi as the headset.
-2. App installed; Settings in the control panel show the right backend host and agent ID.
+2. App installed; Settings on the Session page show the right backend host and agent ID.
 3. Do one full dry run. The status card should read **AI connection: Connected**, **Microphone: Live**, **Engine: Backend**.
 4. Stand where the patient should sit (clear floor ~1.5 m ahead), press **Reset Scenario**, then **Recenter Patient**.
-5. Know where **Debug** is (one toggle on the control panel): examination and question buttons, your safety net. Leave it off unless needed; it shows findings.
+5. Know where **Debug** is (one toggle on the Session page): examination and question buttons, your safety net. Leave it off unless needed; it shows findings.
 6. While the notebook is open the patient's microphone is muted (note-taking mode). Close it to talk again.
 
 ## Script
