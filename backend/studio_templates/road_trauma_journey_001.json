@@ -55,9 +55,9 @@
     {"id": "challenging", "label": "Challenging", "hint_policy": "off", "description": "No coaching unless the instructor switches it on during the session."}
   ],
   "crowdedness": [
-    {"id": "quiet", "label": "No onlookers", "noise": 0.0, "figures": 0},
-    {"id": "moderate", "label": "A few onlookers", "noise": 0.1, "figures": 2},
-    {"id": "busy", "label": "A crowd gathers", "noise": 0.2, "figures": 4}
+    {"id": "quiet", "label": "No onlookers", "noise": 0.0, "figures": 0, "scene": "The road is empty apart from the crew."},
+    {"id": "moderate", "label": "A few onlookers", "noise": 0.1, "figures": 2, "scene": "A couple of passers-by have stopped to watch."},
+    {"id": "busy", "label": "A crowd gathers", "noise": 0.2, "figures": 4, "scene": "A small crowd gathers, talking and filming on their phones."}
   ],
   "bystander_behaviors": [
     {"id": "none", "label": "No bystander"},
@@ -116,5 +116,41 @@
     {"id": "imaging", "text": "At the hospital, decide which investigations would change what happens next.", "when": {"type": "not_ordered"}, "needs_kind": "investigation"},
     {"id": "write_plan", "text": "Write your assessment and plan in the notebook, then submit.", "when": {"type": "always"}}
   ],
-  "forbidden_terms": ["diagnos*", "bone visible", "deformed", "deformity", "x-ray shows", "x-ray showed", "ct shows", "ct showed", "blood pressure", "heart rate", "pulse of", "saturation*", "temperature of", "haemorrhag*", "hemorrhag*"]
+  "forbidden_terms": ["diagnos*", "bone visible", "deformed", "deformity", "x-ray shows", "x-ray showed", "ct shows", "ct showed", "blood pressure", "heart rate", "pulse of", "saturation*", "temperature of", "haemorrhag*", "hemorrhag*"],
+  "demo_draft": {
+    "_doc": "Offline stand-in for the AI drafting assistant (assist.py): hand-written, non-clinical, combined per choice. Used unless MEDSIM_LIVE_AI=1.",
+    "scenes": {
+      "daytime": "A dry weekday afternoon: traffic crawls past the scene, a police officer waves cars around the bicycle and the crew work in plain view of the pavement.",
+      "night_rain": "Late evening in heavy rain, the road lit only by headlights and blue strobes on wet tarmac. Cold hands and rain in the eyes make every task slower, then the cramped, swaying ambulance and the bright trauma bay follow.",
+      "rural_long_transfer": "A quiet country road far from a big hospital, with birdsong, a long drive ahead and a small receiving hospital without a scanner at the end of it, so the time in the ambulance matters."
+    },
+    "bystander": {
+      "calm": "{name}, the driver, has parked up safely and stands back, answering questions clearly and offering to help.",
+      "anxious": "{name}, the driver, is shaken, keeps walking back over and asks the same questions again, pulling attention away from the crew."
+    },
+    "pressure": {
+      "guided": "Coaching appears on its own as the journey moves from place to place.",
+      "standard": "Coaching only comes when the student asks, so each handover depends on the student's own structure.",
+      "challenging": "There is no coaching at all: the student has to lead the team, the move and the handover alone."
+    },
+    "personalities": {
+      "guided": "Shaken but talkative, Jordan answers fully, apologises for the fuss and follows instructions as soon as they are explained.",
+      "standard": "Shaken and sore, Jordan speaks in short sentences, asks what is happening, and calms when told plainly what comes next.",
+      "challenging": "Frightened and short with people, Jordan snaps when talked over and only settles once someone introduces themselves and stays with him."
+    },
+    "lines": {
+      "calm": [
+        "Where's best for me to stand so I'm not in your way?",
+        "I've got the police on the phone, they're five minutes out.",
+        "Do you want me to keep people back a bit?",
+        "I'll follow the ambulance if that helps with anything."
+      ],
+      "anxious": [
+        "He just came out of nowhere, I swear I didn't see him.",
+        "Is he going to be all right? Somebody tell me something.",
+        "Should I be doing something? I feel useless standing here.",
+        "Do I need to call someone for him? His family?"
+      ]
+    }
+  }
 }

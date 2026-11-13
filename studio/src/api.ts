@@ -72,7 +72,7 @@ export interface Template {
 }
 
 export interface Assist {
-  source: 'llm' | 'template'
+  source: 'llm' | 'demo' | 'template'
   model: string | null
   description: string
   patient_personality: string
