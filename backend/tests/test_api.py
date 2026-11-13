@@ -778,3 +778,18 @@ def test_case_without_catalog_gets_calm_male_defaults():
     assert sessions.public_case(plain).catalog is None
     cfg = sessions.resolve_config(plain, None, None)
     assert sessions.public_case(plain, cfg).voice_context == plain["voice_context"]  # no persona: nothing appended
+
+
+def test_trace_logs_exchanges_and_snapshots_the_session(client, sid, trace_dir, monkeypatch):
+    monkeypatch.setenv("MEDSIM_TRACE", "1")
+    say(client, sid, "Where does it hurt?")
+    client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": "distal radius fracture"})
+    client.get("/elevenlabs/conversation-token")  # masked if it ever returns a token
+    lines = [json.loads(l) for l in (trace_dir / "events.jsonl").read_text().splitlines()]
+    talk = next(l for l in lines if l["path"].endswith("/interactions"))
+    assert talk["status"] == 200 and talk["request"]["text"] == "Where does it hurt?" and talk["response"] == {"count": 1}
+    snap = json.loads((trace_dir / "sessions" / f"{sid}.json").read_text())
+    assert snap["session"]["interactions"][0]["text"] == "Where does it hurt?"
+    assert snap["session"]["diagnosis"] == "distal radius fracture" and snap["debrief"]["feedback"]
+    from app import tracelog
+    assert tracelog._redact({"token": "abc", "n": [{"api_key": "k"}]}) == {"token": "***", "n": [{"api_key": "***"}]}

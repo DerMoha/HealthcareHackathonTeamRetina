@@ -16,8 +16,8 @@ import Observation
 /// Transcripts: taken from the finalized-event callbacks `onUserTranscript` / `onAgentResponse`
 /// (tentative transcripts never reach them), de-duplicated per connection by event id.
 ///
-/// Credits: ElevenLabs bills connection time, so the service pauses (disconnects) when nobody has
-/// spoken for 45 s, when the notebook stays open for 15 s, and before the agent's 600 s limit.
+/// Credits: ElevenLabs bills connection time, so the service pauses (disconnects) when the student
+/// has not spoken for 45 s, when the notebook stays open for 15 s, and before the agent's 600 s limit.
 /// A pause keeps the run: `resume()` opens a new conversation with the consultation so far in
 /// `case_context` and no greeting (`VoicePausePolicy`, `VoiceMemory`).
 @MainActor
@@ -446,7 +446,8 @@ final class ElevenLabsVoiceService: VoiceService {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         // Bracketed text is an examination stage direction, never a spoken turn.
         guard !trimmed.isEmpty, !trimmed.hasPrefix("["), emitted.insert(key).inserted else { return }
-        lastTurnAt = Date()
+        // Only the student counts as activity: agent filler ("Are you still there?") must not keep a call alive.
+        if role == .learner { lastTurnAt = Date() }
         onTranscript?(TranscriptTurn(role: role, text: trimmed))
     }
 }

@@ -1,14 +1,15 @@
 """FastAPI app: routes only; logic lives in sessions/examination/evaluation."""
 import os
 import re
+import time
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from . import evaluation, examination, fitting, journey, studio, studio_routes, ultrasound
+from . import director, evaluation, examination, fitting, journey, studio, studio_routes, tracelog, ultrasound
 from .models import (ConversationSummary, DiagnoseRequest, ExamineRequest, ExamineResult, Feedback, Health,
                      InteractionCount, InteractionRequest, FitAck, FitRequest, FittingCheckRequest,
                      FittingCheckResult, GelResult, MeasurementRequest, ScanRequest, ScanResult, MeasurementResult, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
@@ -39,6 +40,35 @@ app.include_router(_studio_router)
 _STUDIO_UI = Path(__file__).resolve().parents[2] / "studio" / "dist"
 if _STUDIO_UI.is_dir():  # built instructor interface (cd studio && npm run build)
     app.mount("/app", StaticFiles(directory=_STUDIO_UI, html=True), name="studio-ui")
+
+
+@app.middleware("http")
+async def trace(request: Request, call_next):
+    """Test-run trace (tracelog.py): request and response bodies, timing, and a session snapshot."""
+    path = request.url.path
+    if not tracelog.enabled() or path == "/health" or path.startswith("/app"):
+        return await call_next(request)
+    started = time.perf_counter()
+    raw = await request.body()
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        tracelog.event("http_error", method=request.method, path=path, error=f"{type(e).__name__}: {e}",
+                       request=tracelog.body(raw, request.headers.get("content-type")))
+        raise
+    out = b"".join([chunk async for chunk in response.body_iterator])
+    tracelog.event("http", method=request.method, path=path, query=str(request.url.query) or None,
+                   client=request.client.host if request.client else None, status=response.status_code,
+                   ms=round((time.perf_counter() - started) * 1000, 1),
+                   request=tracelog.body(raw, request.headers.get("content-type")),
+                   response=tracelog.body(out, response.headers.get("content-type")))
+    m = re.match(r"/sessions/([^/]+)", path)
+    s = SESSIONS.get(m.group(1)) if m else None
+    if s is not None:  # after diagnosis the snapshot also keeps the scored debrief
+        tracelog.snapshot(s, studio.LIVE.get(s.id),
+                          debrief=director.debrief(SCENARIOS[s.case_id], s) if s.diagnosis is not None else None)
+    return Response(out, status_code=response.status_code, headers=dict(response.headers),
+                    media_type=response.media_type)
 
 
 def _session(session_id: str) -> Session:

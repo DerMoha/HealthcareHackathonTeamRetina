@@ -53,6 +53,10 @@ TOOLS = [
                                        "ACTION IDS in the case information).")),
 ]
 
+# Phrases the speech recognition should favour (the movement requests and common clinical words).
+ASR_KEYWORDS = ["sit down", "have a seat", "take a seat", "hold out your arms", "stretch out", "relax your arms",
+                "which wrist", "show me", "X-ray", "MRI", "CT scan", "snuffbox", "scaphoid", "wrist"]
+
 PLACEHOLDER_CONTEXT = ("CASE FACTS: You are Alex, 28. You fell off your bicycle yesterday onto your outstretched "
                        "right hand. Your right wrist hurts near the base of the thumb. No numbness. You do not "
                        "know what is wrong.")
@@ -101,7 +105,10 @@ def agent_body(tool_ids):
                            "llm": LLM, "tool_ids": tool_ids},
                 "dynamic_variables": {"dynamic_variable_placeholders": {"case_context": PLACEHOLDER_CONTEXT}},
             },
-            "turn": {"turn_timeout": 7},
+            # turn_timeout -1: no "Are you still there?" nagging, which also kept idle calls alive.
+            # retranscribe: a turn cut by the timeout is transcribed again instead of arriving as "...".
+            "turn": {"turn_timeout": -1, "retranscribe_on_turn_timeout": True},
+            "asr": {"keywords": ASR_KEYWORDS},
             "conversation": {"max_duration_seconds": MAX_SECONDS,
                              "client_events": ["audio", "interruption", "user_transcript", "agent_response",
                                                "agent_response_correction"]},
@@ -141,6 +148,8 @@ def main():
         "tools": sorted(conf["agent"]["prompt"].get("tool_ids") or []) == sorted(sent["agent"]["prompt"]["tool_ids"]),
         "client_events": set(sent["conversation"]["client_events"]) <= set(conf["conversation"].get("client_events") or []),
         "max_duration": conf["conversation"].get("max_duration_seconds") == MAX_SECONDS,
+        "turn": conf["turn"].get("turn_timeout") == -1 and conf["turn"].get("retranscribe_on_turn_timeout") is True,
+        "asr_keywords": conf.get("asr", {}).get("keywords") == ASR_KEYWORDS,
         "auth": got["platform_settings"].get("auth", {}).get("enable_auth") is True,
         "voice_override": got["platform_settings"]["overrides"]["conversation_config_override"]["tts"].get("voice_id") is True,
         "first_message_override": got["platform_settings"]["overrides"]["conversation_config_override"]["agent"].get("first_message") is True,

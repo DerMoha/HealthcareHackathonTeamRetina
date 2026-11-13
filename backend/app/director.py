@@ -22,7 +22,7 @@ it has already applied and acknowledges them again.
 """
 from fastapi import WebSocket
 
-from . import evaluation, fitting, studio
+from . import evaluation, fitting, studio, tracelog
 from .sessions import Session, now_iso, public_case
 
 NOISE_STEP, NOISE_MAX = 0.25, 1.0
@@ -127,6 +127,8 @@ def _message(scenario: dict, s: Session, live: studio.Live, iv: dict) -> dict:
 
 
 async def _send(session_id: str, role: str, message: dict) -> None:
+    if message.get("type") != "state":  # state is re-sent every 2 s; the debrief snapshot keeps it
+        tracelog.event("ws_out", session_id=session_id, role=role, sockets=len(_sockets(session_id, role)), message=message)
     for ws in list(_sockets(session_id, role)):
         try:
             await ws.send_json(message)
@@ -174,6 +176,7 @@ async def acknowledge(scenario: dict, s: Session, event_id: str, applied: bool, 
 
 
 async def connect(scenario: dict, s: Session, role: str, ws: WebSocket) -> None:
+    tracelog.event("ws_connect", session_id=s.id, role=role)
     _sockets(s.id, role).add(ws)
     live = studio.LIVE[s.id]
     if role == "runtime":  # whatever was missed while disconnected
@@ -184,6 +187,7 @@ async def connect(scenario: dict, s: Session, role: str, ws: WebSocket) -> None:
 
 
 async def disconnect(scenario: dict, s: Session, role: str, ws: WebSocket) -> None:
+    tracelog.event("ws_disconnect", session_id=s.id, role=role)
     _sockets(s.id, role).discard(ws)
     await broadcast_state(scenario, s)
 
