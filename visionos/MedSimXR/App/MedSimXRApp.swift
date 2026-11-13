@@ -15,11 +15,13 @@ struct MedSimXRApp: App {
         }
         return AppModel(engine: MockClinicalEngine(), voice: MockVoiceService())
     }()
+    @State private var studio = StudioState()
 
     var body: some Scene {
         WindowGroup {
             ControlPanelView()
                 .environment(model)
+                .environment(studio)
         }
         .defaultSize(width: ControlPanelView.idleSize.width, height: ControlPanelView.idleSize.height)
         // The dashboard is large; a running session shrinks the panel to a small palette
@@ -28,9 +30,20 @@ struct MedSimXRApp: App {
         // Low, like a tool palette: the patient keeps the centre of the view.
         .defaultWindowPlacement { _, _ in WindowPlacement(.utilityPanel) }
 
+        // MedSim Studio in the headset: library, marketplace, launch and debrief. Authoring and
+        // the Live Director stay in the web Studio (the instructor's screen).
+        WindowGroup(id: StudioView.windowId) {
+            StudioView()
+                .environment(model)
+                .environment(studio)
+        }
+        .defaultSize(width: 1000, height: 600)
+
         ImmersiveSpace(id: "patient") {
             ImmersivePatientView()
                 .environment(model)
+                .onAppear { model.immersiveOpen = true }
+                .onDisappear { model.immersiveOpen = false }
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
     }

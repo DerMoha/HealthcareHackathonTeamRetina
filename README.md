@@ -177,6 +177,27 @@ Known limits:
 - Offline speech uses macOS `say` placeholder clips until `generate_clips.py` is run.
 - English only, sessions in memory (a backend restart drops them; the app then continues offline).
 
+## MedSim Studio and Live Director
+
+Instructors configure a scenario from a supported case (setting, difficulty, equipment,
+companions), publish it under a launch code, start it in the app, trigger predefined events
+during the session, and get a debrief that reads the score against what the scenario offered.
+Scenarios never hold or change clinical facts. Overview, demo path and what was verified:
+[docs/medsim-studio.md](docs/medsim-studio.md); API: [docs/studio-api.md](docs/studio-api.md).
+
+```bash
+cd studio && npm install && npm run build      # then open http://localhost:8000/app/
+visionos/scripts/scenario_smoke_test.sh --variant walkin   # scenario + director in the simulator
+visionos/scripts/scenario_smoke_test.sh --variant studio   # the Studio window inside the headset
+```
+
+Seeded launch codes: `LKGLZX` (quiet clinic, full kit, guided) and `5344E7` (busy walk-in,
+limited kit, challenging). Both are experimental, not clinician-reviewed.
+
+In the app, *Open MedSim Studio* (control panel) browses My scenarios, Downloaded and the
+Marketplace, launches a scenario without typing its code, and shows debriefs. Authoring and
+the Live Director stay in the web Studio, on the instructor's screen.
+
 ## Orthotics lab
 
 Spatial measuring and wrist-support fitting on the patient's right arm (`Reality/OrthoticsLab.swift`, `Reality/SpatialMeasurementTool.swift`, `backend/app/fitting.py`). An educational fitting simulation, not a validated medical-device sizing system. See `docs/demo-script.md` and `docs/api-contract.md`.

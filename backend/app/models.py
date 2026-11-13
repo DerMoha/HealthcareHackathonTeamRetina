@@ -108,6 +108,7 @@ class Health(BaseModel):
 class SessionCreate(BaseModel):
     case_id: str
     config: SessionConfigRequest | None = None
+    scenario_code: str | None = None  # launch code of a published MedSim Studio scenario
 
 
 class SessionInfo(BaseModel):
@@ -115,6 +116,7 @@ class SessionInfo(BaseModel):
     started_at: str
     case: CasePublic
     config: SessionConfig | None = None
+    scenario: dict | None = None  # studio.ScenarioRuntime when launched from a published scenario
 
 
 class ExamineRequest(BaseModel):

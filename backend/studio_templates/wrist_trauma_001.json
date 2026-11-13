@@ -1,0 +1,132 @@
+{
+  "_doc": "MedSim Studio template for case wrist_trauma_001. Everything an instructor can choose is listed here; nothing here adds or changes clinical findings, results or scoring rules of the case. Hints and companion lines are generic good-practice prompts and non-clinical speech. Not reviewed by a clinician.",
+  "template_id": "wrist_trauma_001",
+  "case_id": "wrist_trauma_001",
+  "label": "Wrist injury after a fall (adult walk-in)",
+  "summary": "Alex, 28, walks in the day after falling off a bicycle with a painful right wrist. History, focused examination, investigations, wrist support fitting and a management plan.",
+  "clinical_review": "Case content is not clinician-reviewed.",
+  "brief_base": "Alex, 28, is waiting to be seen. Take a history, examine the patient, and record your findings, suspected diagnosis and management plan in the notebook.",
+  "environments": [
+    {
+      "id": "outpatient_clinic",
+      "label": "Outpatient clinic room",
+      "ambient_level": 0.0,
+      "brief": "Setting: a quiet outpatient clinic room.",
+      "setting_context": "You are being seen in a quiet outpatient clinic room.",
+      "unsupported_equipment": []
+    },
+    {
+      "id": "emergency_department",
+      "label": "Emergency department bay",
+      "ambient_level": 0.25,
+      "brief": "Setting: a curtained bay in an emergency department.",
+      "setting_context": "You are being seen in a curtained bay of an emergency department. There is background noise from the department.",
+      "unsupported_equipment": []
+    },
+    {
+      "id": "community_clinic",
+      "label": "Community walk-in clinic (no imaging on site)",
+      "ambient_level": 0.1,
+      "brief": "Setting: a small community walk-in clinic. There is no imaging on site; imaging needs a referral.",
+      "setting_context": "You are being seen in a small community walk-in clinic that has no X-ray or scanner on site.",
+      "unsupported_equipment": ["imaging_xray", "imaging_mri", "imaging_ct"]
+    }
+  ],
+  "unsupported_environments": [
+    {
+      "id": "sports_sideline",
+      "label": "Sports pitch sideline",
+      "reason": "The reviewed history is a bicycle fall seen the next day. A pitch-side encounter would need a different mechanism and timeline, which do not exist for this case."
+    },
+    {
+      "id": "ambulance",
+      "label": "Ambulance / pre-hospital",
+      "reason": "This case has no vital signs or pre-hospital findings. They would have to be invented."
+    }
+  ],
+  "equipment": [
+    { "id": "measuring_tape", "label": "Measuring tape", "kind": "measurement_tool" },
+    { "id": "wrist_support_small", "label": "Wrist support, small", "kind": "orthosis_size", "ref": "small" },
+    { "id": "wrist_support_medium", "label": "Wrist support, medium", "kind": "orthosis_size", "ref": "medium" },
+    { "id": "wrist_support_large", "label": "Wrist support, large", "kind": "orthosis_size", "ref": "large" },
+    { "id": "imaging_xray", "label": "X-ray (radiographs)", "kind": "investigation", "ref": "right_wrist_xray" },
+    { "id": "imaging_mri", "label": "MRI", "kind": "investigation", "ref": "right_wrist_mri" },
+    { "id": "imaging_ct", "label": "CT", "kind": "investigation", "ref": "right_wrist_ct" }
+  ],
+  "difficulties": [
+    { "id": "guided", "label": "Guided", "hint_policy": "auto", "description": "Coaching hints appear on their own as the encounter goes on." },
+    { "id": "standard", "label": "Standard", "hint_policy": "on_request", "description": "Coaching hints only when the student asks for one." },
+    { "id": "challenging", "label": "Challenging", "hint_policy": "off", "description": "No coaching unless the instructor switches it on during the session." }
+  ],
+  "crowdedness": [
+    { "id": "quiet", "label": "Quiet", "noise": 0.0, "figures": 0 },
+    { "id": "moderate", "label": "Moderate", "noise": 0.25, "figures": 2 },
+    { "id": "busy", "label": "Busy", "noise": 0.5, "figures": 4 }
+  ],
+  "bystander_behaviors": [
+    { "id": "none", "label": "No bystander" },
+    { "id": "calm_relative", "label": "Calm partner", "mood": "calm" },
+    { "id": "anxious_relative", "label": "Anxious partner who interrupts", "mood": "anxious" }
+  ],
+  "bystander": {
+    "name": "Sam",
+    "role_label": "Alex's partner",
+    "context": "Your partner Sam came with you and is standing next to you.",
+    "anxious_context": "Your partner Sam is getting anxious and keeps interrupting. It makes you a little tense, but the facts of what happened do not change.",
+    "lines": {
+      "calm": [
+        "Take your time, Alex. I'm right here.",
+        "I'll hold your bag, don't worry about it.",
+        "Just tell them what happened, like you told me."
+      ],
+      "anxious": [
+        "Is it serious? Please tell me it's not serious.",
+        "Shouldn't someone more senior be looking at this?",
+        "Alex needs that hand for work. How long is this going to take?",
+        "Sorry. I'll let you work. I'm just worried."
+      ]
+    }
+  },
+  "teammate_behaviors": [
+    { "id": "none", "label": "No helper at the start" },
+    { "id": "nurse_present", "label": "Nurse present from the start" }
+  ],
+  "teammate": {
+    "name": "Kim",
+    "role_label": "Nurse",
+    "arrival_line": "Hi, I'm Kim, one of the nurses. Tell me what you need and I'll fetch it.",
+    "delivery_line": "Here you go: {item}. It's on the tray.",
+    "context": "A nurse called Kim has come in to help the student."
+  },
+  "personalities": {
+    "guided": "Cooperative and talkative; answers fully when asked.",
+    "standard": "Cooperative but slightly anxious; answers what is asked.",
+    "challenging": "Tense and brief; answers only what is asked and needs to be put at ease."
+  },
+  "learning_objectives": [
+    { "id": "focused_history", "label": "Take a focused injury history (mechanism, onset, location, severity, associated symptoms)" },
+    { "id": "consent_and_empathy", "label": "Introduce yourself, ask permission before examining and respond to the patient's pain" },
+    { "id": "systematic_examination", "label": "Examine the injured wrist systematically and compare with an uninjured area" },
+    { "id": "imaging_reasoning", "label": "Choose imaging and interpret what its result does and does not exclude", "needs_kind": "investigation" },
+    { "id": "safe_plan_without_imaging", "label": "Make a safe plan when imaging is not available on site" },
+    { "id": "support_fitting", "label": "Measure, choose and fit a wrist support, checking circulation and comfort", "needs_kind": "orthosis_size" },
+    { "id": "communication_under_pressure", "label": "Keep communicating clearly with a worried companion and a noisy room" }
+  ],
+  "hints": [
+    { "id": "introduce", "text": "Start by introducing yourself and asking what happened.", "when": { "type": "no_learner_turns" } },
+    { "id": "permission", "text": "Before you touch the patient, ask for permission.", "when": { "type": "no_examination" } },
+    { "id": "compare", "text": "Examine more than one area: the sore part, the area next to it, and the uninjured side for comparison.", "when": { "type": "examined_fewer_than", "count": 2 } },
+    { "id": "acknowledge_pain", "text": "If an examination hurt, acknowledge it before you carry on.", "when": { "type": "pain_not_acknowledged" } },
+    { "id": "imaging", "text": "Decide whether imaging would help, and think about what a normal result would and would not rule out.", "when": { "type": "not_ordered" }, "needs_kind": "investigation" },
+    { "id": "refer_for_imaging", "text": "There is no imaging here. Write down how and when the patient should get it.", "when": { "type": "always" }, "unless_kind": "investigation" },
+    { "id": "circulation_first", "text": "Before fitting a support, check colour, feeling and movement in the fingers.", "when": { "type": "not_checked", "check": "neurovascular" }, "needs_kind": "orthosis_size" },
+    { "id": "measure_first", "text": "Measure before you choose a size.", "when": { "type": "not_measured" }, "needs_kind": "measurement_tool" },
+    { "id": "ask_comfort", "text": "After the last adjustment, ask how the support feels and re-check the fingers.", "when": { "type": "fit_unchecked" }, "needs_kind": "orthosis_size" },
+    { "id": "write_plan", "text": "Write your findings, what you suspect, and your plan in the notebook, then submit.", "when": { "type": "always" } }
+  ],
+  "forbidden_terms": [
+    "diagnos*", "avascular*", "necrosis", "non-union", "nonunion", "snuffbox", "snuff box",
+    "x-ray shows", "x-ray showed", "mri shows", "mri showed", "ct shows", "ct showed",
+    "blood pressure", "heart rate", "pulse of", "saturation*", "temperature of"
+  ]
+}

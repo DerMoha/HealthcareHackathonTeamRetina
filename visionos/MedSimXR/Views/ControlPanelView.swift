@@ -13,7 +13,8 @@ struct ControlPanelView: View {
     @AppStorage(AppConfig.voiceIdKeyPrefix + "MALE") private var maleVoiceId = ""
     @AppStorage(AppConfig.voiceIdKeyPrefix + "FEMALE") private var femaleVoiceId = ""
 
-    @State private var immersed = false
+    /// Tracked by the model: the Studio window can open the patient's space too.
+    private var immersed: Bool { model.immersiveOpen }
     /// Automation: scroll the dashboard to its Customize section.
     @State private var focusCustomize = false
 
@@ -21,6 +22,7 @@ struct ControlPanelView: View {
         Group {
             if model.phase == .idle {
                 ScenarioDashboardView(focusCustomize: focusCustomize, onStart: { Task { await start() } }) {
+                    ScenarioCard()
                     settingsCard
                 }
                 .frame(width: Self.idleSize.width, height: Self.idleSize.height)
@@ -39,7 +41,7 @@ struct ControlPanelView: View {
 
     private func start() async {
         model.prepareStart() // settles case, mood and avatar before the scene loads its model
-        if !immersed, case .opened = await openImmersiveSpace(id: "patient") { immersed = true }
+        if !immersed { _ = await openImmersiveSpace(id: "patient") }
         await model.startSession()
     }
 
@@ -56,6 +58,7 @@ struct ControlPanelView: View {
                 Text(model.session?.case.learnerBrief
                      ?? "Start a session to meet your patient. Talk to them, examine them, and write your findings in the notebook beside them.")
                     .font(.callout).foregroundStyle(.secondary)
+                ScenarioCard()
                 sessionButtons
                 statusCard
                 if let err = model.lastError, !model.notebookOpen {
@@ -72,7 +75,7 @@ struct ControlPanelView: View {
     /// Scripted run of the whole demo, driven by launch argument `-autoDemo`.
     /// Used by visionos/scripts/simulator_smoke_test.sh; "STEP" lines are screenshot cues.
     private func autoDemo() async {
-        guard SmokeLog.enabled else { return }
+        guard SmokeLog.enabled, !SmokeLog.scenarioDemo else { return }
         func pause(_ seconds: Double) async { try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
         func state() -> String {
             "engine=\(model.engineModeLabel) voice=\(model.voice.status.label) mic=\(model.voice.micStatus.rawValue) "
@@ -124,8 +127,8 @@ struct ControlPanelView: View {
         await pause(3)
 
         model.prepareStart()
-        if case .opened = await openImmersiveSpace(id: "patient") { immersed = true }
-        SmokeLog.mark("immersive opened=\(immersed)")
+        let opened = await openImmersiveSpace(id: "patient")
+        SmokeLog.mark("immersive opened=\({ if case .opened = opened { true } else { false } }())")
         await model.startSession()
         await pause(3.5)
         SmokeLog.mark("session id=\(model.session?.sessionId ?? "none") zones=\(model.zones.map(\.id)) \(state())")
@@ -339,7 +342,7 @@ struct ControlPanelView: View {
         await pause(3)
 
         await model.stopSession()
-        if immersed { await dismissImmersiveSpace(); immersed = false }
+        if immersed { await dismissImmersiveSpace() }
         SmokeLog.mark("STEP 11-stopped")
         SmokeLog.mark("DONE")
     }
@@ -368,8 +371,8 @@ struct ControlPanelView: View {
 
         await pause(1)
         model.prepareStart()
-        if case .opened = await openImmersiveSpace(id: "patient") { immersed = true }
-        SmokeLog.mark("immersive opened=\(immersed)")
+        let opened = await openImmersiveSpace(id: "patient")
+        SmokeLog.mark("immersive opened=\({ if case .opened = opened { true } else { false } }())")
         await model.startSession()
         await pause(4.5)
         SmokeLog.mark("session id=\(model.session?.sessionId ?? "none") regions=\(model.ultrasound?.regions.map(\.id) ?? []) "
@@ -466,7 +469,7 @@ struct ControlPanelView: View {
         await pause(4.5)
 
         await model.stopSession()
-        if immersed { await dismissImmersiveSpace(); immersed = false }
+        if immersed { await dismissImmersiveSpace() }
         SmokeLog.mark("STEP 07-us-stopped")
         SmokeLog.mark("DONE")
     }
@@ -539,7 +542,7 @@ struct ControlPanelView: View {
             Button {
                 Task {
                     await model.stopSession()
-                    if immersed { await dismissImmersiveSpace(); immersed = false }
+                    if immersed { await dismissImmersiveSpace() }
                 }
             } label: { Label("Stop Session", systemImage: "stop.fill").frame(maxWidth: .infinity) }
                 .buttonStyle(.borderedProminent).tint(.red)

@@ -91,6 +91,9 @@ final class AppModel {
     let behavior = PatientBehaviorController()
 
     private(set) var phase: SessionPhase = .idle
+    /// Whether the patient's immersive space is open (set by the space itself), so the control
+    /// panel and the Studio window can both start and stop sessions.
+    var immersiveOpen = false
     private(set) var session: SessionInfo?
     private(set) var transcript: [TranscriptTurn] = []
     private(set) var examinations: [ExaminationResult] = []
@@ -169,6 +172,25 @@ final class AppModel {
     var replayStepCount: Int { examEvents.count + 1 }
     var replayEvent: ExamEvent? { teachingMode && examEvents.indices.contains(replayStep) ? examEvents[replayStep] : nil }
 
+    // MedSim Studio scenario (nil = the fixed default case). Everything below is setting,
+    // companions and coaching; findings and scoring never come from here.
+    var scenario: ScenarioRuntime? { session?.scenario }
+    let director = DirectorLink()
+    /// The last thing a companion said; the immersive scene speaks and shows it.
+    private(set) var sceneLine: SceneLine?
+    /// Latest coaching hint, when the scenario offers coaching.
+    private(set) var hint: String?
+    /// Instructor events applied in this session, newest last.
+    private(set) var directorLog: [String] = []
+    /// Why a selected scenario is not running, if it is not.
+    private(set) var scenarioNotice: String?
+    private(set) var debrief: ScenarioDebrief?
+    /// Set by the immersive view after it rebuilt the room; reported back to the instructor.
+    var stageStatus = "immersive scene not open"
+    @ObservationIgnored private var companionTask: Task<Void, Never>?
+    @ObservationIgnored private var coachTask: Task<Void, Never>?
+    private var companionIndex = 0
+
     /// Seconds between accepted examination events (gaze+pinch or fingertip).
     static let examineCooldown: TimeInterval = 1.5
     private var lastExamineAt = Date.distantPast
@@ -187,6 +209,7 @@ final class AppModel {
         voice.onTranscript = { [weak self] turn in self?.record(turn) }
         voice.onAction = { [weak self] raw in self?.performPatientAction(raw) ?? "failure: unavailable" }
         voice.onOrder = { [weak self] raw in await self?.orderInvestigation(raw) ?? "failure: unavailable" }
+        director.onEvent = { [weak self] event in await self?.apply(event) ?? (false, "the app has no session") }
     }
 
     // MARK: Session
@@ -246,10 +269,27 @@ final class AppModel {
     }
 
     func startSession() async {
+        scenarioNotice = nil
+        var scenarioCase = false
+        if let code = AppConfig.scenarioCode {
+            // A wrong code must be an error, not a quiet fall back to the default case.
+            switch await ScenarioClient.lookup(code) {
+            case .found: scenarioCase = true
+            case .unknown:
+                pending = nil
+                lastError = "No published scenario with code \(code). Check the code in MedSim Studio, or clear it to run the default case."
+                SmokeLog.mark("scenario code=\(code) unknown, session not started")
+                return
+            case .unreachable:
+                scenarioNotice = "Scenario \(code) needs the backend, which is not reachable. Running the selected case offline."
+            }
+        }
         let plan = prepareStart()
         pending = nil
+        // A scenario brings its own case; the dashboard's mood and avatar may not exist there.
+        let config = scenarioCase ? nil : plan.config
         await run {
-            let info = try await self.engine.startSession(caseId: plan.caseId, config: plan.config)
+            let info = try await self.engine.startSession(caseId: plan.caseId, config: config)
             self.apply(info)
             SmokeLog.mark("session config case=\(info.case.caseId) mood=\(info.config?.mood ?? "none") "
                 + "avatar=\(info.config?.avatar ?? "none") model=\(self.activeAvatarModel)")
@@ -263,6 +303,7 @@ final class AppModel {
 
     func stopSession() async {
         await voice.stop()
+        endScenario()
         phase = .idle
     }
 
@@ -638,6 +679,11 @@ final class AppModel {
             self.feedback = try await self.engine.diagnose(diagnosis, notes: self.notes)
             self.phase = .feedback
             await self.voice.stop()
+            self.companionTask?.cancel()
+            self.coachTask?.cancel()
+            if self.scenario != nil, let id = self.session?.sessionId {
+                self.debrief = await ScenarioClient.debrief(sessionId: id)
+            }
         }
     }
 
@@ -683,6 +729,86 @@ final class AppModel {
         lastExamineAt = .distantPast
         behavior.reset()
         phase = .running
+        startScenario()
+    }
+
+    // MARK: Scenario runtime
+
+    private func endScenario() {
+        companionTask?.cancel()
+        coachTask?.cancel()
+        director.disconnect()
+    }
+
+    /// Called for every new encounter. With no scenario this only clears the scenario state.
+    private func startScenario() {
+        endScenario()
+        sceneLine = nil; hint = nil; directorLog = []; debrief = nil; companionIndex = 0
+        guard let s = scenario, let id = session?.sessionId else {
+            if AppConfig.scenarioCode != nil, scenarioNotice == nil {
+                scenarioNotice = "The backend did not answer, so the scenario was not loaded. Running the fixed default case offline."
+            }
+            return
+        }
+        scenarioNotice = nil
+        director.connect(sessionId: id)
+        SmokeLog.mark("scenario code=\(s.code) v\(s.version) title=\"\(s.title)\" review=\(s.reviewState) env=\(s.environmentId) "
+            + "difficulty=\(s.difficulty) hints=\(s.hintPolicy) noise=\(String(format: "%.2f", s.noiseLevel)) "
+            + "bystander=\(s.bystander?.mood ?? "none") helper=\(s.teammate.present) crowd=\(s.crowdFigures.count) "
+            + "sizes=\(session?.case.orthotics.sizes.map(\.id) ?? []) tape=\(session?.case.orthotics.measurements.isEmpty == false) "
+            + "investigations=\(session?.case.investigations.map(\.id) ?? []) engine=\(engineModeLabel)")
+        companionTask = Task { [weak self] in
+            // The bystander speaks up on their own: once early, then at the scenario's interval.
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            while !Task.isCancelled, let self, self.phase == .running, let b = self.scenario?.bystander {
+                let lines = b.lines[b.mood] ?? []
+                guard self.companionIndex < lines.count else { return }
+                self.sceneLine = SceneLine(speaker: b.name, text: lines[self.companionIndex])
+                self.companionIndex += 1
+                try? await Task.sleep(nanoseconds: UInt64(b.interjectEveryS * 1_000_000_000))
+            }
+        }
+        coachTask = Task { [weak self] in
+            // Guided scenarios: hints arrive without asking, as the encounter goes on.
+            while !Task.isCancelled, let self, self.phase == .running {
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+                if !Task.isCancelled, self.phase == .running, self.scenario?.hintPolicy == "auto" { await self.requestHint() }
+            }
+        }
+    }
+
+    /// The next coaching hint from the backend, which records it for the debrief.
+    func requestHint() async {
+        guard phase == .running, let s = scenario, s.hintPolicy != "off", let id = session?.sessionId else { return }
+        let text = await ScenarioClient.hint(sessionId: id)
+        if let text { hint = text }
+        SmokeLog.mark("hint policy=\(s.hintPolicy) text=\"\(text ?? "none")\"")
+    }
+
+    /// An instructor event from the Live Director. The message carries the scenario and the
+    /// case as they are after the event; examinations, results and the transcript are not
+    /// touched, so nothing the student already found changes.
+    private func apply(_ event: DirectorEventMessage) async -> (applied: Bool, detail: String) {
+        guard phase == .running, var info = session, info.scenario != nil else {
+            return (false, "no scenario session is running in the app")
+        }
+        info.scenario = event.scenario
+        info.case.investigations = event.case.investigations
+        info.case.orthotics = event.case.orthotics
+        info.case.learnerBrief = event.case.learnerBrief
+        session = info
+        directorLog.append(event.label)
+        if let line = event.line {
+            sceneLine = SceneLine(speaker: line.speaker, text: line.text)
+            if event.kind == "bystander_anxious" { companionIndex = 1 } // the first anxious line was just said
+        }
+        if let context = event.voiceContext { await voice.sendContext(context) }
+        if event.kind == "enable_coaching", event.scenario.hintPolicy == "auto" { await requestHint() }
+        try? await Task.sleep(nanoseconds: 400_000_000) // let the immersive view rebuild the room first
+        let detail = "\(stageStatus) sizes=\(info.case.orthotics.sizes.map(\.id)) hints=\(event.scenario.hintPolicy)"
+        SmokeLog.mark("director applied seq=\(event.seq) kind=\(event.kind) event=\(event.eventId) \(detail) "
+            + "exams=\(examinations.count) turns=\(transcript.count)")
+        return (true, detail)
     }
 
     private func record(_ turn: TranscriptTurn) {

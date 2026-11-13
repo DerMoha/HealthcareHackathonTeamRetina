@@ -84,7 +84,7 @@ struct ScenarioDashboardView<Footer: View>: View {
             sectionTitle("Scenario", icon: "rectangle.stack.fill")
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 270), spacing: 14, alignment: .top)], spacing: 14) {
                 ForEach(model.catalog, id: \.caseId) { item in
-                    ScenarioCard(item: item, selected: !model.selection.surprise && model.selectedCase?.caseId == item.caseId) {
+                    CaseCard(item: item, selected: !model.selection.surprise && model.selectedCase?.caseId == item.caseId) {
                         select(item)
                     }
                 }
@@ -202,7 +202,7 @@ struct ScenarioDashboardView<Footer: View>: View {
 
 // MARK: - Cards
 
-private struct ScenarioCard: View {
+private struct CaseCard: View {
     let item: CaseInfo
     let selected: Bool
     let action: () -> Void

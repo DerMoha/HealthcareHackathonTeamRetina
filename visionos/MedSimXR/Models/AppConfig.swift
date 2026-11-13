@@ -22,6 +22,11 @@ enum AppConfig {
 
     static func voiceId(for avatar: String) -> String? { value(voiceIdKeyPrefix + avatar.uppercased()) }
 
+    /// Launch code of a published MedSim Studio scenario; empty = the fixed default case.
+    /// Also settable as a launch argument: `-MEDSIM_SCENARIO_CODE K7Q2MX`.
+    static let scenarioCodeKey = "MEDSIM_SCENARIO_CODE"
+    static var scenarioCode: String? { value(scenarioCodeKey)?.uppercased() }
+
     private static func value(_ key: String) -> String? {
         let candidates = [
             UserDefaults.standard.string(forKey: key),

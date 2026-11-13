@@ -9,6 +9,7 @@ struct ImmersivePatientView: View {
     @State private var player = ReactionPlayer()
     @State private var lab = OrthoticsLab()
     @State private var us = UltrasoundScene()
+    @State private var stage = ScenarioStage()
 
     var body: some View {
         RealityView { content, attachments in
@@ -49,6 +50,9 @@ struct ImmersivePatientView: View {
                 panel.orientation = simd_quatf(angle: 0.35, axis: [0, 1, 0])
                 avatar.root.addChild(panel)
             }
+            stage.install(on: avatar)
+            stage.sync(model.scenario)
+            model.stageStatus = stage.status
             SmokeLog.mark("immersive scene built zones=\(avatar.zoneEntities.count)")
         } attachments: {
             Attachment(id: "notebook") { NotebookView().environment(model) }
@@ -110,7 +114,11 @@ struct ImmersivePatientView: View {
                     if let item = lab.item(value.entity) { lab.dropped(item); model.selectedTool = nil }
                 }
         )
-        .onChange(of: model.session?.case.orthotics) { _, orthotics in lab.build(orthotics ?? Orthotics()) }
+        .onChange(of: model.session?.case.orthotics) { _, orthotics in
+            lab.build(orthotics ?? Orthotics())
+            lab.sync(model.fit) // equipment delivered mid-session: a support already on the arm stays there
+        }
+        .modifier(StageSync(stage: stage))
         .onChange(of: model.session?.sessionId) { lab.build(model.session?.case.orthotics ?? Orthotics()) }
         .modifier(UltrasoundSync(model: model, us: us))
         .onChange(of: model.activeAvatarModel) { _, variant in
@@ -163,7 +171,25 @@ struct ImmersivePatientView: View {
             guard fingertip else { return }
             await FingertipExaminer().run(avatar: avatar, model: model)
         }
-        .onDisappear { avatar.stopIdle() }
+        .onDisappear { avatar.stopIdle(); stage.stop(); model.stageStatus = "immersive scene not open" }
+    }
+}
+
+/// Keeps the scenario stage in step with the model. Its own modifier so the view's
+/// modifier chain stays short enough for the type checker.
+private struct StageSync: ViewModifier {
+    @Environment(AppModel.self) private var model
+    let stage: ScenarioStage
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: model.scenario) { _, scenario in
+                stage.sync(scenario)
+                model.stageStatus = stage.status
+                SmokeLog.mark("stage \(stage.status)")
+            }
+            .onChange(of: model.sceneLine) { _, line in if let line { stage.say(line) } }
+            .onChange(of: model.phase) { _, phase in if phase != .running { stage.stop() } }
     }
 }
 

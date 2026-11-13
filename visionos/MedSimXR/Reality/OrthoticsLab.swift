@@ -219,7 +219,9 @@ final class OrthoticsLab {
         setTeaching(anatomy: false, reference: nil)
         showReplay([], events: [], current: nil)
         select(nil)
-        guard !orthotics.sizes.isEmpty else { return }
+        // A scenario may come without a tape or without supports.
+        let tape = !orthotics.measurements.isEmpty
+        guard !orthotics.sizes.isEmpty || tape else { return }
 
         let count = orthotics.sizes.count + 1
         let pitch: Float = 0.16
@@ -228,7 +230,7 @@ final class OrthoticsLab {
         tray.addChild(board)
         func slot(_ i: Int) -> Float { (Float(i) - Float(count - 1) / 2) * pitch }
 
-        add(Self.tapeMeasure(), name: Self.tapeName, label: "Tape", at: [slot(0) - 0.02, 0.022, 0])
+        if tape { add(Self.tapeMeasure(), name: Self.tapeName, label: "Tape", at: [slot(0) - 0.02, 0.022, 0]) }
         for (i, size) in orthotics.sizes.enumerated() {
             let range = size.wristCm.map { String(format: "%g", $0) }.joined(separator: "–")
             add(Self.brace(radius: Self.radius(i)), name: Self.orthosisPrefix + size.id, label: "\(size.label.prefix(1)) · \(range) cm",
