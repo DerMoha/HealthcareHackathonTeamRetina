@@ -61,7 +61,6 @@ final class ScenarioStage {
             showInjury(nil)
             return
         }
-        journeyRoot.addChild(Self.floor(for: position))
         let sign = Self.text("Stage \(position + 1) of \(count)  ·  \(stage.label)", size: 0.05, color: .white)
         sign.position = [0, 2.3, -0.6]
         journeyRoot.addChild(sign)
@@ -128,27 +127,6 @@ final class ScenarioStage {
             add(.generateSphere(radius: 0.012), blood, to: "right_wrist", at: [0, 0, 0.03], scale: [1, 2.2, 0.4])
         }
         SmokeLog.mark("injury shown dressed=\(injury.dressed) splinted=\(injury.splinted) parts=\(injuryParts.count)")
-    }
-
-    /// Ground of each place: asphalt with lane markings, the ambulance floor, the hospital floor.
-    private static func floor(for position: Int) -> Entity {
-        let e = Entity()
-        let colors: [UIColor] = [UIColor(white: 0.2, alpha: 1), UIColor(white: 0.78, alpha: 1),
-                                 UIColor(red: 0.72, green: 0.8, blue: 0.84, alpha: 1)]
-        let size: SIMD2<Float> = position == 1 ? [2.2, 3.6] : [4.5, 4.5]
-        let ground = ModelEntity(mesh: .generatePlane(width: size.x, depth: size.y),
-                                 materials: [SimpleMaterial(color: colors[min(position, 2)], isMetallic: false)])
-        ground.position = [0, 0.002, 0]
-        e.addChild(ground)
-        if position == 0 { // dashed centre line of the road
-            for i in 0..<5 {
-                let dash = ModelEntity(mesh: .generatePlane(width: 0.12, depth: 0.5),
-                                       materials: [UnlitMaterial(color: UIColor(white: 0.95, alpha: 1))])
-                dash.position = [-1.6, 0.004, -2 + Float(i) * 0.95]
-                e.addChild(dash)
-            }
-        }
-        return e
     }
 
     func sync(_ scenario: ScenarioRuntime?) {

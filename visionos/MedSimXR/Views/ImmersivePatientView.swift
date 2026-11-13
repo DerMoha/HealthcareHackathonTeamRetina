@@ -10,6 +10,7 @@ struct ImmersivePatientView: View {
     @State private var lab = OrthoticsLab()
     @State private var us = UltrasoundScene()
     @State private var stage = ScenarioStage()
+    @State private var place = EnvironmentSet()
     @State private var panels = MovablePanels()
 
     /// Everything the scene's own tap and drag handle: all but the panel grab bars, which
@@ -62,6 +63,8 @@ struct ImmersivePatientView: View {
             }
             panels.markHomes()
             panels.updates = content.subscribe(to: SceneEvents.Update.self) { [panels] _ in panels.layout() }
+            place.install(on: avatar)
+            place.show(model.environmentKind)
             stage.install(on: avatar)
             stage.sync(model.scenario)
             stage.showInjury(model.visibleInjury)
@@ -132,6 +135,7 @@ struct ImmersivePatientView: View {
             lab.sync(model.fit) // equipment delivered mid-session: a support already on the arm stays there
         }
         .modifier(StageSync(stage: stage))
+        .modifier(PlaceSync(place: place))
         .onChange(of: model.session?.sessionId) { lab.build(model.session?.case.orthotics ?? Orthotics()) }
         .modifier(UltrasoundSync(model: model, us: us))
         .onChange(of: model.activeAvatarModel) { _, variant in
@@ -185,7 +189,17 @@ struct ImmersivePatientView: View {
             guard fingertip else { return }
             await FingertipExaminer().run(avatar: avatar, model: model)
         }
-        .onDisappear { avatar.stopIdle(); stage.stop(); model.stageStatus = "immersive scene not open" }
+        .onDisappear { avatar.stopIdle(); stage.stop(); place.stop(); model.stageStatus = "immersive scene not open" }
+    }
+}
+
+/// Rebuilds the room when the place changes (another case, the next journey stage, a Studio environment).
+private struct PlaceSync: ViewModifier {
+    @Environment(AppModel.self) private var model
+    let place: EnvironmentSet
+
+    func body(content: Content) -> some View {
+        content.onChange(of: model.environmentKind) { _, kind in place.show(kind) }
     }
 }
 

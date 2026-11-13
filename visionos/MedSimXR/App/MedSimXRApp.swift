@@ -33,6 +33,7 @@ struct MedSimXRApp: App {
                 .onAppear { model.immersiveOpen = true }
                 .onDisappear { model.immersiveOpen = false }
         }
-        .immersionStyle(selection: .constant(.mixed), in: .mixed)
+        // Progressive: the Digital Crown blends the case's room (EnvironmentSet) with the real one.
+        .immersionStyle(selection: .constant(.progressive(0.2...1, initialAmount: 1)), in: .progressive(0.2...1, initialAmount: 1))
     }
 }
