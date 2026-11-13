@@ -9,6 +9,14 @@ tells the learner what it is until they submit.
 
 Educational simulation only. All patient data is fictional. Not a diagnostic tool.
 
+| Seated Virtual Patient | Physical Exam & Pain Reaction |
+| :---: | :---: |
+| ![Virtual Patient Seated](docs/screenshots/demo/03-seated.jpg) | ![Physical Exam & Pain Reaction](docs/screenshots/demo/04-pain-2.jpg) |
+| **Clinical Notebook** | **Spatial Radiology Viewer** |
+| ![Clinical Notebook](docs/screenshots/demo/06-notebook-history.jpg) | ![Spatial Radiology Viewer](docs/screenshots/demo/05-xray-viewer.jpg) |
+| **Orthotics Lab & Sizing** | **Objective Feedback & Scoring** |
+| ![Orthotics Fitting](docs/screenshots/demo/05-lab-5-fitted.jpg) | ![Objective Feedback](docs/screenshots/demo/09-feedback.jpg) |
+
 ```
 visionos/    Vision Pro app (SwiftUI + RealityKit), XcodeGen project
 backend/     FastAPI clinical scenario engine + tests (runs on Windows/macOS/Linux)
