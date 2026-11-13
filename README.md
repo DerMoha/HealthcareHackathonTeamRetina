@@ -93,7 +93,7 @@ ELEVENLABS_AGENT_ID = agent_xxxxxxxx       // empty for private agents
 DEVELOPMENT_TEAM = ABCDE12345              // your Apple team ID
 ```
 
-Both values can also be changed at runtime: control panel → Settings (applies on the next Start).
+Both values can also be changed at runtime: Session page → Settings (applies on the next Start).
 Find the backend machine's IP with `ipconfig getifaddr en0` (macOS) or `ipconfig` (Windows);
 headset and backend must be on the same Wi-Fi.
 
@@ -177,7 +177,7 @@ visionos/scripts/scenario_smoke_test.sh --variant studio   # the Studio window i
 Seeded launch codes: `LKGLZX` (quiet clinic, full kit, guided) and `5344E7` (busy walk-in,
 limited kit, challenging). Both are experimental, not clinician-reviewed.
 
-In the app, *Open MedSim Studio* (control panel) browses My scenarios, Downloaded and the
+The app opens on MedSim Studio, which browses My scenarios, Downloaded and the
 Marketplace, launches a scenario without typing its code, and shows debriefs. Authoring and
 the Live Director stay in the web Studio, on the instructor's screen.
 

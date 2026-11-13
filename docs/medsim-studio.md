@@ -120,8 +120,8 @@ The Studio is a dashboard with a side menu:
 1. **Scenario generator**: pick the template, change the conditions (for example community clinic, busy,
    anxious partner, remove the medium support). Issues appear as you go. Step 6 shows the generated definition.
 2. *Save to my scenarios*, then **My scenarios**: *Publish*. Note the launch code (it also appears in the **Marketplace**).
-3. Vision Pro app: *Open MedSim Studio* in the control panel, find the scenario under
-   **My scenarios** or **Marketplace**, *Launch*. (Or enter the code under *Scenario*, *Start Session*.)
+3. Vision Pro app: the app opens on MedSim Studio. Find the scenario under **My scenarios** or
+   **Marketplace**, *Launch*. (Or enter the code on the **Session** page, *Start Session*.)
 4. **Director**: the session appears; trigger *A helper arrives* or *Deliver an equipment
    item*. The log shows the headset's acknowledgement.
 5. The student submits a diagnosis. **Debrief** (and the feedback page in the app) shows the
@@ -133,12 +133,14 @@ Without a headset the same path runs in the simulator:
 
 ### MedSim Studio in the headset
 
-*Open MedSim Studio* in the control panel opens a second window (`Views/Studio/StudioView.swift`)
-with a side tab bar. It talks to the same backend endpoints as the web Studio.
+The app has one window, MedSim Studio (`Views/Studio/StudioView.swift`), with a side tab bar. It
+opens at 1280×820 points and cannot be made smaller than 960×640. It talks to the same backend
+endpoints as the web Studio. The separate control panel is gone: its contents are the Session page.
 
 | Tab | What it does |
 |---|---|
-| Overview | Last session (open its debrief), last scenario (*Launch*, *Open*), counts |
+| Overview | Welcome and *New session*, last session (open its debrief), last scenario (*Launch*, *Open*), counts |
+| Session | What the control panel was: launch code or published list, Start/Stop, Recenter, the running scenario's state and hints, AI and microphone status, Debug, Settings |
 | My scenarios | Created in the web generator or duplicated: details, equipment, earnable points; *Launch*, *Publish*, *Unpublish*, *Duplicate* |
 | Downloaded | Marketplace copies and imports. Drafts; the original's review state is shown, not inherited |
 | Marketplace | Published scenarios; search, clinician-reviewed filter, *Launch*, *Download a copy* |
@@ -146,8 +148,8 @@ with a side tab bar. It talks to the same backend endpoints as the web Studio.
 | Create | Where to author (the web generator's address) and the duplicate-to-vary shortcut |
 
 *Launch* does exactly what typing the code and pressing *Start Session* does (same
-`AppModel.startSession`, same code check), opens the patient's space and closes the Studio
-window so the room is clear. It is disabled while a session runs.
+`AppModel.startSession`, same code check), opens the patient's space and switches to the
+Session page. It is disabled while a session runs.
 
 Two things stay in the web Studio on purpose:
 

@@ -18,23 +18,14 @@ struct MedSimXRApp: App {
     @State private var studio = StudioState()
 
     var body: some Scene {
+        // One window: MedSim Studio, with the session controls on its Session page.
         WindowGroup {
-            ControlPanelView()
-                .environment(model)
-                .environment(studio)
-        }
-        .defaultSize(width: 400, height: 460)
-        // Small and low, like a tool palette: the patient keeps the centre of the view.
-        .defaultWindowPlacement { _, _ in WindowPlacement(.utilityPanel) }
-
-        // MedSim Studio in the headset: library, marketplace, launch and debrief. Authoring and
-        // the Live Director stay in the web Studio (the instructor's screen).
-        WindowGroup(id: StudioView.windowId) {
             StudioView()
                 .environment(model)
                 .environment(studio)
         }
-        .defaultSize(width: 1000, height: 600)
+        .defaultSize(width: 1280, height: 820)
+        .windowResizability(.contentMinSize)
 
         ImmersiveSpace(id: "patient") {
             ImmersivePatientView()

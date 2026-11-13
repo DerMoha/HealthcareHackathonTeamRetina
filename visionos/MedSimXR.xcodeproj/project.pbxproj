@@ -10,6 +10,7 @@
 		0219A7DC8303042BFE5A37FC /* VoiceTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C11CCF02C1CAFD450F38FDF /* VoiceTestView.swift */; };
 		023C75FAF2E32131CDEBE7D3 /* StudioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D448EF8CF9B5BBEC2C9EC395 /* StudioView.swift */; };
 		05E523664218FD0454BF25C8 /* FittingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B025AD1D79D5DCBB33176F /* FittingPanel.swift */; };
+		0C9CC9FE7077F12375CC0D89 /* SmokeDemos.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA089D90E7210A727D9BCBB8 /* SmokeDemos.swift */; };
 		109E81104F19251C7A2D3EB3 /* BackendClinicalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFD268A4A2F88FBD5FFD3A8 /* BackendClinicalEngine.swift */; };
 		11459C786F76FD1FE36A977E /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9C9B36CB6529DAFB8E3273 /* FeedbackView.swift */; };
 		146E4A52AB8914B79986F2D4 /* FallbackClinicalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E75741D34388289151EF4590 /* FallbackClinicalEngine.swift */; };
@@ -86,6 +87,7 @@
 		8FAB4E7C3261A194949DF12A /* numbness.m4a */ = {isa = PBXFileReference; path = numbness.m4a; sourceTree = "<group>"; };
 		9BC2A7B7B970B168F87EA0C7 /* SmokeLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeLog.swift; sourceTree = "<group>"; };
 		9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		AA089D90E7210A727D9BCBB8 /* SmokeDemos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeDemos.swift; sourceTree = "<group>"; };
 		B09FC5747FBE2B068E740DB5 /* Patient.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Patient.json; sourceTree = "<group>"; };
 		B2D785B57B22AC62D89A38A1 /* ControlPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlPanelView.swift; sourceTree = "<group>"; };
 		B46355DA7F1620E7187A59E3 /* Contracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contracts.swift; sourceTree = "<group>"; };
@@ -134,6 +136,7 @@
 				01228C8C258BA9F97D1F6029 /* NotebookView.swift */,
 				4B42FFFAC36F9EE31E06E2A0 /* RadiologyViewer.swift */,
 				7F3DA9C4F12811CEBDA6A074 /* ScenarioCard.swift */,
+				AA089D90E7210A727D9BCBB8 /* SmokeDemos.swift */,
 				98B477C51599E8B7747A9AE9 /* Studio */,
 			);
 			path = Views;
@@ -426,6 +429,7 @@
 				CF0E7AC6AF9F2CA013CACB24 /* ScenarioCard.swift in Sources */,
 				FB8157F924E90636643326A8 /* ScenarioLink.swift in Sources */,
 				427BD5CFA744FC329F47504D /* ScenarioStage.swift in Sources */,
+				0C9CC9FE7077F12375CC0D89 /* SmokeDemos.swift in Sources */,
 				280B93C210F798420183AF8B /* SmokeLog.swift in Sources */,
 				B1C60C2585A1C86BF92BF5C3 /* SpatialMeasurementTool.swift in Sources */,
 				6886182696F05A6EBD0789DC /* StudioClient.swift in Sources */,
