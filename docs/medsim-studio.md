@@ -127,8 +127,15 @@ Without a headset the same path runs in the simulator:
 | Scenario launch changes the running app; two variants differ | `scenario_smoke_test.sh --variant walkin` and `--variant clinic`, Vision Pro simulator | passed; logs and screenshots in `docs/screenshots/scenario-*` |
 | Director events reach the app, are acknowledged, change the scene; repeated event id applied once; event sent while the link was down arrives after reconnect | walk-in run | passed |
 | Unknown code is an error; unreachable backend runs the default case offline | `--variant unknown`, `--variant offline` | passed |
+| The whole path through the Studio interface: author in the form (clinical title rejected, X-ray disabled in the community clinic, warnings shown), save, publish, launch that code in the simulator, click *Bystander becomes anxious* in the Director tab, app acknowledges, Debrief tab shows it | Studio served at `/app/`, driven by script in a browser tab; app log in `docs/screenshots/scenario-studio-ui/smoke.log` | passed, no console errors |
 
 Not verified:
+
+- **How the Studio looks.** Its pages were driven and read as text; screenshots of the browser
+  tab could not be taken here, so layout, dark theme and narrow widths are unseen. In the
+  interface, Edit, Duplicate, Unpublish, Import/Export, the state buttons and the review form
+  were not clicked (their endpoints are covered by the backend tests), nor was the panel's
+  own socket reconnect.
 
 - **On a real Vision Pro.** Everything above ran in the simulator. How loud the room noise
   and the bystander's system voice are on the device, and whether the live ElevenLabs agent

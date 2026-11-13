@@ -54,8 +54,8 @@ companions. It never holds clinical facts; those stay in `scenarios/<case_id>.js
 
 | | |
 |---|---|
-| `GET /studio/catalog` | `[Template]`: `template_id, case_id, label, summary, clinical_review, environments[{id,label,brief,unsupported_equipment[]}], unsupported_environments[{id,label,reason}], equipment[{id,label,kind}], difficulties[{id,label,hint_policy,description}], crowdedness[{id,label,noise,figures}], bystander_behaviors[{id,label}], teammate_behaviors[{id,label}], learning_objectives[{id,label}], hints[text], dimensions[...]` |
-| `POST /studio/validate` | body `ScenarioConfig` → `{ "valid": bool, "issues": [Issue] }`. Always 200 for a well-formed body. |
+| `GET /studio/catalog` | `[Template]`: `template_id, case_id, label, summary, clinical_review, environments[{id,label,brief,unsupported_equipment[]}], unsupported_environments[{id,label,reason}], equipment[{id,label,kind}], difficulties[{id,label,hint_policy,description}], crowdedness[{id,label,noise,figures}], bystander_behaviors[{id,label}], teammate_behaviors[{id,label}], learning_objectives[{id,label,needs_kind?}], hints[text], dimensions[...]` |
+| `POST /studio/validate` | body `ScenarioConfig` → `{ "valid": bool, "issues": [Issue] }`. A body that breaks the schema itself (title under 3 characters, wrong types) is a standard FastAPI `422` with a list in `detail`. |
 | `POST /studio/preview` | body `ScenarioConfig` → the `ScenarioDefinition` it would produce (id `scn_preview`, nothing saved). 422 with issues if invalid. |
 | `POST /studio/assist` | body `{ template_id, environment, difficulty, crowdedness, tools[], bystander, focus }` → `{ source: "llm" | "template", model, description, patient_personality, bystander_lines[], learning_objectives[], notes[], requires_review }`. Uses the LLM only when `ANTHROPIC_API_KEY` is set; otherwise deterministic. |
 

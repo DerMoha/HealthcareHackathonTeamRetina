@@ -97,6 +97,8 @@ struct ScenarioCard: View {
             SmokeLog.mark("director events seen=\(model.directorLog.count) expected=\(count) \(model.directorLog)")
         }
         let eventsA = UserDefaults.standard.integer(forKey: "eventsA"), eventsB = UserDefaults.standard.integer(forKey: "eventsB")
+        // `-eventWait S`: how long to wait for the instructor (longer when a person clicks in the Studio).
+        let eventWait = UserDefaults.standard.object(forKey: "eventWait") == nil ? 25 : UserDefaults.standard.double(forKey: "eventWait")
 
         await pause(3)
         SmokeLog.mark("STEP s01-launch")
@@ -129,7 +131,7 @@ struct ScenarioCard: View {
         await pause(1)
 
         SmokeLog.mark("STEP s03-await-director") // the script sends events now
-        await events(eventsA, within: 25)
+        await events(eventsA, within: eventWait)
         await pause(2)
         SmokeLog.mark("STEP s04-after-events")
         await pause(2)
@@ -139,7 +141,7 @@ struct ScenarioCard: View {
         if eventsB > 0 {
             model.director.drop(for: 4)
             SmokeLog.mark("STEP s05-link-dropped") // the script sends one more event while the link is down
-            await events(eventsA + eventsB, within: 25)
+            await events(eventsA + eventsB, within: eventWait)
             await pause(2)
             SmokeLog.mark("STEP s06-after-reconnect")
             await pause(2)
