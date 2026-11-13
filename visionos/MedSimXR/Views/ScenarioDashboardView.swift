@@ -34,6 +34,18 @@ struct ScenarioDashboardView<Footer: View>: View {
 
     private let customizeId = "customize"
 
+    /// Journeys and single encounters can be shown apart once there are both.
+    enum KindFilter: String, CaseIterable { case all = "All", journeys = "Multi-stage journeys", single = "Single encounters" }
+    @State private var kind = KindFilter.all
+
+    private var cases: [CaseInfo] {
+        switch kind {
+        case .all: model.catalog
+        case .journeys: model.catalog.filter { $0.journey != nil }
+        case .single: model.catalog.filter { $0.journey == nil }
+        }
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -82,8 +94,15 @@ struct ScenarioDashboardView<Footer: View>: View {
     private var scenarioGrid: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("Scenario", icon: "rectangle.stack.fill")
+            if model.catalog.contains(where: { $0.journey != nil }) && model.catalog.contains(where: { $0.journey == nil }) {
+                Picker("Type", selection: $kind) {
+                    ForEach(KindFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 520)
+            }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 270), spacing: 14, alignment: .top)], spacing: 14) {
-                ForEach(model.catalog, id: \.caseId) { item in
+                ForEach(cases, id: \.caseId) { item in
                     CaseCard(item: item, selected: !model.selection.surprise && model.selectedCase?.caseId == item.caseId) {
                         select(item)
                     }
@@ -225,6 +244,7 @@ private struct CaseCard: View {
                         Text(setting).font(.caption).foregroundStyle(.secondary)
                     }
                 }
+                JourneyTag(stages: item.journey?.stages.map(\.label))
                 if let summary = item.catalog?.summary, !summary.isEmpty {
                     Text(summary)
                         .font(.subheadline).foregroundStyle(.secondary)

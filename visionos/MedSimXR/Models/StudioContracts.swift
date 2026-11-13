@@ -28,6 +28,8 @@ struct StudioScenarioRow: Codable, Hashable, Identifiable, Sendable {
     var createdAt: String
     var aiGenerated: Bool
     var origin: StudioOrigin?
+    /// Journey scenarios: place labels in order (absent from older servers and single encounters).
+    var stages: [String]?
     var id: String { scenarioId }
 
     /// From the marketplace or a file, as opposed to created or duplicated here. Same split as
@@ -47,6 +49,8 @@ struct StudioMarketItem: Codable, Hashable, Identifiable, Sendable {
     var environment: String
     var difficulty: String
     var crowdedness: String
+    /// Journey scenarios: place labels in order (absent from older servers and single encounters).
+    var stages: [String]?
     var id: String { code }
 }
 
