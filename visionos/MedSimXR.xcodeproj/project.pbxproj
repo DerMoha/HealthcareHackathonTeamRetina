@@ -78,9 +78,11 @@
 		B552E7468FC01A882C7CF605 /* us_overview.jpg in Resources */ = {isa = PBXBuildFile; fileRef = EEC0DB4987FCCF3A43817843 /* us_overview.jpg */; };
 		B8DF323AC61D5B4A2FDACB63 /* us_view_profile.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 0EEBFCFF6F5098A1392E21E0 /* us_view_profile.m4a */; };
 		BAB62293E9693B4C029B5A5F /* location.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D5FA3ED3B156DCAED6F9F289 /* location.m4a */; };
+		BB14FB04E2D550EE6CABA714 /* road_trauma_journey_001.json in Resources */ = {isa = PBXBuildFile; fileRef = 7629131CED758E27FC4756B1 /* road_trauma_journey_001.json */; };
 		BBB730040571EB343A90CB83 /* Patient.usdz in Resources */ = {isa = PBXBuildFile; fileRef = DAC227FB2E23D5588C500963 /* Patient.usdz */; };
 		BE95C8FEFEA2EDCCE595B842 /* us_head_cerebellum.jpg in Resources */ = {isa = PBXBuildFile; fileRef = A8D2C9BA2482A4AE0B4EB0D4 /* us_head_cerebellum.jpg */; };
 		C27A737EC5D77C03DE6ABBF7 /* us_gel.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 6A93F51F7B2923F1A6EAA195 /* us_gel.m4a */; };
+		C35C1E73F98E643343D06419 /* JourneyPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1BAAC89A0842E97CB9989BB /* JourneyPanel.swift */; };
 		C58D6A32827F0E9D044A117E /* numbness.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 8FAB4E7C3261A194949DF12A /* numbness.m4a */; };
 		C5E157CD48F8F04567DB2A06 /* OrthoticsLab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C8FF280FD3AA2E124FBF98F /* OrthoticsLab.swift */; };
 		CAA2E484EF14CE8B6C028B36 /* PatientBehaviorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DD6071FB9A69FE5CA9A0B74 /* PatientBehaviorController.swift */; };
@@ -127,6 +129,7 @@
 		6C11CCF02C1CAFD450F38FDF /* VoiceTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceTestView.swift; sourceTree = "<group>"; };
 		702854C71168DEE3FCC36034 /* us_umbilical_cord.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = us_umbilical_cord.jpg; sourceTree = "<group>"; };
 		72E4F304998F0F68970AD522 /* us_amniotic_fluid.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = us_amniotic_fluid.jpg; sourceTree = "<group>"; };
+		7629131CED758E27FC4756B1 /* road_trauma_journey_001.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = road_trauma_journey_001.json; sourceTree = "<group>"; };
 		768CDF0F9495A8A476DC168D /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		7714E1582CF355B2DAE931C2 /* UltrasoundMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UltrasoundMonitorView.swift; sourceTree = "<group>"; };
 		77F70F9AD13AEC4D287EB3D4 /* right_distal_forearm.m4a */ = {isa = PBXFileReference; path = right_distal_forearm.m4a; sourceTree = "<group>"; };
@@ -176,6 +179,7 @@
 		E06A41707145C15A77CD799E /* Placement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Placement.swift; sourceTree = "<group>"; };
 		E0FD86A45FCF0EBC8D43AB34 /* Default.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Default.xcconfig; sourceTree = "<group>"; };
 		E17397FE79DA6AC9B3CBF7A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E1BAAC89A0842E97CB9989BB /* JourneyPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyPanel.swift; sourceTree = "<group>"; };
 		E6310C1B6E1AB9690C75362D /* severity.m4a */ = {isa = PBXFileReference; path = severity.m4a; sourceTree = "<group>"; };
 		E75741D34388289151EF4590 /* FallbackClinicalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FallbackClinicalEngine.swift; sourceTree = "<group>"; };
 		ED929DE480E5A2158F85CD0B /* us_comfort.m4a */ = {isa = PBXFileReference; path = us_comfort.m4a; sourceTree = "<group>"; };
@@ -211,6 +215,7 @@
 				FC9C9B36CB6529DAFB8E3273 /* FeedbackView.swift */,
 				23B025AD1D79D5DCBB33176F /* FittingPanel.swift */,
 				813A01C10B111313CE1DDF90 /* ImmersivePatientView.swift */,
+				E1BAAC89A0842E97CB9989BB /* JourneyPanel.swift */,
 				01228C8C258BA9F97D1F6029 /* NotebookView.swift */,
 				4B42FFFAC36F9EE31E06E2A0 /* RadiologyViewer.swift */,
 				7F3DA9C4F12811CEBDA6A074 /* ScenarioCard.swift */,
@@ -305,6 +310,7 @@
 			isa = PBXGroup;
 			children = (
 				460F74ACDD3FA071D8468ADD /* obstetric_ultrasound_001.json */,
+				7629131CED758E27FC4756B1 /* road_trauma_journey_001.json */,
 				CB6B263C048F155DE6E6A502 /* wrist_trauma_001.json */,
 			);
 			path = scenarios;
@@ -520,6 +526,7 @@
 				69AFADE54BECA84E4EE361C0 /* permission.m4a in Resources */,
 				9F34C34513E345F55B19D8DB /* right_anatomical_snuffbox.m4a in Resources */,
 				27302329D0AE480B72155EA6 /* right_distal_forearm.m4a in Resources */,
+				BB14FB04E2D550EE6CABA714 /* road_trauma_journey_001.json in Resources */,
 				725501C3499D636868D524FE /* severity.m4a in Resources */,
 				3A9870994282F82418584A70 /* ultrasound_manifest.json in Resources */,
 				823B163F1D6094C23277C0A1 /* us_abdomen_ac.jpg in Resources */,
@@ -575,6 +582,7 @@
 				41AD297898C27AB4EFECBB1A /* FingertipExaminer.swift in Sources */,
 				05E523664218FD0454BF25C8 /* FittingPanel.swift in Sources */,
 				23D05D9AE53E1E394B6078C4 /* ImmersivePatientView.swift in Sources */,
+				C35C1E73F98E643343D06419 /* JourneyPanel.swift in Sources */,
 				E056F5B5AD983F47572264A6 /* MedSimXRApp.swift in Sources */,
 				161515A51A5638D1AEAF8A8C /* Mocks.swift in Sources */,
 				9FA01C8AA82E64CB0B2A2453 /* MovablePanels.swift in Sources */,
