@@ -1,11 +1,10 @@
 import SwiftUI
 
-/// MedSim Studio inside the headset: the side tab bar holds the overview, the scenario library
-/// (split into own and downloaded), the marketplace, debriefs and a pointer to the authoring
-/// form. Launching a scenario here is the same as typing its code and pressing Start Session.
+/// The app's main window. The side tab bar holds the overview, the running session (what the
+/// separate control panel used to be), the scenario library (own and downloaded), the
+/// marketplace, debriefs and a pointer to the authoring form. Launching a scenario is the same
+/// as typing its code on the Session page and pressing Start Session.
 struct StudioView: View {
-    static let windowId = "studio"
-
     @Environment(StudioState.self) private var studio
 
     var body: some View {
@@ -15,6 +14,8 @@ struct StudioView: View {
                 Tab(tab.title, systemImage: tab.icon, value: tab) { page(tab) }
             }
         }
+        .frame(minWidth: 960, minHeight: 640)   // below this the pages stop fitting
+        .background { if SmokeLog.enabled { SmokeDemos() } }
         .task { await studio.reload() }
         .onAppear { SmokeLog.mark("studio window shown tab=\(studio.tab.rawValue)") }
         .onDisappear { SmokeLog.mark("studio window closed") }
@@ -24,6 +25,7 @@ struct StudioView: View {
     @ViewBuilder private func page(_ tab: StudioState.Tab) -> some View {
         switch tab {
         case .overview: StudioOverview()
+        case .session: ControlPanelView()
         case .mine: StudioLibrary(scope: .mine)
         case .downloaded: StudioLibrary(scope: .downloaded)
         case .marketplace: StudioMarketplace()
@@ -42,14 +44,11 @@ struct LaunchButton: View {
     @Environment(AppModel.self) private var model
     @Environment(StudioState.self) private var studio
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
-    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         let button = Button {
             Task {
-                await studio.launch(code: code, model: model, openSpace: openImmersiveSpace) {
-                    dismissWindow(id: StudioView.windowId)
-                }
+                await studio.launch(code: code, model: model, openSpace: openImmersiveSpace)
             }
         } label: { Label("Launch", systemImage: "play.fill") }
         .disabled(studio.busy || model.phase != .idle)
@@ -140,6 +139,7 @@ struct StudioOverview: View {
 
     var body: some View {
         StudioPage(title: "Overview") {
+            welcome
             HStack(alignment: .top, spacing: 16) {
                 StudioCard {
                     Text("Last session").font(.headline)
@@ -175,11 +175,29 @@ struct StudioOverview: View {
                 stat(studio.market.count, "Published", .marketplace)
                 stat(studio.sessions.filter { !$0.submitted }.count, "Sessions in progress", .debrief)
             }
-            if model.phase != .idle {
-                Label("A session is running. Stop it in the control panel to launch another scenario.", systemImage: "info.circle")
+        }
+    }
+
+    private var welcome: some View {
+        HStack(spacing: 20) {
+            Image(systemName: "cross.case.fill").font(.system(size: 56)).foregroundStyle(.teal)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Welcome to MedSim XR").font(.title.bold())
+                Text(model.phase == .idle
+                     ? "Meet a patient, talk to them, examine them and write your findings in the notebook beside them. Launch a scenario from My scenarios or the Marketplace, or start the default case."
+                     : "A session is running: \(model.scenario?.title ?? "default case"). Stop it on the Session page to launch another scenario.")
                     .foregroundStyle(.secondary)
             }
+            Spacer()
+            Button { studio.tab = .session } label: {
+                Label(model.phase == .idle ? "New session" : "Go to session", systemImage: model.phase == .idle ? "play.fill" : "stethoscope")
+                    .padding(.horizontal, 8)
+            }
+            .buttonStyle(.borderedProminent).tint(.teal)
         }
+        .padding(24)
+        .background(LinearGradient(colors: [.teal.opacity(0.35), .clear], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: RoundedRectangle(cornerRadius: 28))
     }
 
     private func stat(_ n: Int, _ label: String, _ tab: StudioState.Tab) -> some View {
