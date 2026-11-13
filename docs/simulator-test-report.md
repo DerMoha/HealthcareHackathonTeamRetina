@@ -204,3 +204,21 @@ Scripted `-autoDemo` runs. Tray items were moved by commands that place an item 
 | Rubric and outcome texts reviewed by a clinician | **Not done** | |
 
 Known limits: the support is a plain sleeve that passes through the hand; the wrist zones are covered while a support is on; bones are primitives placed by proportion, not a scanned skeleton; a support can be put on only by dragging.
+
+## Interaction and Clinical Replay pass (2026-11-13)
+
+Scripted only; see `docs/interaction-verification.md` for what that does and does not prove.
+
+| Item | Result | How |
+|---|---|---|
+| Select-then-pinch placement (logic) | Pass | smoke log `lab drop orthosis_large via=pinch … snapped=true` |
+| Placing and deselecting in the same frame | Fixed | the tray's lift animation kept the item on the tray; placement now uses the pinched point directly |
+| Selected state: lift, lit base, forearm glow, panel line | Pass | `05-lab-2-selected` |
+| Brace and tape meshes | Pass | `05-lab-0-tray`, `05-lab-5-fitted` |
+| Unprompted remark per distinct problem, none repeated | Pass | exactly 3 remarks over 7 adjustments |
+| Replay only after submission; content empty before | Pass | backend test, smoke log |
+| Replay steps, missed areas, support comparison, exit | Pass | `09-replay-*` |
+| Anatomy on the forearm only, patient otherwise unchanged | Pass | `09-teaching-anatomy` (default view and close-up) |
+| Regression: backend 55, parity 0 differences, behaviour check | Pass | |
+
+Limits seen: at the simulator's fixed default camera the extended forearm is at the bottom edge of the frame, so the anatomy is only partly visible there; the close-up run shows it whole. The forearm "translucency" is a pale shell drawn over the arm with bones on top, not a change to the patient mesh.

@@ -93,3 +93,15 @@ Needs a live ElevenLabs agent with the `perform_patient_action` client tool (ele
 - [ ] Ask by voice "how does that feel?" after a too-large and a too-tight fit: Alex's answer matches the panel's quoted answer.
 - [ ] Tray position: adjust `tray.position` in `Reality/OrthoticsLab.swift` if it is in the way.
 - [ ] After feedback: anatomy toggle shows bones and the green intended position on the arm.
+
+## Pinch placement, replay (do these first)
+
+- [ ] Pinch a support on the tray: lifts, base lights, forearm glows, panel says "selected".
+- [ ] Pinch the forearm: support goes on where you pinched. Pinch near the elbow instead: it goes on there (wrong position) and Alex complains.
+- [ ] With an item selected, a pinch on the wrist places the item and does **not** count as an examination.
+- [ ] Cancel works; pinching the selected item again deselects.
+- [ ] Drag and drop still works.
+- [ ] Alex complains once, unprompted, about a bad fit; not on every Tighten press.
+- [ ] Replay: opens only from the feedback; steps, Anatomy toggle and Exit work; bones sit on the forearm in the arm's current pose; labels do not cover the wrist.
+- [ ] Replay step text says "gaze and pinch on the patient" for examinations you did by pinch.
+- [ ] Record the results in `docs/interaction-verification.md`.

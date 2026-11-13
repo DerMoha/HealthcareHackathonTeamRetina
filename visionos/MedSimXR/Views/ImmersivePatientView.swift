@@ -29,7 +29,8 @@ struct ImmersivePatientView: View {
             lab.onPlace = { size, offset in Task { await model.placeOrthosis(size: size, offsetCm: offset) } }
             lab.build(model.session?.case.orthotics ?? Orthotics())
             if let panel = attachments.entity(for: "fitting") {
-                panel.position = [-0.62, 1.34, 0.5] // above the tray
+                panel.position = [-0.62, 1.38, 0.5] // above the tray
+                panel.scale = [1.5, 1.5, 1.5] // readable from the examination position
                 panel.orientation = simd_quatf(angle: 0.35, axis: [0, 1, 0])
                 avatar.root.addChild(panel)
             }
@@ -77,7 +78,9 @@ struct ImmersivePatientView: View {
         .onChange(of: model.session?.case.orthotics) { _, orthotics in lab.build(orthotics ?? Orthotics()) }
         .onChange(of: model.session?.sessionId) { lab.build(model.session?.case.orthotics ?? Orthotics()) }
         .onChange(of: model.selectedTool) { _, tool in lab.select(tool) }
-        .onChange(of: model.labCommand) { _, command in if let command { lab.run(command) } }
+        .onChange(of: model.labCommand) { _, command in
+            if let command { lab.run(command); model.selectedTool = nil }
+        }
         .onChange(of: model.fit) { _, fit in lab.sync(fit) }
         .onChange(of: model.measurements) { _, all in
             if let last = all.last { lab.measurement.setLabel(String(format: "%.1f cm", last.valueCm)) } else { lab.measurement.clear() }

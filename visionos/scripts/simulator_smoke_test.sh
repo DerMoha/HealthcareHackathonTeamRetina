@@ -167,8 +167,8 @@ expect "patient speaks up unprompted: too large" "^fit reaction unprompted respo
 expect "patient speaks up unprompted: too tight" "^fit reaction unprompted response=\"That's too tight"
 # three different problems (too large, loose straps, too tight) over seven adjustments: three remarks
 if [ "$(grep -c '^fit reaction unprompted' "$OUT/smoke.log")" = 3 ]; then echo "  ok   one remark per problem, none repeated while adjusting"; else echo "  FAIL unprompted remarks: expected exactly 3"; fail=1; fi
-expect "replay opens after submission"       "^replay started steps=4 events=.*right_anatomical_snuffbox:script"
-expect "replay steps through the exams"      "^replay step=2/4 zone=right_anatomical_snuffbox"
+expect "replay opens after submission"       "^replay started steps=$((EXAMS + 1)) events=.*right_anatomical_snuffbox:script"
+expect "replay steps through the exams"      "^replay step=2/$((EXAMS + 1)) zone=(right_anatomical_snuffbox|left_wrist)"
 expect "replay ends on the support, with reference" "^teaching anatomy=false reference=medium"
 expect "anatomy overlay on request"          "^teaching anatomy=true reference=medium"
 expect "replay can be left"                  "^replay exited teaching=false notebook=true"

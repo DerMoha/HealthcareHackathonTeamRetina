@@ -260,3 +260,9 @@ Outcome precedence: `wrong_position`, `wrong_orientation`, `too_small` / `too_la
 Rubric (20): measured the wrist before the first fit 3; neurovascular check before the first fit 3; final size 4; final position and orientation 4; final tension 2; neurovascular re-check after the last change 2; comfort asked after the last change 2 (recorded check, or a learner turn with comfort keywords after that point). Written for teaching purposes; not reviewed by a clinician.
 
 The voice agent never decides fit: it receives `voice_note` (context) and `voice_context` (stage direction) and only speaks them.
+
+## Spatial Clinical Replay and unprompted fit reactions
+
+- `Feedback.replay`: `[{zone_id, label, important, examined, finding, pain_level, explanation}]`, one per examination zone, **empty before a diagnosis**. `explanation` is the zone's `teaching.contribution` if examined, else `teaching.missed`.
+- The app records each examination itself (`ExamEvent`: zone, action, finding, pain, seconds since start, patient pose, contact point in the zone's space when there was one, and the source: gaze-and-pinch, fingertip, fallback button, scripted test). Only `AppModel.examine` creates events; speech, tool calls and notes cannot. Only discrete zone events exist; no hand path is stored or drawn.
+- `POST /sessions/{id}/fitting` now also returns `comfortable`, `patient_response`, `voice_context`, `animation`: what the patient says unprompted when the fit is uncomfortable. The app waits 1.3 s after the last adjustment, speaks it once, and does not repeat the same complaint. It is not recorded as a comfort check.
