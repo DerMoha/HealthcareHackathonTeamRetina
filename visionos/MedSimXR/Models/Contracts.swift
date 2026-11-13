@@ -397,4 +397,8 @@ protocol VoiceService: AnyObject {
     func sendContext(_ text: String) async
     /// Forwards `ExaminationResult.voiceContext`; the agent must speak a reaction.
     func sendExaminationEvent(_ text: String) async
+    /// After `stop()`: the voice provider's generated summary of the conversation(s) since the
+    /// last `start`. nil while it is still being generated; throws when none can be had.
+    /// A draft for the learner only; it never reaches the notes or the scoring by itself.
+    func fetchSummary() async throws -> String?
 }

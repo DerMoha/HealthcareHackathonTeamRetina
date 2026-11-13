@@ -271,3 +271,9 @@ class Feedback(BaseModel):
 
 class TokenResponse(BaseModel):
     token: str
+
+
+class ConversationSummary(BaseModel):
+    """ElevenLabs' post-call summary of one voice conversation. A draft for the learner, never scored."""
+    status: Literal["pending", "done", "failed"]
+    summary: str | None = None

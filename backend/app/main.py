@@ -1,12 +1,13 @@
 """FastAPI app: routes only; logic lives in sessions/examination/evaluation."""
 import os
+import re
 from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException
 
 from . import evaluation, examination, fitting
-from .models import (DiagnoseRequest, ExamineRequest, ExamineResult, Feedback, Health,
+from .models import (ConversationSummary, DiagnoseRequest, ExamineRequest, ExamineResult, Feedback, Health,
                      InteractionCount, InteractionRequest, FitAck, FitRequest, FittingCheckRequest,
                      FittingCheckResult, MeasurementRequest, MeasurementResult, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
                      TokenResponse, CasePublic)
@@ -147,3 +148,39 @@ def conversation_token():
         # Never echo the upstream body or key; status code is enough to debug.
         raise HTTPException(502, f"ElevenLabs rejected the token request (HTTP {r.status_code}).")
     return TokenResponse(token=r.json()["token"])
+
+
+_CONVERSATION_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
+# ElevenLabs conversation status -> ours. Anything not finished yet is "pending".
+_SUMMARY_STATUS = {"initiated": "pending", "in-progress": "pending", "processing": "pending",
+                   "done": "done", "failed": "failed"}
+
+
+@app.get("/elevenlabs/conversations/{conversation_id}/summary", response_model=ConversationSummary)
+def conversation_summary(conversation_id: str):
+    """ElevenLabs' generated summary of a finished voice conversation, for the notebook draft.
+
+    Needs ELEVENLABS_API_KEY and ELEVENLABS_AGENT_ID (public agents too): the key reads the
+    account's conversations, so only conversations of the configured agent are returned.
+    """
+    key, agent = os.environ.get("ELEVENLABS_API_KEY"), os.environ.get("ELEVENLABS_AGENT_ID")
+    if not key or not agent:
+        raise HTTPException(503, "ElevenLabs is not configured: set ELEVENLABS_API_KEY and ELEVENLABS_AGENT_ID.")
+    if not _CONVERSATION_ID.match(conversation_id):
+        raise HTTPException(422, "Invalid conversation id")
+    try:
+        r = httpx.get(f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}/summary",
+                      headers={"xi-api-key": key}, timeout=10)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Could not reach ElevenLabs ({type(e).__name__}).")
+    if r.status_code == 404:
+        raise HTTPException(404, f"Unknown conversation '{conversation_id}'")
+    if r.status_code != 200:
+        # Never echo the upstream body or key; status code is enough to debug.
+        raise HTTPException(502, f"ElevenLabs rejected the summary request (HTTP {r.status_code}).")
+    body = r.json()
+    if body.get("agent_id") != agent:
+        raise HTTPException(404, f"Unknown conversation '{conversation_id}'")
+    status = _SUMMARY_STATUS.get(body.get("status"), "pending")
+    summary = (body.get("transcript_summary") or "").strip() or None
+    return ConversationSummary(status=status, summary=summary if status == "done" else None)

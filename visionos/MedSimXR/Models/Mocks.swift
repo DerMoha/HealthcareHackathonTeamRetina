@@ -118,6 +118,7 @@ final class MockVoiceService: VoiceService {
 
     func start(caseContext: String) async {
         guard scripted else { return }
+        summaryPolls = 0
         status = .connecting
         try? await Task.sleep(nanoseconds: 600_000_000)
         status = .connected
@@ -176,5 +177,20 @@ final class MockVoiceService: VoiceService {
         onTranscript?(TranscriptTurn(role: .patient, text: line))
         try? await Task.sleep(nanoseconds: 900_000_000)
         isAgentSpeaking = false
+    }
+
+    private struct NoSummary: LocalizedError {
+        var errorDescription: String? { "No voice conversation was recorded, so there is nothing to summarise." }
+    }
+
+    /// Scripted: a fixed draft after one "still processing" poll. Otherwise there is no conversation.
+    @ObservationIgnored private var summaryPolls = 0
+
+    func fetchSummary() async throws -> String? {
+        guard scripted else { throw NoSummary() }
+        summaryPolls += 1
+        guard summaryPolls > 1 else { return nil }
+        return "Mock summary: the student greeted Alex and asked about the injury to the right wrist. "
+            + "With a live ElevenLabs agent this is the agent's generated call summary."
     }
 }

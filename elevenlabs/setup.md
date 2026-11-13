@@ -52,6 +52,12 @@ The app validates the id against the case, asks the clinical engine for the pred
 - **Private**: enable authentication. In the backend `.env` set `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID`. Leave the app's agent ID EMPTY. The app then calls `GET /elevenlabs/conversation-token` on the backend and connects with that token. The API key never ships in the app.
 - If neither works the app shows a voice error and falls back to local scripted speech.
 
+## 6b. Consultation summary for the notebook
+Notebook > History > **End consultation and draft a summary** ends the voice conversation, then the app polls the backend until ElevenLabs has generated its post-call summary (up to 90 s). The learner sees it as a draft and chooses **Insert into history notes** or **Discard**.
+- The backend needs `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` in `.env` even for a **public** agent: reading a conversation needs the key, and the agent id limits the route to this agent's conversations.
+- The agent must keep conversation transcripts (no zero-retention mode), or there is nothing to summarise.
+- The text is ElevenLabs' generic call summary. NOT verified against a live agent: its wording (it may say "the user" and "the agent") and how long processing takes.
+
 ## 7. Optional: offline clips
 `ELEVENLABS_API_KEY=... ELEVENLABS_VOICE_ID=... python3 elevenlabs/generate_clips.py` writes mp3 fallbacks into `visionos/MedSimXR/Resources/Audio/`.
 

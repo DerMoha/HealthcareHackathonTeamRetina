@@ -130,6 +130,15 @@ Private agents only. Backend calls ElevenLabs with `ELEVENLABS_API_KEY` + `ELEVE
 ```
 `503` when the env vars are missing.
 
+### `GET /elevenlabs/conversations/{conversation_id}/summary`
+ElevenLabs' generated post-call summary of one voice conversation, for the notebook's history draft. Needs `ELEVENLABS_API_KEY` + `ELEVENLABS_AGENT_ID` on the backend **for public agents too**; only conversations of that agent are returned. The app gets `conversation_id` from the SDK's conversation-metadata event and asks once per conversation (a reconnect starts a second one).
+```json
+{ "status": "done", "summary": "The student asked how the injury happened…" }
+```
+- `status`: `pending` (ElevenLabs is still processing; poll again), `done`, `failed`. `summary` is `null` unless `done`, and may be `null` when `done` if ElevenLabs produced none.
+- `404` unknown conversation or another agent's conversation, `422` malformed id, `502` ElevenLabs unreachable or rejected the request (upstream body never echoed), `503` env vars missing.
+- The summary is a draft only. The app shows it next to the history notes and puts it into `notes.history` only when the learner presses **Insert**. It is never sent to the engine by itself and never scored.
+
 ## 5. Transcript
 
 ### `POST /sessions/{session_id}/interactions`
@@ -202,7 +211,7 @@ Works at any time. Before a diagnosis is submitted nothing hidden leaks: `diagno
 Defined in `visionos/MedSimXR/Models/Contracts.swift`:
 
 - `ClinicalEngine` — implemented by `BackendClinicalEngine` (HTTP), `OfflineClinicalEngine` (bundled scenario JSON, same rules), `FallbackClinicalEngine` (backend first, offline on network failure).
-- `VoiceService` — implemented by `ElevenLabsVoiceService` and `MockVoiceService`. `setMicMuted(_:)` is note-taking mode: the notebook mutes the microphone while it is open so dictated notes are not heard by the patient.
+- `VoiceService` — implemented by `ElevenLabsVoiceService` and `MockVoiceService`. `setMicMuted(_:)` is note-taking mode: the notebook mutes the microphone while it is open so dictated notes are not heard by the patient. `fetchSummary()` returns the provider's post-call summary after `stop()` (nil while still processing).
 - `AppModel` (`App/AppModel.swift`) owns both and is the only object views talk to.
 
 ## Patient body actions (client tool)
