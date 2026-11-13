@@ -6,10 +6,10 @@ debrief that says what the score was earned under. API: [studio-api.md](studio-a
 ```
  studio/ (React, Vite)                backend/ (FastAPI)                     Vision Pro app
 ┌────────────────────────┐   HTTP   ┌─────────────────────────────┐  HTTP  ┌──────────────────────────┐
-│ Author   Library       │◄────────►│ studio.py   validate,        │◄──────►│ ScenarioCard  pick / code │
-│ Director Debrief       │          │             generate, library│        │ AppModel      scenario    │
+│ Overview  Library      │◄────────►│ studio.py   validate,        │◄──────►│ ScenarioCard  pick / code │
+│ Marketplace Generator  │          │             generate, library│        │ AppModel      scenario    │
 │                        │    WS    │ director.py events, hints,   │   WS   │ DirectorLink  ack, replay │
-│ director socket        │◄────────►│             debrief          │◄──────►│ ScenarioStage room        │
+│ Director  Debrief (WS) │◄────────►│             debrief          │◄──────►│ ScenarioStage room        │
 └────────────────────────┘          │ assist.py   optional LLM     │        └──────────────────────────┘
                                     │ studio_templates/*.json      │
                                     │ scenarios/*.json  (clinical) │
@@ -104,9 +104,20 @@ cd backend && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 800
 # Studio: http://localhost:8000/app/      (development: cd studio && npm run dev)
 ```
 
-1. **Author**: pick the template, change the conditions (for example community clinic, busy,
-   anxious partner, remove the medium support). Issues appear as you go. *Preview definition*.
-2. *Save to library*, then **Library**: *Publish*. Note the launch code.
+The Studio is a dashboard with a side menu:
+
+| Menu | Page |
+|---|---|
+| Home › Overview | Last session (open its director or debrief), last scenario worked on, counts, shortcuts |
+| Scenarios › My scenarios | Scenarios created in the generator or duplicated here: versions, review, publish, export |
+| Scenarios › Downloaded | Copies taken from the marketplace or imported from a file. Always drafts; the original's review state is shown but not carried over |
+| Scenarios › Marketplace | Published scenarios on this server with their launch codes; search, filter to clinician-reviewed, *Download a copy* |
+| Scenarios › Scenario generator | Six steps: basics and setting, people, equipment, learning objectives, narrative, review and save. Each step shows its error count; the generated definition and its consequences (noise, figures, coaching, earnable points) update as you go |
+| Sessions › Live director, Debrief | As before |
+
+1. **Scenario generator**: pick the template, change the conditions (for example community clinic, busy,
+   anxious partner, remove the medium support). Issues appear as you go. Step 6 shows the generated definition.
+2. *Save to my scenarios*, then **My scenarios**: *Publish*. Note the launch code (it also appears in the **Marketplace**).
 3. Vision Pro app: enter the code under *Scenario* (or pick it from the list), *Start Session*.
 4. **Director**: the session appears; trigger *A helper arrives* or *Deliver an equipment
    item*. The log shows the headset's acknowledgement.
@@ -131,9 +142,14 @@ Without a headset the same path runs in the simulator:
 
 Not verified:
 
-- **How the Studio looks.** Its pages were driven and read as text; screenshots of the browser
-  tab could not be taken here, so layout, dark theme and narrow widths are unseen. In the
-  interface, Edit, Duplicate, Unpublish, Import/Export, the state buttons and the review form
+- **The dashboard with a live headset session.** The simulator run in the table above used the
+  earlier tabbed layout. The dashboard (side menu, overview, marketplace, stepped generator)
+  was then checked in headless Chromium against a backend without a session: every page renders
+  in light, dark and narrow layouts, *Download a copy* lands in Downloaded as a draft, and a
+  scenario built in the generator saves into My scenarios. Screenshots:
+  `docs/screenshots/studio-dashboard/`. The Live director and Debrief pages are the same
+  components as before but were not re-run against the simulator in the new layout.
+- In the interface, Edit, Unpublish, Import/Export, the state buttons and the review form
   were not clicked (their endpoints are covered by the backend tests), nor was the panel's
   own socket reconnect.
 

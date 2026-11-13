@@ -26,7 +26,17 @@ function blankConfig(t: Template): ScenarioConfig {
   }
 }
 
-interface Props { edit: EditRequest; onSaved: () => void; onNew: () => void }
+interface Props { edit: EditRequest; onSaved: (scenarioId: string) => void; onNew: () => void }
+
+// Generator steps, and which validation fields belong to each (for the error count on the step).
+const STEPS: [string, string[]][] = [
+  ['Basics and setting', ['title', 'template_id', 'environment', 'difficulty', 'crowdedness', 'seed']],
+  ['People', ['bystander', 'teammate']],
+  ['Equipment', ['tools']],
+  ['Learning objectives', ['learning_objectives']],
+  ['Narrative', ['narrative']],
+  ['Review and save', []],
+]
 
 export default function Author(props: Props) {
   const [catalog, setCatalog] = useState<Template[] | null>(null)
@@ -81,7 +91,6 @@ function Form({ edit, template: t, onSaved, onNew }: Props & { template: Templat
   const warnings = issues.filter(i => i.severity === 'warning')
 
   const draft = useAction()
-  const prev = useAction()
   const save = useAction()
 
   const env = t.environments.find(e => e.id === cfg.environment)
@@ -116,22 +125,28 @@ function Form({ edit, template: t, onSaved, onNew }: Props & { template: Templat
     }))
   }
 
-  async function runPreview() {
-    const d = await prev.run(() => api.preview(config))
-    if (d) setPreview(d)
-  }
-
   async function runSave() {
     const d = await save.run(() => (edit.scenarioId ? api.update(edit.scenarioId, config) : api.create(config)))
-    if (d) onSaved()
+    if (d) onSaved(d.scenario_id)
   }
+
+  const [step, setStep] = useState(0)
+  const stepErrors = (n: number) => errors.filter(i => STEPS[n][1].some(f => i.field === f || i.field.startsWith(f + '.'))).length
+  // The definition this configuration produces, rebuilt whenever it is valid: every step shows its consequences.
+  useEffect(() => {
+    if (validating || errors.length || validateError) return
+    let stale = false
+    api.preview(config).then(d => { if (!stale) setPreview(d) }, () => {})
+    return () => { stale = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, validating, errors.length, validateError])
 
   const canSave = errors.length === 0 && !validating && !validateError && seedValid && !save.pending
 
   return (
     <div className="author">
       <div className="head-row">
-        <h2>{edit.scenarioId ? 'Edit scenario' : 'New scenario'}</h2>
+        <h2>Scenario generator{edit.scenarioId ? ': editing' : ''}</h2>
         {edit.scenarioId && <button type="button" onClick={onNew}>Start a new scenario instead</button>}
       </div>
       <p className="muted">Template: {t.label}. {t.summary} {t.clinical_review}</p>
@@ -139,6 +154,18 @@ function Form({ edit, template: t, onSaved, onNew }: Props & { template: Templat
 
       <div className="split">
         <form className="form" onSubmit={e => e.preventDefault()}>
+          <ol className="steps" aria-label="Generator steps">
+            {STEPS.map(([label], n) => (
+              <li key={label}>
+                <button type="button" className={n === step ? 'step active' : 'step'} aria-current={n === step ? 'step' : undefined} onClick={() => setStep(n)}>
+                  <span className="step-n">{n + 1}</span>{label}
+                  {stepErrors(n) > 0 && <span className="chip chip-bad">{stepErrors(n)}</span>}
+                </button>
+              </li>
+            ))}
+          </ol>
+
+          <div className="form" hidden={step !== 0}>
           <label className="field">
             <span>Title</span>
             <input value={cfg.title} maxLength={80} onChange={e => set({ title: e.target.value })} />
@@ -181,8 +208,17 @@ function Form({ edit, template: t, onSaved, onNew }: Props & { template: Templat
             </label>
           </div>
 
-          <fieldset>
+          <label className="field narrow">
+            <span>Seed (blank = {edit.scenarioId ? 'keep current seed' : 'random'})</span>
+            <input inputMode="numeric" value={seedText} onChange={e => setSeedText(e.target.value)} aria-invalid={!seedValid} />
+            {!seedValid && <small className="issue-error">Seed must be a whole number.</small>}
+            <small className="muted">Fixes the order of the bystander's lines and where background figures stand, so a run can be repeated.</small>
+          </label>
+          </div>
+
+          <fieldset hidden={step !== 2}>
             <legend>Equipment</legend>
+            <p className="muted small">What is in the room at the start. Anything left out that the setting allows can still be delivered by the instructor during the session.</p>
             {Object.keys(KIND_LABEL).concat(t.equipment.map(x => x.kind).filter(k => !(k in KIND_LABEL))).filter((k, i, a) => a.indexOf(k) === i).map(kind => {
               const items = t.equipment.filter(x => x.kind === kind)
               if (!items.length) return null
@@ -206,22 +242,24 @@ function Form({ edit, template: t, onSaved, onNew }: Props & { template: Templat
             })}
           </fieldset>
 
-          <div className="row">
+          <div className="row" hidden={step !== 1}>
             <label className="field">
               <span>Bystander behaviour</span>
               <select value={cfg.bystander} onChange={e => set({ bystander: e.target.value })}>
                 {t.bystander_behaviors.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}
               </select>
+              <small className="muted">Stands beside the patient and speaks up unprompted. Their lines can be written under Narrative.</small>
             </label>
             <label className="field">
               <span>Teammate behaviour</span>
               <select value={cfg.teammate} onChange={e => set({ teammate: e.target.value })}>
                 {t.teammate_behaviors.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}
               </select>
+              <small className="muted">A helper can also be sent in later from the live director.</small>
             </label>
           </div>
 
-          <fieldset>
+          <fieldset hidden={step !== 3}>
             <legend>Learning objectives (at least one)</legend>
             {t.learning_objectives.map(o => (
               <label key={o.id} className="check">
@@ -232,7 +270,7 @@ function Form({ edit, template: t, onSaved, onNew }: Props & { template: Templat
             ))}
           </fieldset>
 
-          <fieldset>
+          <fieldset hidden={step !== 4}>
             <legend>Narrative (optional)</legend>
             <p className="muted small">Must not name a finding, a result or the diagnosis. The server rejects text that does.</p>
             <label className="field">
@@ -271,11 +309,18 @@ function Form({ edit, template: t, onSaved, onNew }: Props & { template: Templat
             )}
           </fieldset>
 
-          <label className="field narrow">
-            <span>Seed (blank = {edit.scenarioId ? 'keep current seed' : 'random'})</span>
-            <input inputMode="numeric" value={seedText} onChange={e => setSeedText(e.target.value)} aria-invalid={!seedValid} />
-            {!seedValid && <small className="issue-error">Seed must be a whole number.</small>}
-          </label>
+          <div hidden={step !== 5}>
+            {preview && errors.length === 0
+              ? <><p className="muted">This is the scenario the server generates from your choices. Nothing is saved until you save.</p><DefinitionView def={preview} /></>
+              : <p className="muted">Fix the problems listed under Checks to see the generated scenario.</p>}
+          </div>
+
+          <div className="actions">
+            <button type="button" disabled={step === 0} onClick={() => setStep(step - 1)}>Back</button>
+            {step < STEPS.length - 1
+              ? <button type="button" className="primary" onClick={() => setStep(step + 1)}>Next: {STEPS[step + 1][0]}</button>
+              : <button type="button" className="primary" onClick={runSave} disabled={!canSave}>{save.pending ? 'Saving…' : edit.scenarioId ? 'Save as new version' : 'Save to my scenarios'}</button>}
+          </div>
         </form>
 
         <aside className="side">
@@ -284,26 +329,28 @@ function Form({ edit, template: t, onSaved, onNew }: Props & { template: Templat
             <ErrorText error={validateError} />
             {!validating && !issues.length && !validateError && <p className="ok">No problems found.</p>}
             <IssueList issues={[...errors, ...warnings]} />
+            {preview && errors.length === 0 && <>
+              <h4>What this produces</h4>
+              <dl className="kv small">
+                <dt>Room noise</dt><dd>{Math.round(preview.environment.ambient_level * 100)}%</dd>
+                <dt>Background figures</dt><dd>{preview.environment.crowd.figures.length}</dd>
+                <dt>Coaching</dt><dd>{preview.difficulty.hint_policy.replace('_', ' ')}</dd>
+                <dt>At the start</dt><dd>{preview.resources.filter(r => r.available).length} of {preview.resources.length} items</dd>
+                <dt>Deliverable later</dt><dd>{preview.resources.filter(r => r.deliverable).length}</dd>
+                {preview.assessment.dimensions.map(d => <span key={d.id} className="kv-row"><dt>{d.id}</dt><dd>{d.achievable_max} of {d.max_score} points earnable</dd></span>)}
+              </dl>
+            </>}
             <div className="actions">
-              <button type="button" onClick={runPreview} disabled={prev.pending || errors.length > 0 || validating}>{prev.pending ? 'Building…' : 'Preview definition'}</button>
               <button type="button" className="primary" onClick={runSave} disabled={!canSave}>
-                {save.pending ? 'Saving…' : edit.scenarioId ? 'Save as new version' : 'Save to library'}
+                {save.pending ? 'Saving…' : edit.scenarioId ? 'Save as new version' : 'Save to my scenarios'}
               </button>
             </div>
-            <ErrorText error={prev.error} />
             <ErrorText error={save.error} />
-            <IssueList issues={[...prev.issues, ...save.issues]} />
+            <IssueList issues={save.issues} />
           </div>
         </aside>
       </div>
 
-      {preview && (
-        <section className="panel">
-          <div className="head-row"><h3>Definition preview</h3><button type="button" className="link" onClick={() => setPreview(null)}>Close</button></div>
-          <p className="muted">Nothing is saved yet. This is what the server would generate.</p>
-          <DefinitionView def={preview} />
-        </section>
-      )}
     </div>
   )
 }

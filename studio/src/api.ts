@@ -114,7 +114,16 @@ export interface ScenarioDefinition {
   clinical_rules: { case_id: string; immutable_facts: string[]; findings_sha256: string; statement: string; constraints: string[] }
   assessment: { dimensions: Dimension[]; learning_objectives: Choice[]; note: string }
   narrative: { description: string; patient_personality: string; source: string; ai_generated: boolean }
-  origin: null | { duplicated_from?: string; imported_from?: string; version?: number; claimed_review_state?: string }
+  origin: Origin | null
+}
+
+export interface Origin { duplicated_from?: string; imported_from?: string; downloaded_from?: string; code?: string; version?: number; claimed_review_state?: string }
+/** Came from somewhere else (marketplace or a file), as opposed to created or duplicated here. */
+export const isDownloaded = (o: Origin | null) => !!o && (o.downloaded_from != null || o.imported_from !== undefined)
+
+export interface PublishedRow {
+  code: string; scenario_id: string; version: number; title: string; description: string
+  review_state: ReviewState; environment: string; difficulty: string; crowdedness: string
 }
 
 export interface LibraryRow {
@@ -131,6 +140,7 @@ export interface LibraryRow {
   crowdedness: string
   created_at: string
   ai_generated: boolean
+  origin: Origin | null
 }
 export interface VersionRow { version: number; created_at: string; review_state: ReviewState; published: boolean }
 
@@ -258,6 +268,8 @@ export const api = {
   publish: (id: string) => call<ScenarioDefinition>('POST', `/studio/scenarios/${id}/publish`),
   unpublish: (id: string) => call<ScenarioDefinition>('POST', `/studio/scenarios/${id}/unpublish`),
   import: (def: unknown) => call<ScenarioDefinition>('POST', '/studio/import', def),
+  published: () => call<PublishedRow[]>('GET', '/scenarios/published'),
+  download: (code: string) => call<ScenarioDefinition>('POST', `/studio/marketplace/${encodeURIComponent(code)}/download`),
 
   active: () => call<ActiveSession[]>('GET', '/sessions/active'),
   debrief: (id: string) => call<Debrief>('GET', `/sessions/${encodeURIComponent(id)}/debrief`),

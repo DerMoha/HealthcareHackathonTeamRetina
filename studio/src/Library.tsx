@@ -1,28 +1,38 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, type LibraryRow, type ScenarioConfig, type ScenarioDefinition, type VersionRow } from './api'
+import { api, isDownloaded, type LibraryRow, type ScenarioConfig, type ScenarioDefinition, type VersionRow } from './api'
 import DefinitionView from './Definition'
 import { ErrorText, fmtDate, ReviewBadge, useAction } from './ui'
 
 const human = (s: string) => s.replace(/_/g, ' ')
 
-interface Props { version: number; visible: boolean; onEdit: (id: string, config: ScenarioConfig) => void }
+interface Props {
+  /** 'mine': created or duplicated here. 'downloaded': from the marketplace or an imported file. */
+  scope: 'mine' | 'downloaded'
+  version: number; visible: boolean; focus?: string | null
+  onEdit: (id: string, config: ScenarioConfig) => void
+  onChanged: () => void
+  /** Show a scenario wherever it belongs (a duplicate of a download lands in My scenarios). */
+  onOpen: (id: string, downloaded: boolean) => void
+}
 
-export default function Library({ version, visible, onEdit }: Props) {
+export default function Library({ scope, version, visible, focus, onEdit, onChanged, onOpen }: Props) {
   const [rows, setRows] = useState<LibraryRow[] | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const list = useAction()
   const imp = useAction()
   const [note, setNote] = useState<string | null>(null)
 
-  const reload = useCallback(() => list.run(async () => setRows(await api.library())), [list.run])
+  const reload = useCallback(() => list.run(async () =>
+    setRows((await api.library()).filter(r => isDownloaded(r.origin) === (scope === 'downloaded')))), [list.run, scope])
   useEffect(() => { if (visible) void reload() }, [visible, version, reload])
+  useEffect(() => { if (focus) setSelected(focus) }, [focus])
 
   async function importFile(file: File) {
     setNote(null)
     const d = await imp.run(async () => api.import(JSON.parse(await file.text())))
     if (d) {
       setNote(`Imported "${d.title}" as a new draft. Imports always start as draft; any review state in the file is recorded as a claim only.`)
-      await reload()
+      await reload(); onChanged()
       setSelected(d.scenario_id)
     }
   }
@@ -30,16 +40,19 @@ export default function Library({ version, visible, onEdit }: Props) {
   return (
     <div className="library">
       <div className="head-row">
-        <h2>Scenario library</h2>
+        <h2>{scope === 'mine' ? 'My scenarios' : 'Downloaded scenarios'}</h2>
         <div className="actions">
           <button type="button" onClick={() => void reload()} disabled={list.pending}>{list.pending ? 'Loading…' : 'Refresh'}</button>
-          <label className="button">
-            {imp.pending ? 'Importing…' : 'Import JSON'}
+          {scope === 'downloaded' && <label className="button">
+            {imp.pending ? 'Importing…' : 'Import a scenario file'}
             <input type="file" accept="application/json,.json" hidden disabled={imp.pending}
               onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importFile(f) }} />
-          </label>
+          </label>}
         </div>
       </div>
+      <p className="muted">{scope === 'mine'
+        ? 'Scenarios created in the generator or duplicated here.'
+        : 'Copies taken from the marketplace or imported from a file. They start as drafts: review and publish them yourself before use.'}</p>
       <ErrorText error={list.error} />
       <ErrorText error={imp.error} onDismiss={imp.clearError} />
       {note && <div className="notice" role="status">{note}</div>}
@@ -66,13 +79,14 @@ export default function Library({ version, visible, onEdit }: Props) {
                   <td>{r.ai_generated ? <span className="tag">AI text</span> : ''}</td>
                 </tr>
               ))}
-              {!rows.length && <tr><td colSpan={8} className="muted">The library is empty. Author a scenario or import one.</td></tr>}
+              {!rows.length && <tr><td colSpan={8} className="muted">{scope === 'mine' ? 'Nothing here yet. Create one in the generator.' : 'Nothing downloaded yet. Browse the marketplace or import a file.'}</td></tr>}
             </tbody>
           </table>
         </div>
       )}
 
-      {selected && <Detail key={selected} id={selected} onChanged={reload} onSelect={setSelected} onEdit={onEdit} />}
+      {selected && rows?.some(r => r.scenario_id === selected) &&
+        <Detail key={selected} id={selected} onChanged={async () => { await reload(); onChanged() }} onSelect={id => scope === 'mine' ? setSelected(id) : onOpen(id, false)} onEdit={onEdit} />}
     </div>
   )
 }
@@ -182,8 +196,11 @@ function Detail({ id, onChanged, onSelect, onEdit }: {
 }
 
 function originText(o: NonNullable<ScenarioDefinition['origin']>): string {
-  const from = o.duplicated_from ? `Duplicated from ${o.duplicated_from}` : o.imported_from ? `Imported from ${o.imported_from}` : 'Derived'
-  return `${from}${o.version != null ? ` v${o.version}` : ''}${o.claimed_review_state ? `. The source claimed "${o.claimed_review_state}"; that claim was not accepted.` : ''}`
+  const from = o.downloaded_from ? `Downloaded from the marketplace (${o.code ?? o.downloaded_from})` : o.duplicated_from ? `Duplicated from ${o.duplicated_from}` : o.imported_from ? `Imported from ${o.imported_from}` : 'Imported from a file'
+  const claim = !o.claimed_review_state ? ''
+    : o.downloaded_from ? `. The original is "${o.claimed_review_state.replace(/_/g, ' ')}"; this copy starts as a draft and needs its own review.`
+    : `. The source claimed "${o.claimed_review_state}"; that claim was not accepted.`
+  return `${from}${o.version != null ? ` v${o.version}` : ''}${claim}`
 }
 
 function ReviewForm({ busy, onSubmit }: { busy: boolean; onSubmit: (b: { reviewer_name: string; reviewer_role: string; notes: string }) => void }) {

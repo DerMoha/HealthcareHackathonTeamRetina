@@ -140,6 +140,12 @@ def test_library_versions_review_states_and_sharing(client):
     imported = client.post("/studio/import", json=exported).json()
     assert imported["scenario_id"] != sid and imported["review"]["state"] == "draft" and not imported["published"]
     assert imported["origin"]["claimed_review_state"] == "clinician_reviewed"
+    # marketplace: a download is a draft copy of the PUBLISHED version (v1), not of the newer draft
+    got = client.post(f"/studio/marketplace/{d['code']}/download").json()
+    assert got["title"] == "Test scenario" and got["review"]["state"] == "draft" and got["scenario_id"] != sid
+    assert got["origin"] | {"version": 1} == got["origin"] and got["origin"]["downloaded_from"] == sid
+    assert next(r for r in client.get("/studio/scenarios").json() if r["scenario_id"] == got["scenario_id"])["origin"]["code"] == d["code"]
+    assert client.post("/studio/marketplace/NOPE00/download").status_code == 404
     tampered = copy.deepcopy(exported)
     tampered["config"]["tools"].append("defibrillator")
     assert client.post("/studio/import", json=tampered).status_code == 422

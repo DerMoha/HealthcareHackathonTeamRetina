@@ -76,6 +76,10 @@ def build(scenarios: dict[str, dict]) -> APIRouter:
     def import_scenario(document: dict = Body(...)):
         return guard(library.import_, document)
 
+    @router.post("/studio/marketplace/{code}/download", response_model=ScenarioDefinition, status_code=201)
+    def download(code: str):
+        return guard(library.download, code)
+
     @router.get("/studio/scenarios/{scenario_id}", response_model=ScenarioDefinition)
     def get(scenario_id: str, version: int | None = None):
         return guard(library.get, scenario_id, version)

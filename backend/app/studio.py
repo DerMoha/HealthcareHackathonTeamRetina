@@ -464,7 +464,7 @@ class Library:
                         "published_version": rec["published_version"], "template_id": d.config.template_id,
                         "environment": d.environment["label"], "difficulty": d.difficulty["label"],
                         "crowdedness": d.environment["crowd"]["label"], "created_at": d.created_at,
-                        "ai_generated": d.narrative["ai_generated"]})
+                        "ai_generated": d.narrative["ai_generated"], "origin": d.origin})
         return sorted(out, key=lambda s: s["created_at"], reverse=True)
 
     def get(self, scenario_id: str, version: int | None = None) -> ScenarioDefinition:
@@ -498,6 +498,13 @@ class Library:
         src = self.get(scenario_id)
         config = src.config.model_copy(update={"title": f"Copy of {src.title}"[:80]})
         return self.create(config, origin={"duplicated_from": src.scenario_id, "version": src.version})
+
+    def download(self, code: str) -> ScenarioDefinition:
+        """A private copy of a published scenario (the marketplace's "get"). It is the published
+        version, not a newer unpublished edit, and like every copy it starts as a draft."""
+        src = self.by_code(code)
+        return self.create(src.config, origin={"downloaded_from": src.scenario_id, "version": src.version,
+                                               "code": src.code, "claimed_review_state": src.review.state})
 
     def import_(self, document: dict) -> ScenarioDefinition:
         """Only the configuration is taken; everything derived is regenerated here and the

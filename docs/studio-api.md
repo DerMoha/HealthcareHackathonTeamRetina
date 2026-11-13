@@ -67,7 +67,7 @@ a result or the diagnosis. Equipment that makes a criterion unearnable is a warn
 
 | | |
 |---|---|
-| `GET /studio/scenarios` | `[{ scenario_id, code, title, version, versions, review_state, published_version, template_id, environment, difficulty, crowdedness, created_at, ai_generated }]`, newest first |
+| `GET /studio/scenarios` | `[{ scenario_id, code, title, version, versions, review_state, published_version, template_id, environment, difficulty, crowdedness, created_at, ai_generated, origin }]`, newest first. `origin` is `null` for scenarios created here, otherwise `duplicated_from`, `imported_from` or `downloaded_from` (+ `code`, `version`, `claimed_review_state`) |
 | `POST /studio/scenarios` | body `ScenarioConfig` → `201 ScenarioDefinition` (version 1, draft) |
 | `GET /studio/scenarios/{id}[?version=N]` | `ScenarioDefinition` (latest by default). This document is also the export format. |
 | `GET /studio/scenarios/{id}/versions` | `[{ version, created_at, review_state, published }]` |
@@ -76,6 +76,7 @@ a result or the diagnosis. Equipment that makes a criterion unearnable is a warn
 | `POST /studio/scenarios/{id}/state` | `{ "state": "draft" | "experimental" }`. `clinician_reviewed` → 409. Setting `draft` unpublishes. |
 | `POST /studio/scenarios/{id}/review` | `{ reviewer_name, reviewer_role, attestation: true, notes }` → latest version becomes `clinician_reviewed`. The only way to get that state. `attestation: false` → 422. |
 | `POST /studio/scenarios/{id}/publish` · `/unpublish` | Publishes the latest version under the scenario's `code`. A draft becomes `experimental`; nothing ever becomes `clinician_reviewed` by publishing. |
+| `POST /studio/marketplace/{code}/download` | `201` a draft copy of the **published** version behind `code` (not a newer unpublished edit). `origin.downloaded_from` names the source; its review state is recorded as `claimed_review_state` only. Unknown code → 404 |
 | `POST /studio/import` | body: an exported `ScenarioDefinition` → `201` new scenario. Only `config` is used; it is validated and regenerated, and it starts as draft with the claimed state kept in `origin`. |
 
 Storage: `backend/data/studio_library.json` (override `MEDSIM_STUDIO_DB`). On first use it is
