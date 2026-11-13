@@ -30,6 +30,8 @@ final class OfflineClinicalEngine: ClinicalEngine {
             var offset: [Float]
             var radius: Float
             var result: Result
+            var teaching: Teaching
+            struct Teaching: Decodable { var important: Bool; var contribution: String; var missed: String }
         }
         struct Diagnosis: Decodable {
             var name: String
@@ -356,7 +358,13 @@ final class OfflineClinicalEngine: ClinicalEngine {
         let note = fit == nil ? "[Context only, do not speak now. The wrist support was taken off again.]"
             : "[Context only, do not speak now. A wrist support was just put on or adjusted on your right wrist. "
               + "If the student asks how it feels, answer with this meaning: \"\(outcomeSpec(fit).patientResponse)\"]"
-        return FitAck(attempt: fittings.filter { $0.fit != nil }.count, voiceNote: note)
+        let spec = outcomeSpec(fit)
+        return FitAck(
+            attempt: fittings.filter { $0.fit != nil }.count, voiceNote: note, comfortable: spec.comfortable,
+            patientResponse: spec.patientResponse,
+            voiceContext: "[The wrist support on your right wrist was just adjusted and it does not feel right. Say so out "
+                + "loud right now, unprompted, in one short sentence with this meaning: \"\(spec.patientResponse)\"]",
+            animation: spec.animation)
     }
 
     func fittingCheck(_ kind: String) async throws -> FittingCheckResult {
@@ -538,6 +546,13 @@ final class OfflineClinicalEngine: ClinicalEngine {
         } else if documentation.contains(where: { $0.status == "unsupported" }) {
             summary += " Some of your notes are not supported by what was actually asked or examined."
         }
+        let replay = dx == nil ? [] : scenario.examinationZones.map { z -> ReplayZone in
+            let hit = exams.contains { $0.zoneId == z.id }
+            return ReplayZone(zoneId: z.id, label: label(z.id), important: z.teaching.important, examined: hit,
+                              finding: hit ? z.result.finding.replacingOccurrences(of: "_", with: " ") : nil,
+                              painLevel: hit ? z.result.painLevel : nil,
+                              explanation: hit ? z.teaching.contribution : z.teaching.missed)
+        }
         let (management, investigations) = buildManagement(diagnosis: dx, redact: dx == nil)
         return Feedback(
             sessionId: sessionId, caseId: scenario.caseId, diagnosisSubmitted: dx,
@@ -547,7 +562,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
             diagnosticAssessment: DiagnosticAssessment(verdict: verdict, explanation: explanation, expected: dx == nil ? nil : d.name),
             categories: categories, strengths: strengths, missed: missed, relevantFindings: findings,
             nextSteps: dx == nil ? [] : h.nextSteps, documentation: documentation,
-            management: management, investigations: investigations, fitting: buildFitting(redact: dx == nil),
+            management: management, investigations: investigations, fitting: buildFitting(redact: dx == nil), replay: replay,
             disclaimer: "Educational simulation only. Not a clinical diagnostic tool. Transcript-based criteria use simple keyword heuristics."
         )
     }

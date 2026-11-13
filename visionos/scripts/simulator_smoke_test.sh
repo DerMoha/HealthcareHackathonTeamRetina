@@ -157,13 +157,21 @@ expect "far drop does not snap"              "^lab drop orthosis_large .*snapped
 expect "far drop fits nothing"               "^missed drop fit=none"
 expect "near drop snaps to the forearm"      "^lab drop orthosis_large .*snapped=true"
 expect "too large: patient says it slides"   "^check comfort phase=after comfortable=false response=\"It's loose. It slides"
-expect "too tight: patient complains"        "^check comfort phase=after comfortable=false response=\"That's too tight"
 expect "after adjusting: comfortable"        "^check comfort phase=after comfortable=true"
 # the fallback body starts seated, so its early examination attempt counts too
 if [ $PROCEDURAL = 1 ]; then EXAMS=4; else EXAMS=3; fi
 expect "fitting changed no examinations"     "^fitted medium snug thumb_radial .*exams=$EXAMS "
 expect "fitting scored separately"           "diagnosed score=[0-9]+/100 .*fitting=20/20"
-expect "anatomy overlay after submission"    "^teaching on reference=medium .*learner=medium"
+expect "pinch placement snaps to the forearm" "^lab drop orthosis_large via=pinch .*snapped=true"
+expect "patient speaks up unprompted: too large" "^fit reaction unprompted response=\"It's loose. It slides"
+expect "patient speaks up unprompted: too tight" "^fit reaction unprompted response=\"That's too tight"
+# three different problems (too large, loose straps, too tight) over seven adjustments: three remarks
+if [ "$(grep -c '^fit reaction unprompted' "$OUT/smoke.log")" = 3 ]; then echo "  ok   one remark per problem, none repeated while adjusting"; else echo "  FAIL unprompted remarks: expected exactly 3"; fail=1; fi
+expect "replay opens after submission"       "^replay started steps=4 events=.*right_anatomical_snuffbox:script"
+expect "replay steps through the exams"      "^replay step=2/4 zone=right_anatomical_snuffbox"
+expect "replay ends on the support, with reference" "^teaching anatomy=false reference=medium"
+expect "anatomy overlay on request"          "^teaching anatomy=true reference=medium"
+expect "replay can be left"                  "^replay exited teaching=false notebook=true"
 reject "no engine errors"                  "error=[^n]"
 if [ $MOCK_VOICE = 1 ]; then
   expect "scripted voice connected, mic live" "^session .*voice=Connected mic=Live"

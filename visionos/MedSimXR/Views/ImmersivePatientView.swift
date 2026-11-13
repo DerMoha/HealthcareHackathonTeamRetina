@@ -36,19 +36,30 @@ struct ImmersivePatientView: View {
             SmokeLog.mark("immersive scene built zones=\(avatar.zoneEntities.count)")
         } attachments: {
             Attachment(id: "notebook") { NotebookView().environment(model) }
-            Attachment(id: "fitting") { FittingPanel().environment(model) }
+            Attachment(id: "fitting") {
+                VStack { FittingPanel(); ReplayPanel() }.environment(model)
+            }
         }
         .gesture(
             SpatialTapGesture().targetedToAnyEntity().onEnded { value in
                 let id = value.entity.name
-                if lab.item(value.entity) != nil { // pick up a tray item
-                    model.selectedTool = id
-                    SmokeLog.mark("tap tool=\(id)")
+                let world = value.convert(value.location3D, from: .local, to: .scene)
+                if lab.item(value.entity) != nil { // first pinch: select (again: deselect)
+                    model.selectedTool = model.selectedTool == id ? nil : id
+                    SmokeLog.mark("tap tool=\(id) selected=\(model.selectedTool ?? "none")")
                     return
                 }
-                guard model.zones.contains(where: { $0.id == id }) else { return }
+                let isZone = model.zones.contains { $0.id == id }
+                if let tool = model.selectedTool, isZone || id == OrthoticsLab.forearmTargetName {
+                    // second pinch, on the arm: use the selected item where the arm was pinched
+                    guard model.behavior.canExamine else { return }
+                    lab.place(tool, atWorld: world)
+                    model.selectedTool = nil
+                    return
+                }
+                guard isZone else { return }
                 SmokeLog.mark("tap zone=\(id)")
-                Task { await model.examine(zoneId: id) }
+                Task { await model.examine(zoneId: id, contact: value.entity.convert(position: world, from: nil), source: .touch) }
             }
         )
         .gesture(
@@ -56,23 +67,30 @@ struct ImmersivePatientView: View {
             DragGesture().targetedToAnyEntity()
                 .onChanged { value in
                     guard let item = lab.item(value.entity), model.behavior.canExamine else { return }
-                    model.selectedTool = item.name
+                    if model.selectedTool != item.name { model.selectedTool = item.name }
                     lab.drag(item, to: value.convert(value.location3D, from: .local, to: avatar.root))
                 }
                 .onEnded { value in
-                    if let item = lab.item(value.entity) { lab.dropped(item) }
+                    if let item = lab.item(value.entity) { lab.dropped(item); model.selectedTool = nil }
                 }
         )
         .onChange(of: model.session?.case.orthotics) { _, orthotics in lab.build(orthotics ?? Orthotics()) }
         .onChange(of: model.session?.sessionId) { lab.build(model.session?.case.orthotics ?? Orthotics()) }
-        .onChange(of: model.selectedTool) { _, tool in lab.highlight(tool) }
+        .onChange(of: model.selectedTool) { _, tool in lab.select(tool) }
         .onChange(of: model.labCommand) { _, command in if let command { lab.run(command) } }
         .onChange(of: model.fit) { _, fit in lab.sync(fit) }
         .onChange(of: model.measurements) { _, all in
             if let last = all.last { lab.measurement.setLabel(String(format: "%.1f cm", last.valueCm)) } else { lab.measurement.clear() }
         }
-        .onChange(of: model.teachingMode) { _, on in
-            lab.setTeaching(on && model.phase == .feedback ? model.feedback?.fitting.reference : nil, learner: model.fit)
+        .onChange(of: [model.teachingMode ? 1 : 0, model.replayStep, model.showAnatomy ? 1 : 0]) {
+            let on = model.teachingMode && model.phase == .feedback
+            let supportStep = on && model.replayEvent == nil
+            lab.setTeaching(anatomy: on && model.showAnatomy, reference: supportStep ? model.feedback?.fitting.reference : nil)
+            lab.showReplay(on ? model.feedback?.replay ?? [] : [], events: model.examEvents, current: model.replayEvent)
+            if on {
+                SmokeLog.mark("replay step=\(model.replayStep + 1)/\(model.replayStepCount) "
+                    + "zone=\(model.replayEvent?.zoneId ?? "support") anatomy=\(model.showAnatomy)")
+            }
         }
         .task(id: model.recenterToken) {
             let t = await placement.transform()

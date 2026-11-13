@@ -8,6 +8,12 @@ struct FeedbackView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     hero(f)
+                    if !f.replay.isEmpty {
+                        Button { model.startReplay() } label: {
+                            Label("Open Spatial Clinical Replay", systemImage: "clock.arrow.circlepath").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent).tint(.indigo)
+                    }
                     Text(f.summary).font(.callout)
 
                     section("Categories") {
@@ -20,10 +26,7 @@ struct FeedbackView: View {
                     ])
                     if let explanation = f.fitting.explanation {
                         Text(explanation).font(.callout)
-                        Toggle(isOn: Bindable(model).teachingMode) {
-                            Label("Show wrist anatomy and intended support position on the patient", systemImage: "eye")
-                        }
-                        Text("Simplified teaching overlay. Educational fitting exercise, not a validated sizing method.")
+                        Text("Educational fitting exercise, not a validated sizing method.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     list("Investigations requested", f.investigations, "rays", .teal)

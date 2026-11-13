@@ -24,7 +24,9 @@ final class FingertipExaminer {
                 guard let e = avatar.zoneEntities.first(where: { $0.name == z.id }) else { continue }
                 let key = "\(a.chirality)-\(z.id)"
                 if simd_distance(e.position(relativeTo: nil), p) < z.radius {
-                    if inside.insert(key).inserted { await model.examine(zoneId: z.id) }
+                    if inside.insert(key).inserted {
+                        await model.examine(zoneId: z.id, contact: e.convert(position: p, from: nil), source: .fingertip)
+                    }
                 } else {
                     inside.remove(key)
                 }

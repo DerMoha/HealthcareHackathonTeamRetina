@@ -31,6 +31,8 @@ NV_CONTEXT = ('[The student checks the colour, feeling and movement of your fing
               'now in one short sentence with this meaning: "{}"]')
 FIT_NOTE = ('[Context only, do not speak now. A wrist support was just put on or adjusted on your right wrist. '
             'If the student asks how it feels, answer with this meaning: "{}"]')
+UNPROMPTED_CONTEXT = ('[The wrist support on your right wrist was just adjusted and it does not feel right. Say so out '
+                      'loud right now, unprompted, in one short sentence with this meaning: "{}"]')
 REMOVED_NOTE = "[Context only, do not speak now. The wrist support was taken off again.]"
 
 
@@ -80,7 +82,9 @@ def record_fit(scenario: dict, s: Session, fit: dict | None) -> dict:
     s.fittings.append({"seq": s.next_seq(), "fit": fit})
     spec = scenario["hidden"]["fitting"]["outcomes"][outcome(scenario, fit)]
     note = FIT_NOTE.format(spec["patient_response"]) if fit else REMOVED_NOTE
-    return {"attempt": sum(1 for f in s.fittings if f["fit"]), "voice_note": note}
+    return {"attempt": sum(1 for f in s.fittings if f["fit"]), "voice_note": note,
+            "comfortable": spec["comfortable"], "patient_response": spec["patient_response"],
+            "voice_context": UNPROMPTED_CONTEXT.format(spec["patient_response"]), "animation": spec["animation"]}
 
 
 def check(scenario: dict, s: Session, kind: str) -> dict:

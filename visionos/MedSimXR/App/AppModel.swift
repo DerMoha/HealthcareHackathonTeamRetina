@@ -66,8 +66,22 @@ final class AppModel {
     var selectedTool: String?
     /// One-shot instruction for the 3D lab (scripted demo, panel fallback buttons).
     var labCommand: LabCommand?
-    /// Anatomy overlay; only honoured once feedback is showing.
-    var teachingMode = false
+    /// Spatial Clinical Replay; only available once feedback is showing.
+    private(set) var teachingMode = false
+    var replayStep = 0
+    var showAnatomy = true
+    /// Every examination that reached the engine, with how and where it happened.
+    private(set) var examEvents: [ExamEvent] = []
+    private var sessionStart = Date()
+    @ObservationIgnored private var fitReactionTask: Task<Void, Never>?
+    /// The complaint the patient last voiced about the fit, so it is not repeated.
+    private var lastFitComplaint: String?
+    /// Quiet time after the last adjustment before the patient speaks up unprompted.
+    static let fitReactionDelay: TimeInterval = 1.3
+
+    /// Replay steps: one per examination, then the support placement.
+    var replayStepCount: Int { examEvents.count + 1 }
+    var replayEvent: ExamEvent? { teachingMode && examEvents.indices.contains(replayStep) ? examEvents[replayStep] : nil }
 
     /// Seconds between accepted examination events (gaze+pinch or fingertip).
     static let examineCooldown: TimeInterval = 1.5
@@ -220,6 +234,7 @@ final class AppModel {
             SmokeLog.mark("fit \(next.map { "size=\($0.size) offset=\($0.offsetCm) orientation=\($0.orientation) tightness=\($0.tightness)" } ?? "removed") "
                 + "attempt=\(ack.attempt) engine=\(engineModeLabel) exams=\(examinations.count)")
             await voice.sendContext(ack.voiceNote)
+            scheduleFitReaction(next == nil ? nil : ack)
         } catch {
             lastError = error.localizedDescription
         }
@@ -232,12 +247,11 @@ final class AppModel {
         do {
             let result = try await engine.fittingCheck(kind)
             lastCheck = result
-            let live = voice.status == .connected
-            reaction = ReactionEvent(animation: result.animation, painLevel: 0, text: result.patientResponse,
-                                     clip: nil, speakLocally: !live)
-            if result.animation != "none" { behavior.pain(withdrawArm: false) }
-            if live { await voice.sendExaminationEvent(result.voiceContext) }
-            else { record(TranscriptTurn(role: .patient, text: result.patientResponse)) }
+            if kind == "comfort" { // asked: the answer replaces any pending unprompted remark
+                fitReactionTask?.cancel()
+                lastFitComplaint = result.comfortable ? nil : result.patientResponse
+            }
+            await patientSays(result.patientResponse, voiceContext: result.voiceContext, animation: result.animation)
             lastError = nil
             SmokeLog.mark("check \(kind) phase=\(result.phase) comfortable=\(result.comfortable) "
                 + "response=\"\(result.patientResponse)\" engine=\(engineModeLabel) turns=\(transcript.count)")
@@ -246,10 +260,53 @@ final class AppModel {
         }
     }
 
+    /// The patient speaks a line the engine supplied: through the live agent when connected,
+    /// otherwise locally. A flinch goes through the behaviour controller.
+    private func patientSays(_ text: String, voiceContext: String, animation: String) async {
+        let live = voice.status == .connected
+        reaction = ReactionEvent(animation: animation, painLevel: 0, text: text, clip: nil, speakLocally: !live)
+        if animation != "none" { behavior.pain(withdrawArm: false) }
+        if live { await voice.sendExaminationEvent(voiceContext) }
+        else { record(TranscriptTurn(role: .patient, text: text)) }
+    }
+
+    /// An uncomfortable fit makes the patient speak up without being asked: once, after the
+    /// adjustments have stopped, and not again for the same complaint.
+    private func scheduleFitReaction(_ ack: FitAck?) {
+        fitReactionTask?.cancel()
+        guard let ack, !ack.comfortable else { lastFitComplaint = nil; return }
+        guard ack.patientResponse != lastFitComplaint else { return }
+        fitReactionTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.fitReactionDelay * 1_000_000_000))
+            guard let self, !Task.isCancelled, self.phase == .running else { return }
+            self.lastFitComplaint = ack.patientResponse
+            SmokeLog.mark("fit reaction unprompted response=\"\(ack.patientResponse)\"")
+            await self.patientSays(ack.patientResponse, voiceContext: ack.voiceContext, animation: ack.animation)
+        }
+    }
+
+    // MARK: Spatial Clinical Replay
+
+    /// Only after submission: the teaching content it shows would give the diagnosis away.
+    func startReplay() {
+        guard phase == .feedback, feedback?.replay.isEmpty == false else { return }
+        replayStep = 0
+        teachingMode = true
+        setNotebookOpen(false)
+        SmokeLog.mark("replay started steps=\(replayStepCount) events=\(examEvents.map { "\($0.zoneId):\($0.source)" })")
+    }
+
+    func exitReplay() {
+        teachingMode = false
+        setNotebookOpen(true)
+    }
+
     // MARK: Examination
 
-    /// Entry point for gaze+pinch, fingertip contact and debug buttons.
-    func examine(zoneId: String) async {
+    /// Entry point for gaze+pinch, fingertip contact and debug buttons. Nothing else creates
+    /// an examination: not speech, not tool calls, not notes. `contact` is the touched point
+    /// in the zone's own space, when there was one.
+    func examine(zoneId: String, contact: SIMD3<Float>? = nil, source: ExamSource = .button) async {
         guard phase == .running, behavior.canExamine else { return }
         let now = Date()
         guard now.timeIntervalSince(lastExamineAt) >= Self.examineCooldown else { return }
@@ -257,6 +314,9 @@ final class AppModel {
         do {
             let result = try await engine.examine(zoneId: zoneId, action: "palpation")
             examinations.append(result)
+            examEvents.append(ExamEvent(id: examEvents.count, zoneId: zoneId, action: result.action, finding: result.finding,
+                                        painLevel: result.painLevel, time: Date().timeIntervalSince(sessionStart),
+                                        pose: behavior.state.rawValue, contact: contact, source: source))
             if result.animation != "none" { behavior.pain(withdrawArm: result.animation == "arm_withdrawal") }
             let live = voice.status == .connected
             reaction = ReactionEvent(
@@ -323,6 +383,11 @@ final class AppModel {
         lastCheck = nil
         selectedTool = nil
         teachingMode = false
+        replayStep = 0
+        examEvents = []
+        sessionStart = Date()
+        fitReactionTask?.cancel()
+        lastFitComplaint = nil
         lastExamineAt = .distantPast
         behavior.reset()
         phase = .running

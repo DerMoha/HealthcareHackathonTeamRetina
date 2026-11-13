@@ -48,6 +48,10 @@ Feedback.investigations = "<label>: <impression>" per distinct ordered investiga
 The plan text used by diagnosis_or_learner_said is the diagnosis followed by every non-blank
 note among assessment, interpretation, management, follow_up (joined by newlines).
 
+REPLAY: Feedback.replay has one entry per examination zone (scenario order) with its clinical
+label, whether it was examined, the finding if so, and the zone's `teaching` text
+(`contribution` if examined, else `missed`). Empty before a diagnosis.
+
 MEASUREMENT AND FITTING: a third separate dimension (Feedback.fitting, 20 points, not in
 total_score). Rules and outcome precedence are documented in fitting.py.
 
@@ -62,7 +66,7 @@ import re
 from functools import lru_cache
 
 from .models import (CategoryResult, CriterionResult, DiagnosticAssessment, DocumentationItem,
-                     Feedback, ManagementAssessment)
+                     Feedback, ManagementAssessment, ReplayZone)
 from . import fitting
 from .sessions import Session
 
@@ -250,6 +254,16 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
     elif any(d.status == "unsupported" for d in documentation):
         summary += " " + UNSUPPORTED_SUMMARY
     next_steps = list(hidden["next_steps"]) if verdict != "not_submitted" else []
+    replay = []
+    if verdict != "not_submitted":  # zone teaching text names the diagnosis
+        done = {e["zone_id"] for e in s.examinations}
+        for z in scenario["examination_zones"]:
+            t, hit = z["teaching"], z["id"] in done
+            replay.append(ReplayZone(
+                zone_id=z["id"], label=labels[z["id"]], important=t["important"], examined=hit,
+                finding=z["result"]["finding"].replace("_", " ") if hit else None,
+                pain_level=z["result"]["pain_level"] if hit else None,
+                explanation=t["contribution"] if hit else t["missed"]))
     management, investigations = _management(scenario, s, redact=verdict == "not_submitted")
     return Feedback(
         session_id=s.id, case_id=s.case_id, diagnosis_submitted=s.diagnosis,
@@ -262,7 +276,7 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
         categories=categories, strengths=strengths, missed=missed,
         relevant_findings=relevant, next_steps=next_steps, documentation=documentation,
         management=management, investigations=investigations,
-        fitting=fitting.assess(scenario, s, verdict == "not_submitted", _hit),
+        fitting=fitting.assess(scenario, s, verdict == "not_submitted", _hit), replay=replay,
         disclaimer=DISCLAIMER)
 
 

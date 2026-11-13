@@ -138,6 +138,11 @@ class FitRequest(BaseModel):
 class FitAck(BaseModel):
     attempt: int
     voice_note: str  # context for the voice agent; never spoken, never an outcome label
+    # What the patient says unprompted when the fit is uncomfortable (the app debounces it).
+    comfortable: bool
+    patient_response: str
+    voice_context: str
+    animation: Literal["arm_withdrawal", "flinch", "none"]
 
 
 class FittingCheckRequest(BaseModel):
@@ -231,6 +236,17 @@ class FittingAssessment(BaseModel):
     explanation: str | None     # why the final fit was or was not appropriate; null before a diagnosis
 
 
+class ReplayZone(BaseModel):
+    """Teaching content for Spatial Clinical Replay; only sent after a diagnosis."""
+    zone_id: str
+    label: str
+    important: bool
+    examined: bool
+    finding: str | None      # only when examined
+    pain_level: int | None
+    explanation: str         # what examining it contributed, or what was missed
+
+
 class Feedback(BaseModel):
     session_id: str
     case_id: str
@@ -249,6 +265,7 @@ class Feedback(BaseModel):
     management: ManagementAssessment
     investigations: list[str]
     fitting: FittingAssessment
+    replay: list[ReplayZone]
     disclaimer: str
 
 

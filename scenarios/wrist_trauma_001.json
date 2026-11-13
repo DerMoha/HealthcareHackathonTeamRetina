@@ -29,6 +29,11 @@
         "patient_response": "Ow! Yes, that's exactly where it hurts!",
         "animation": "arm_withdrawal",
         "voice_context": "[The student presses on the thumb side of your right wrist, in the hollow at the base of the thumb. It hurts sharply and you pull your arm back. React out loud right now in one short sentence, for example: \"Ow! Yes, that's exactly where it hurts!\"]"
+      },
+      "teaching": {
+        "important": true,
+        "contribution": "Tenderness in the anatomical snuffbox after a fall on an outstretched hand is the key sign that makes a scaphoid injury likely.",
+        "missed": "The anatomical snuffbox was not palpated. Tenderness here is the key sign of a scaphoid injury."
       }
     },
     {
@@ -49,6 +54,11 @@
         "patient_response": "That part doesn't really hurt.",
         "animation": "none",
         "voice_context": "[The student presses on your right forearm, a hand's width above the wrist. It does not really hurt there. React out loud right now in one short sentence, for example: \"That part doesn't really hurt.\"]"
+      },
+      "teaching": {
+        "important": false,
+        "contribution": "No focal tenderness over the distal forearm makes a distal radius injury less likely and localises the problem to the wrist.",
+        "missed": "The distal forearm was not palpated. It helps to separate a distal radius injury from a carpal one."
       }
     },
     {
@@ -69,6 +79,11 @@
         "patient_response": "No, that side feels completely fine.",
         "animation": "none",
         "voice_context": "[The student presses on your left wrist, the uninjured side. It feels completely normal. React out loud right now in one short sentence, for example: \"No, that side feels completely fine.\"]"
+      },
+      "teaching": {
+        "important": false,
+        "contribution": "The uninjured side gave a normal baseline to compare the injured wrist with.",
+        "missed": "The uninjured wrist was not examined for comparison."
       }
     }
   ],

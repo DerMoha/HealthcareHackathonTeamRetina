@@ -60,7 +60,7 @@ final class MockClinicalEngine: ClinicalEngine {
     func recordMeasurement(_ id: String, valueCm: Double?) async throws -> MeasurementResult {
         MeasurementResult(measurementId: id, label: "Mock measurement", kind: "length", valueCm: valueCm ?? 17, source: "case")
     }
-    func recordFit(_ fit: OrthosisFit?) async throws -> FitAck { FitAck(attempt: 1, voiceNote: "") }
+    func recordFit(_ fit: OrthosisFit?) async throws -> FitAck { FitAck(attempt: 1, voiceNote: "", comfortable: true, patientResponse: "", voiceContext: "", animation: "none") }
     func fittingCheck(_ kind: String) async throws -> FittingCheckResult {
         FittingCheckResult(check: kind, phase: "before", finding: nil, patientResponse: "It feels fine.",
                            voiceContext: "[mock check]", comfortable: true, animation: "none")
@@ -93,6 +93,7 @@ final class MockClinicalEngine: ClinicalEngine {
             management: ManagementAssessment(title: "Investigation and management", score: 0, maxScore: 20, criteria: []),
             investigations: [],
             fitting: FittingAssessment(title: "Measurement and orthosis fitting", score: 0, maxScore: 20, criteria: []),
+            replay: [],
             disclaimer: "Educational simulation only."
         )
     }

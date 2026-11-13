@@ -454,5 +454,34 @@
     },
     "explanation": "The straps were too tight: tingling and slow capillary refill mean it must be loosened."
   },
+  "replay": [
+    {
+      "zone_id": "right_anatomical_snuffbox",
+      "label": "Right anatomical snuffbox",
+      "important": true,
+      "examined": true,
+      "finding": "marked tenderness",
+      "pain_level": 8,
+      "explanation": "Tenderness in the anatomical snuffbox after a fall on an outstretched hand is the key sign that makes a scaphoid injury likely."
+    },
+    {
+      "zone_id": "right_distal_forearm",
+      "label": "Right distal forearm",
+      "important": false,
+      "examined": false,
+      "finding": null,
+      "pain_level": null,
+      "explanation": "The distal forearm was not palpated. It helps to separate a distal radius injury from a carpal one."
+    },
+    {
+      "zone_id": "left_wrist",
+      "label": "Left wrist (comparison)",
+      "important": false,
+      "examined": true,
+      "finding": "normal",
+      "pain_level": 0,
+      "explanation": "The uninjured side gave a normal baseline to compare the injured wrist with."
+    }
+  ],
   "disclaimer": "Educational simulation only. Not a clinical diagnostic tool. Transcript-based criteria use simple keyword heuristics."
 }

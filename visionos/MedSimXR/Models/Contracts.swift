@@ -148,6 +148,11 @@ struct FitAck: Codable, Hashable, Sendable {
     var attempt: Int
     /// Context for the voice agent; never spoken, never an outcome label.
     var voiceNote: String
+    /// What the patient says unprompted when the fit is uncomfortable (the app debounces it).
+    var comfortable: Bool
+    var patientResponse: String
+    var voiceContext: String
+    var animation: String
 }
 
 struct FittingCheckResult: Codable, Hashable, Sendable {
@@ -179,6 +184,45 @@ struct FittingAssessment: Codable, Hashable, Sendable {
     /// Nil before a diagnosis is submitted.
     var reference: FittingReference?
     var explanation: String?
+}
+
+// MARK: - Spatial Clinical Replay
+
+/// Teaching content for one examination zone. Only sent after a diagnosis.
+struct ReplayZone: Codable, Hashable, Identifiable, Sendable {
+    var zoneId: String
+    var label: String
+    var important: Bool
+    var examined: Bool
+    var finding: String?
+    var painLevel: Int?
+    var explanation: String
+    var id: String { zoneId }
+}
+
+/// How an examination reached the engine. Only `touch` and `fingertip` are physical
+/// interactions with the patient in the room.
+enum ExamSource: String, Sendable {
+    case touch = "gaze and pinch on the patient"
+    case fingertip = "fingertip contact"
+    case button = "fallback button, not a touch"
+    case script = "scripted test, not a touch"
+}
+
+/// One examination as it happened, recorded by the app for the replay.
+struct ExamEvent: Identifiable, Hashable, Sendable {
+    var id: Int
+    var zoneId: String
+    var action: String
+    var finding: String
+    var painLevel: Int
+    /// Seconds since the session started.
+    var time: TimeInterval
+    /// PatientState raw value when it happened.
+    var pose: String
+    /// Contact point in the zone's own space (metres); nil when no point exists (buttons).
+    var contact: SIMD3<Float>?
+    var source: ExamSource
 }
 
 // MARK: - Transcript
@@ -276,6 +320,7 @@ struct Feedback: Codable, Hashable, Sendable {
     /// "<label>: <impression>" for each investigation that was ordered.
     var investigations: [String]
     var fitting: FittingAssessment
+    var replay: [ReplayZone]
     var disclaimer: String
 }
 

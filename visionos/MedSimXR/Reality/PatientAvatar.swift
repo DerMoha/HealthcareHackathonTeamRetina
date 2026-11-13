@@ -129,12 +129,6 @@ final class PatientAvatar {
         return simd_float4x4(SIMD4(x, 0), SIMD4(y, 0), SIMD4(z, 0), SIMD4(wrist, 1))
     }
 
-    /// Teaching mode: lets the overlay inside the arm show through.
-    func setTranslucent(_ on: Bool) {
-        guard let model else { return }
-        if on { model.components.set(OpacityComponent(opacity: 0.4)) } else { model.components.remove(OpacityComponent.self) }
-    }
-
     // MARK: Helpers
 
     @discardableResult

@@ -494,6 +494,7 @@ def test_measurements_circumference_is_predefined_length_comes_from_avatar(clien
 def test_fitting_outcomes(client, sid, change, words, comfortable):
     ack = fitted(client, sid, **change).json()
     assert ack["attempt"] == 1 and "do not speak" in ack["voice_note"]
+    assert ack["comfortable"] is comfortable and words in ack["patient_response"]  # unprompted reaction text
     assert not any(k in json.dumps(ack) for k in ("too_", "appropriate", "wrong_"))  # no outcome label leaves the engine
     c = comfort(client, sid)
     assert words in c["patient_response"] and c["comfortable"] is comfortable and c["phase"] == "after"
@@ -566,3 +567,20 @@ def test_fitting_feedback_redacted_before_diagnosis_and_cleared_by_reset(client,
     assert f["final_fit"]["size"] == "small"
     client.post(f"/sessions/{sid}/reset")
     assert client.get(f"/sessions/{sid}/feedback").json()["fitting"]["final_fit"] is None
+
+
+# ---- Spatial Clinical Replay content
+
+def test_replay_only_after_diagnosis_and_reflects_real_examinations(client, sid):
+    examine(client, sid, "right_anatomical_snuffbox")
+    say(client, sid, "I am now pressing on your left wrist and your forearm.")  # words are not touches
+    assert client.get(f"/sessions/{sid}/feedback").json()["replay"] == []
+    r = {z["zone_id"]: z for z in client.post(f"/sessions/{sid}/diagnose", json={
+        "diagnosis": "scaphoid fracture", "notes": {"examination": "Left wrist and forearm examined, normal."}
+    }).json()["replay"]}
+    assert list(r) == ["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"]
+    snuff = r["right_anatomical_snuffbox"]
+    assert snuff["examined"] and snuff["important"] and snuff["pain_level"] == 8
+    assert snuff["label"] == "Right anatomical snuffbox" and "key sign" in snuff["explanation"]
+    assert not r["left_wrist"]["examined"] and r["left_wrist"]["finding"] is None
+    assert "not examined" in r["left_wrist"]["explanation"] and not r["right_distal_forearm"]["examined"]

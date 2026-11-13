@@ -50,7 +50,7 @@ struct ControlPanelView: View {
                 + "exams=\(model.examinations.count) turns=\(model.transcript.count) error=\(model.lastError ?? "none")"
         }
         func examine(_ zone: String) async {
-            await model.examine(zoneId: zone)
+            await model.examine(zoneId: zone, source: .script)
             let r = model.examinations.last
             SmokeLog.mark("examined \(zone) finding=\(r?.finding ?? "?") pain=\(r?.painLevel ?? -1) "
                 + "animation=\(model.reaction?.animation ?? "?") speakLocally=\(model.reaction?.speakLocally ?? false) \(state())")
@@ -148,19 +148,27 @@ struct ControlPanelView: View {
         await drop(OrthoticsLab.tapeName, 14, 3)
         SmokeLog.mark("STEP 05-lab-2-measure-forearm")
         await pause(2.5)
-        await drop(OrthoticsLab.orthosisPrefix + "large", 3, 30) // let go too far from the arm
+        await drop(OrthoticsLab.orthosisPrefix + "large", 3, 30) // dragged, let go too far from the arm
         SmokeLog.mark("missed drop fit=\(model.fit == nil ? "none" : "SET")")
-        await drop(OrthoticsLab.orthosisPrefix + "large", 3, 4)
-        await model.stepTightness(1)
+        model.selectedTool = OrthoticsLab.orthosisPrefix + "large"
+        await pause(1.5)
+        SmokeLog.mark("STEP 05-lab-2-selected")
+        await pause(2)
+        // select-then-pinch path: same placement call the forearm pinch makes
+        model.labCommand = LabCommand(item: OrthoticsLab.orthosisPrefix + "large", axialCm: 3, radialCm: 0, via: "pinch")
+        model.selectedTool = nil
+        await pause(3.5) // nobody asks: the patient speaks up about the loose fit
+        await model.stepTightness(1) // same complaint again: must stay quiet
+        await pause(2.5)
         await model.fittingCheck("comfort")
         await pause(1.5)
         SmokeLog.mark("STEP 05-lab-3-too-large")
         await pause(2.5)
         await drop(OrthoticsLab.orthosisPrefix + "medium", 3, 2)
+        await model.stepTightness(1) // continuous adjustment: one remark at the end, not three
+        await pause(0.3)
         await model.stepTightness(1)
-        await model.stepTightness(1)
-        await model.fittingCheck("comfort")
-        await pause(1.5)
+        await pause(3.5)
         SmokeLog.mark("STEP 05-lab-4-too-tight")
         await pause(2.5)
         await model.stepTightness(-1)
@@ -229,11 +237,26 @@ struct ControlPanelView: View {
         await pause(1.5)
         SmokeLog.mark("STEP 09-feedback")
         await pause(4)
-        model.setNotebookOpen(false) // clear the view of the arm
-        model.teachingMode = true
+        model.startReplay()
         await pause(2)
-        SmokeLog.mark("STEP 09-teaching")
-        await pause(3)
+        SmokeLog.mark("STEP 09-replay-1")
+        await pause(2.5)
+        model.replayStep = 1 // the painful snuffbox palpation
+        await pause(1.5)
+        SmokeLog.mark("STEP 09-replay-2-snuffbox")
+        await pause(2.5)
+        model.showAnatomy = false
+        model.replayStep = model.replayStepCount - 1
+        await pause(1.5)
+        SmokeLog.mark("STEP 09-replay-support")
+        await pause(2.5)
+        model.showAnatomy = true
+        await pause(1.5)
+        SmokeLog.mark("STEP 09-teaching-anatomy")
+        await pause(2.5)
+        model.exitReplay()
+        SmokeLog.mark("replay exited teaching=\(model.teachingMode) notebook=\(model.notebookOpen)")
+        await pause(1)
 
         await model.reset()
         await pause(2)
@@ -356,6 +379,17 @@ struct ControlPanelView: View {
                     model.performPatientAction(action.rawValue)
                 }
                 .buttonStyle(.bordered).disabled(model.phase != .running)
+            }
+            if model.behavior.canExamine, let orthotics = model.session?.case.orthotics, !orthotics.sizes.isEmpty {
+                // Fallback if neither pinch nor drag works: same placement call, fixed spot on the arm.
+                Text("Equipment").font(.subheadline.bold())
+                Button("Measure wrist") { model.labCommand = LabCommand(item: OrthoticsLab.tapeName, axialCm: 1, radialCm: 0, via: "debug") }
+                Button("Measure forearm") { model.labCommand = LabCommand(item: OrthoticsLab.tapeName, axialCm: 14, radialCm: 0, via: "debug") }
+                ForEach(orthotics.sizes) { size in
+                    Button("Put \(size.label) support on the wrist") {
+                        model.labCommand = LabCommand(item: OrthoticsLab.orthosisPrefix + size.id, axialCm: 3, radialCm: 0, via: "debug")
+                    }
+                }
             }
             Text("Ask").font(.subheadline.bold())
             ForEach(model.scriptedDialogue) { line in
