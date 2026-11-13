@@ -21,6 +21,9 @@
 | Patient reads the brackets aloud or reveals the diagnosis | The dashboard prompt differs from `patient_system_prompt.md`; paste it again. |
 | Patient does not know the case facts | Dynamic variable `case_context` is not defined on the agent, or `{{case_context}}` is missing from the prompt. |
 | Echo / patient interrupts itself | Lower headset volume; check turn-taking settings in `elevenlabs/setup.md`. |
+| **Summary unavailable: ElevenLabs is not configured on the backend** | Set `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` in `.env`, also for a public agent (`elevenlabs/setup.md` 6b). |
+| **ElevenLabs has not finished the summary yet** | Processing took over 90 s. Press Try again. |
+| **ElevenLabs returned no summary** / HTTP 404 | The agent keeps no transcripts (zero retention), or `ELEVENLABS_AGENT_ID` on the backend is not the agent the app talked to. |
 
 ## visionOS build and app
 

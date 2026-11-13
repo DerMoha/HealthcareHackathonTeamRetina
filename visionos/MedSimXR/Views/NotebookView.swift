@@ -62,6 +62,7 @@ struct NotebookView: View {
                 }
                 switch model.notebookTab {
                 case .history:
+                    summaryDraft
                     editor($model.notes.history, "What did the patient tell you?")
                 case .examination:
                     recorded
@@ -134,6 +135,54 @@ struct NotebookView: View {
                 }
         }
         .frame(maxHeight: .infinity)
+    }
+
+    /// ElevenLabs' post-call summary of the conversation. Shown as a draft; only the learner
+    /// puts it into the notes, so the documentation feedback still reflects their own notes.
+    @ViewBuilder
+    private var summaryDraft: some View {
+        switch model.summaryState {
+        case .idle:
+            if model.phase == .running, model.voice.status == .connected {
+                VStack(alignment: .leading, spacing: 4) {
+                    Button { model.endConsultation() } label: {
+                        Label("End consultation and draft a summary", systemImage: "text.bubble")
+                    }
+                    .buttonStyle(.bordered)
+                    Text("Ends the conversation with the patient. ElevenLabs then drafts a summary for you to review.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        case .waiting:
+            HStack(spacing: 8) {
+                ProgressView()
+                Text("ElevenLabs is summarising the conversation…").foregroundStyle(.secondary)
+                Spacer()
+                Button("Cancel") { model.discardSummary() }
+            }
+        case .ready(let text):
+            VStack(alignment: .leading, spacing: 8) {
+                Label("AI-generated draft. Check it against what the patient said before you use it.",
+                      systemImage: "sparkles")
+                    .font(.caption).foregroundStyle(.orange)
+                ScrollView { Text(text).font(.callout).frame(maxWidth: .infinity, alignment: .leading) }
+                    .frame(maxHeight: 150)
+                HStack {
+                    Button("Insert into history notes") { model.insertSummary() }
+                        .buttonStyle(.borderedProminent).tint(.teal)
+                    Button("Discard") { model.discardSummary() }
+                }
+            }
+            .padding(12)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        case .failed(let reason):
+            HStack(spacing: 8) {
+                Label(reason, systemImage: "exclamationmark.triangle.fill").font(.footnote).foregroundStyle(.orange)
+                Spacer()
+                Button("Try again") { model.endConsultation() }
+                Button("Dismiss") { model.discardSummary() }
+            }
+        }
     }
 
     /// What was actually examined, in neutral words: the area and what the patient said.

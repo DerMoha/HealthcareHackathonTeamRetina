@@ -26,6 +26,12 @@ enum SessionPhase: Equatable {
     case idle, running, feedback
 }
 
+enum SummaryState: Equatable {
+    case idle, waiting
+    case ready(String)
+    case failed(String)
+}
+
 /// The only object views talk to. Orchestrates engine + voice + avatar reactions.
 @MainActor
 @Observable
@@ -78,6 +84,14 @@ final class AppModel {
     private var lastFitComplaint: String?
     /// Quiet time after the last adjustment before the patient speaks up unprompted.
     static let fitReactionDelay: TimeInterval = 1.3
+
+    /// The ElevenLabs post-call summary of the consultation. Only a draft: it reaches the
+    /// notes when the learner inserts it, so the documentation feedback stays theirs.
+    private(set) var summaryState = SummaryState.idle
+    @ObservationIgnored private var summaryTask: Task<Void, Never>?
+    /// How long to wait for ElevenLabs to finish its analysis, and how often to ask.
+    static let summaryTimeout: TimeInterval = 90
+    static let summaryPollInterval: TimeInterval = 3
 
     /// Replay steps: one per examination, then the support placement.
     var replayStepCount: Int { examEvents.count + 1 }
@@ -347,6 +361,54 @@ final class AppModel {
         reaction = ReactionEvent(animation: "none", painLevel: 0, text: line.patient, clip: line.id, speakLocally: true)
     }
 
+    // MARK: Consultation summary
+
+    /// Ends the conversation with the patient and waits for ElevenLabs' post-call summary.
+    /// The session keeps running: examinations and notes still work, the patient then
+    /// speaks locally. Calling it again after a failure only retries the fetch.
+    func endConsultation() {
+        guard phase == .running, summaryState != .waiting else { return }
+        summaryState = .waiting
+        summaryTask?.cancel()
+        summaryTask = Task { [weak self] in
+            guard let self else { return }
+            await self.voice.stop()
+            let deadline = Date().addingTimeInterval(Self.summaryTimeout)
+            while !Task.isCancelled {
+                do {
+                    if let text = try await self.voice.fetchSummary() {
+                        guard !Task.isCancelled else { return }
+                        self.summaryState = .ready(text)
+                        SmokeLog.mark("summary ready chars=\(text.count)")
+                        return
+                    }
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    self.summaryState = .failed(error.localizedDescription)
+                    return
+                }
+                if Date() >= deadline {
+                    self.summaryState = .failed("ElevenLabs has not finished the summary yet. Try again in a minute.")
+                    return
+                }
+                try? await Task.sleep(nanoseconds: UInt64(Self.summaryPollInterval * 1_000_000_000))
+            }
+        }
+    }
+
+    /// The learner accepts the draft: it is appended to their history notes, where they can edit it.
+    func insertSummary() {
+        guard case .ready(let text) = summaryState else { return }
+        let existing = notes.history.trimmingCharacters(in: .whitespacesAndNewlines)
+        notes.history = existing.isEmpty ? text : existing + "\n\n" + text
+        summaryState = .idle
+    }
+
+    func discardSummary() {
+        summaryTask?.cancel()
+        summaryState = .idle
+    }
+
     // MARK: Diagnosis / feedback
 
     func submitDiagnosis() async {
@@ -388,6 +450,8 @@ final class AppModel {
         sessionStart = Date()
         fitReactionTask?.cancel()
         lastFitComplaint = nil
+        summaryTask?.cancel()
+        summaryState = .idle
         lastExamineAt = .distantPast
         behavior.reset()
         phase = .running
