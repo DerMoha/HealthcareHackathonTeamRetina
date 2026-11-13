@@ -46,7 +46,8 @@ def event(client, sid, kind, event_id=None, **params):
 # P0 authoring
 
 def test_catalog_lists_only_supported_options(client):
-    t = client.get("/studio/catalog").json()[0]
+    t = next(t for t in client.get("/studio/catalog").json() if t["template_id"] == "wrist_trauma_001")
+    assert t["kind"] == "single" and t["stages"] == []
     assert [e["id"] for e in t["environments"]] == ["outpatient_clinic", "emergency_department", "community_clinic"]
     assert {e["id"] for e in t["unsupported_environments"]} == {"sports_sideline", "ambulance"}
     assert all(e["reason"] for e in t["unsupported_environments"])
@@ -95,8 +96,9 @@ def test_definition_is_complete_and_reproducible(client):
     assert "hidden" not in a and "marked_tenderness" not in json.dumps(a)
 
 
-def test_template_text_passes_its_own_clinical_rule():
-    t, case = studio.template("wrist_trauma_001"), main.SCENARIOS["wrist_trauma_001"]
+@pytest.mark.parametrize("tid", ["wrist_trauma_001", "road_trauma_journey_001"])
+def test_template_text_passes_its_own_clinical_rule(tid):
+    t, case = studio.template(tid), main.SCENARIOS[tid]
     texts = [h["text"] for h in t["hints"]] + [l for v in t["bystander"]["lines"].values() for l in v] \
         + list(t["personalities"].values()) + [t["summary"], t["teammate"]["arrival_line"]]
     assert [x for x in texts if studio.clinical_claim(x, case, t)] == []
@@ -374,3 +376,48 @@ def test_ai_draft_with_clinical_claims_is_rejected(monkeypatch):
     ok = assist.draft(req, main.SCENARIOS)
     assert ok.source == "llm" and ok.requires_review and ok.learning_objectives == ["focused_history"]
     assert "invented_objective" in ok.notes[1]
+
+
+# Journey cases in the generator
+
+def journey_config(**over):
+    base = dict(template_id="road_trauma_journey_001", title="Night roadside", environment="night_rain",
+                difficulty="standard", crowdedness="moderate", tools=["xray_forearm", "bloods"],
+                learning_objectives=["handover"], seed=3)
+    return base | over
+
+
+def test_journey_template_is_in_the_catalog_with_its_places(client):
+    t = next(t for t in client.get("/studio/catalog").json() if t["template_id"] == "road_trauma_journey_001")
+    assert t["kind"] == "journey"
+    assert [s["id"] for s in t["stages"]] == ["scene", "ambulance", "hospital"]
+    assert all(s["team"] and s["actions"] for s in t["stages"])
+    assert [d["id"] for d in t["dimensions"]] == ["core", "management"]  # no wrist support to score
+    assert "open fracture" not in json.dumps(t).lower()
+
+
+def test_journey_scenario_shapes_noise_and_investigations_per_place(client):
+    d = client.post("/studio/scenarios", json=journey_config(advanced={"stage_noise": {"hospital": 0.9}})).json()
+    noise = {s["id"]: s["noise"] for s in d["journey"]["stages"]}
+    assert noise == {"scene": 0.75, "ambulance": 0.55, "hospital": 0.9}  # case + night rain 0.1 + onlookers 0.1
+    listed = next(x for x in client.get("/studio/scenarios").json() if x["scenario_id"] == d["scenario_id"])
+    assert listed["kind"] == "journey" and listed["stages"][0] == "At the roadside"
+    client.post(f"/studio/scenarios/{d['scenario_id']}/publish")
+    s = client.post("/sessions", json={"case_id": "road_trauma_journey_001", "scenario_code": d["code"]}).json()
+    case = s["case"]
+    assert [st["noise"] for st in case["journey"]["stages"]] == [0.75, 0.55, 0.9]
+    assert {i["id"] for i in case["investigations"]} == {"rt_xray_forearm", "rt_bloods"}  # CT left out
+    assert s["scenario"]["environment_label"] == "Night, heavy rain"
+
+
+def test_advanced_overrides_are_validated_and_applied(client):
+    bad = client.post("/studio/validate", json=journey_config(advanced={"stage_noise": {"moon": 0.2}})).json()
+    assert any(i["field"] == "advanced.stage_noise" and i["severity"] == "error" for i in bad["issues"])
+    wrist = client.post("/studio/validate", json=config(advanced={"stage_noise": {"scene": 0.2}})).json()
+    assert "only applies to journey" in json.dumps(wrist)
+    d = client.post("/studio/preview", json=config(
+        bystander="anxious_relative", difficulty="guided",
+        advanced={"hint_policy": "off", "interject_every_s": 45, "crowd_figures": 5})).json()
+    assert d["difficulty"]["hint_policy"] == "off"
+    assert d["companions"]["bystander"]["interject_every_s"] == 45
+    assert len(d["environment"]["crowd"]["figures"]) == 5

@@ -42,7 +42,9 @@ def build(scenarios: dict[str, dict]) -> APIRouter:
         return {"code": d.code, "scenario_id": d.scenario_id, "version": d.version, "title": d.title,
                 "description": d.narrative["description"], "review_state": d.review.state,
                 "environment": d.environment["label"], "difficulty": d.difficulty["label"],
-                "crowdedness": d.environment["crowd"]["label"], "case_id": d.source_template["case_id"]}
+                "crowdedness": d.environment["crowd"]["label"], "case_id": d.source_template["case_id"],
+                "kind": "journey" if d.journey else "single",
+                "stages": [st["label"] for st in (d.journey or {}).get("stages", [])]}
 
     # Authoring
     @router.get("/studio/catalog")

@@ -55,10 +55,10 @@ def template_draft(req: AssistRequest, t: dict) -> AssistDraft:
     mood = next((b.get("mood") for b in t["bystander_behaviors"] if b["id"] == req.bystander), None)
     objectives = [o["id"] for o in t["learning_objectives"]
                   if not o.get("needs_kind") or studio._refs(t, available, o["needs_kind"])]
-    if studio._refs(t, available, "investigation"):
-        objectives.remove("safe_plan_without_imaging")
+    drop = {"safe_plan_without_imaging"} if studio._refs(t, available, "investigation") else set()
     if not mood and req.crowdedness == "quiet":
-        objectives.remove("communication_under_pressure")
+        drop.add("communication_under_pressure")
+    objectives = [o for o in objectives if o not in drop]  # ids differ per template
     description = (f"{t['summary']} Setting: {pick(t['environments'], req.environment, 'label')}, "
                    f"{pick(t['crowdedness'], req.crowdedness, 'label').lower()}. "
                    f"Difficulty: {pick(t['difficulties'], req.difficulty, 'label').lower()}.")
