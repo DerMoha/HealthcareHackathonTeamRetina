@@ -4,8 +4,9 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 
-from . import evaluation, examination, fitting
+from . import evaluation, examination, fitting, studio, studio_routes
 from .models import (DiagnoseRequest, ExamineRequest, ExamineResult, Feedback, Health,
                      InteractionCount, InteractionRequest, FitAck, FitRequest, FittingCheckRequest,
                      FittingCheckResult, MeasurementRequest, MeasurementResult, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
@@ -30,6 +31,11 @@ def _load_dotenv() -> None:
 _load_dotenv()
 SCENARIOS = load_scenarios()
 app = FastAPI(title="MedSim XR clinical backend", version=VERSION)
+_studio_router, LIBRARY = studio_routes.build(SCENARIOS)
+app.include_router(_studio_router)
+_STUDIO_UI = Path(__file__).resolve().parents[2] / "studio" / "dist"
+if _STUDIO_UI.is_dir():  # built instructor interface (cd studio && npm run build)
+    app.mount("/app", StaticFiles(directory=_STUDIO_UI, html=True), name="studio-ui")
 
 
 def _session(session_id: str) -> Session:
@@ -40,7 +46,16 @@ def _session(session_id: str) -> Session:
 
 
 def _info(s: Session) -> SessionInfo:
-    return SessionInfo(session_id=s.id, started_at=s.started_at, case=public_case(SCENARIOS[s.case_id]))
+    info = SessionInfo(session_id=s.id, started_at=s.started_at, case=public_case(SCENARIOS[s.case_id]))
+    live = studio.LIVE.get(s.id)
+    if live:  # a published scenario: its setting and equipment, same clinical case
+        info.case, info.scenario = studio.shape_case(info.case, live), studio.runtime(live).model_dump()
+    return info
+
+
+def _need(s: Session, kind: str, ref: str | None, what: str) -> None:
+    if not studio.allowed(s.id, kind, ref):
+        raise HTTPException(409, f"{what} is not available in this scenario.")
 
 
 @app.get("/health", response_model=Health)
@@ -55,15 +70,26 @@ def cases():
 
 @app.post("/sessions", response_model=SessionInfo, status_code=201)
 def new_session(req: SessionCreate):
-    if req.case_id not in SCENARIOS:
-        raise HTTPException(404, f"Unknown case '{req.case_id}'")
-    return _info(create_session(req.case_id))
+    definition = None
+    if req.scenario_code:
+        try:
+            definition = LIBRARY.by_code(req.scenario_code)
+        except studio.StudioError as e:
+            raise HTTPException(e.status, e.detail)
+    case_id = definition.source_template["case_id"] if definition else req.case_id
+    if case_id not in SCENARIOS:
+        raise HTTPException(404, f"Unknown case '{case_id}'")
+    s = create_session(case_id)
+    if definition:
+        studio.attach(s.id, definition)
+    return _info(s)
 
 
 @app.post("/sessions/{session_id}/reset", response_model=SessionInfo)
 def reset(session_id: str):
     s = _session(session_id)
     s.reset()
+    studio.reset(s.id)
     return _info(s)
 
 
@@ -79,6 +105,7 @@ def examine(session_id: str, req: ExamineRequest):
 @app.post("/sessions/{session_id}/investigations", response_model=InvestigationResult)
 def investigations(session_id: str, req: InvestigationRequest):
     s = _session(session_id)
+    _need(s, "investigation", req.investigation_id, "That investigation")
     result = examination.investigate(SCENARIOS[s.case_id], s, req.investigation_id)
     if result is None:
         raise HTTPException(404, f"Unknown investigation '{req.investigation_id}'")
@@ -88,6 +115,7 @@ def investigations(session_id: str, req: InvestigationRequest):
 @app.post("/sessions/{session_id}/measurements", response_model=MeasurementResult)
 def measurements(session_id: str, req: MeasurementRequest):
     s = _session(session_id)
+    _need(s, "measurement_tool", None, "A measuring tape")
     result = fitting.measure(SCENARIOS[s.case_id], s, req.measurement_id, req.value_cm)
     if result is None:
         raise HTTPException(404, f"Unknown measurement '{req.measurement_id}'")
@@ -100,6 +128,8 @@ def measurements(session_id: str, req: MeasurementRequest):
 def fit(session_id: str, req: FitRequest):
     s = _session(session_id)
     data = req.fit.model_dump() if req.fit else None
+    if data:
+        _need(s, "orthosis_size", data["size"], "That wrist support")
     if not fitting.valid(SCENARIOS[s.case_id], data):
         raise HTTPException(404, "Unknown orthosis size or tightness")
     return fitting.record_fit(SCENARIOS[s.case_id], s, data)

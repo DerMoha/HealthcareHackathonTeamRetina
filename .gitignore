@@ -12,3 +12,6 @@ visionos/Config/Local.xcconfig
 .codegraph/
 .claude/
 assets/patient/.cache/
+backend/data/
+node_modules/
+studio/dist/
