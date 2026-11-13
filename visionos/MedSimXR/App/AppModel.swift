@@ -187,6 +187,13 @@ final class AppModel {
     /// Why a selected scenario is not running, if it is not.
     private(set) var scenarioNotice: String?
     private(set) var debrief: ScenarioDebrief?
+    /// The room the immersive scene builds: the journey's current place, else the Studio
+    /// environment, else the case's setting (before a session: the selected case's).
+    var environmentKind: EnvironmentSet.Kind {
+        EnvironmentSet.Kind.resolve([currentStage?.setting, scenario?.environmentId, scenario?.environmentLabel,
+                                     session?.case.catalog?.setting ?? selectedCase?.catalog?.setting],
+                                    night: scenario?.environmentId.contains("night") == true)
+    }
     /// Set by the immersive view after it rebuilt the room; reported back to the instructor.
     var stageStatus = "immersive scene not open"
     @ObservationIgnored private var companionTask: Task<Void, Never>?
