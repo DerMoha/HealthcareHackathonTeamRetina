@@ -339,7 +339,7 @@ def test_assist_is_deterministic_without_credentials(client):
     body = {"template_id": "wrist_trauma_001", "environment": "community_clinic", "difficulty": "challenging",
             "crowdedness": "busy", "tools": ["measuring_tape"], "bystander": "anxious_relative"}
     a, b = client.post("/studio/assist", json=body).json(), client.post("/studio/assist", json=body).json()
-    assert a == b and a["source"] == "template" and a["model"] is None
+    assert a == b and a["source"] == "demo" and a["model"] is None
     assert "safe_plan_without_imaging" in a["learning_objectives"] and "imaging_reasoning" not in a["learning_objectives"]
     assert len(a["bystander_lines"]) == 4
     # the draft is usable as it is
@@ -348,6 +348,18 @@ def test_assist_is_deterministic_without_credentials(client):
                  narrative={k: a[k] for k in ("description", "patient_personality", "bystander_lines")})
     assert client.post("/studio/validate", json=cfg).json()["valid"]
     assert client.post("/studio/assist", json=body | {"template_id": "nope"}).status_code == 404
+
+
+def test_demo_drafts_are_clean_for_every_choice():
+    import itertools
+    for t in studio.templates():
+        case = main.SCENARIOS[t["case_id"]]
+        for env, diff, crowd, by in itertools.product(*(
+                [o["id"] for o in t[k]] for k in ("environments", "difficulties", "crowdedness", "bystander_behaviors"))):
+            d = assist.template_draft(assist.AssistRequest(template_id=t["template_id"], environment=env, difficulty=diff,
+                                                           crowdedness=crowd, bystander=by), t)
+            assert all(not studio.clinical_claim(x, case, t) for x in [d.description, d.patient_personality, *d.bystander_lines])
+            assert len(d.description) < 600 and all(len(x) <= 160 for x in d.bystander_lines)
 
 
 def test_ai_draft_with_clinical_claims_is_rejected(monkeypatch):
@@ -360,7 +372,7 @@ def test_ai_draft_with_clinical_claims_is_rejected(monkeypatch):
             def parse(self, **kw):
                 return types.SimpleNamespace(stop_reason="end_turn", parsed_output=assist.AssistDraft(
                     description=text, patient_personality="Quiet.", bystander_lines=["Is it going to be okay?"],
-                    learning_objectives=["focused_history", "invented_objective"]))
+                    learning_objectives=["focused_history", "imaging_reasoning", "invented_objective"]))
         mod = types.ModuleType("anthropic")
         mod.Anthropic = lambda **kw: types.SimpleNamespace(messages=Messages())
         mod.APIError = RuntimeError
@@ -369,13 +381,16 @@ def test_ai_draft_with_clinical_claims_is_rejected(monkeypatch):
     req = assist.AssistRequest(template_id="wrist_trauma_001", environment="outpatient_clinic", difficulty="standard",
                                crowdedness="quiet", tools=ALL_TOOLS, bystander="calm_relative")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setenv("MEDSIM_LIVE_AI", "1")
     monkeypatch.setitem(sys.modules, "anthropic", fake("A patient with a scaphoid fracture."))
     bad = assist.draft(req, main.SCENARIOS)
     assert bad.source == "template" and "rejected" in bad.notes[0] and "scaphoid" in bad.notes[0]
     monkeypatch.setitem(sys.modules, "anthropic", fake("A calm afternoon clinic with time to talk."))
     ok = assist.draft(req, main.SCENARIOS)
-    assert ok.source == "llm" and ok.requires_review and ok.learning_objectives == ["focused_history"]
+    assert ok.source == "llm" and ok.requires_review and ok.learning_objectives == ["focused_history", "imaging_reasoning"]
     assert "invented_objective" in ok.notes[1]
+    no_kit = assist.draft(req.model_copy(update={"tools": ["measuring_tape"]}), main.SCENARIOS)
+    assert no_kit.learning_objectives == ["focused_history"] and "imaging_reasoning" in no_kit.notes[1]
 
 
 # Journey cases in the generator

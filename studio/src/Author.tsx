@@ -403,11 +403,11 @@ function Form({ edit, catalog, onSaved, onNew }: Props & { catalog: Template[] }
               </div>
               <ErrorText error={draft.error} onDismiss={draft.clearError} />
               {assist && (
-                <div className={`notice ${assist.source === 'llm' ? 'notice-ai' : ''}`} role="status">
-                  <p><strong>Source: {assist.source}</strong>{assist.model ? <> · model: {assist.model}</> : <> · model: none</>}</p>
+                <div className={`notice ${assist.source !== 'template' ? 'notice-ai' : ''}`} role="status">
+                  <p><strong>Source: {assist.source === 'demo' ? 'AI assistant (offline preview)' : assist.source}</strong>{assist.model ? <> · model: {assist.model}</> : <> · model: none</>}</p>
                   <p>
-                    {assist.source === 'llm'
-                      ? 'This text was written by an AI model. It needs human review before you save it.'
+                    {assist.source === 'llm' ? 'This text was written by an AI model. It needs human review before you save it.'
+                      : assist.source === 'demo' ? 'Preview of the drafting assistant for these choices. Read it before you save it.'
                       : 'No AI model was used. This text comes from the deterministic template.'}
                     {assist.requires_review && ' Review required.'}
                   </p>
