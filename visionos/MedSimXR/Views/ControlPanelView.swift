@@ -738,8 +738,12 @@ struct ControlPanelView: View {
     private var settingsCard: some View {
         DisclosureGroup("Settings") {
             VStack(alignment: .leading, spacing: 10) {
-                TextField("Backend host (host:port)", text: $backendHost)
+                Text("Backend host (host:port), empty = \(Bundle.main.object(forInfoDictionaryKey: AppConfig.backendHostKey) as? String ?? "localhost:8000")")
+                    .font(.caption).foregroundStyle(.secondary)
+                TextField(AppConfig.backendHost, text: $backendHost)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .textFieldStyle(.roundedBorder)
+                Text("ElevenLabs agent ID").font(.caption).foregroundStyle(.secondary)
                 TextField("ElevenLabs agent ID", text: $agentId)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                 TextField("Voice ID, male patient (optional)", text: $maleVoiceId)
