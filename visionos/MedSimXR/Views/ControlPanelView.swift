@@ -10,12 +10,44 @@ struct ControlPanelView: View {
     @AppStorage(AppConfig.backendHostKey) private var backendHost = ""
     @AppStorage(AppConfig.agentIdKey) private var agentId = ""
     @AppStorage("fingertipExam") private var fingertip = false
+    @AppStorage(AppConfig.voiceIdKeyPrefix + "MALE") private var maleVoiceId = ""
+    @AppStorage(AppConfig.voiceIdKeyPrefix + "FEMALE") private var femaleVoiceId = ""
 
-    @State private var immersed = false
+    /// Tracked by the model: the Studio window can open the patient's space too.
+    private var immersed: Bool { model.immersiveOpen }
+    /// Automation: scroll the dashboard to its Customize section.
+    @State private var focusCustomize = false
 
     var body: some View {
+        Group {
+            if model.phase == .idle {
+                ScenarioDashboardView(focusCustomize: focusCustomize, onStart: { Task { await start() } }) {
+                    ScenarioCard()
+                    settingsCard
+                }
+                .frame(width: Self.idleSize.width, height: Self.idleSize.height)
+            } else {
+                sessionPanel
+                    .frame(width: Self.sessionSize.width, height: Self.sessionSize.height)
+            }
+        }
+        // On the stable parent: the scripted run outlives the switch from dashboard to session.
+        .task { await model.loadCatalog(); await autoDemo() }
+    }
+
+    /// The dashboard needs room for the scenario cards; a running session is a small palette.
+    static let idleSize = CGSize(width: 680, height: 1020)
+    static let sessionSize = CGSize(width: 400, height: 460)
+
+    private func start() async {
+        model.prepareStart() // settles case, mood and avatar before the scene loads its model
+        if !immersed { _ = await openImmersiveSpace(id: "patient") }
+        await model.startSession()
+    }
+
+    private var sessionPanel: some View {
         @Bindable var model = model
-        ScrollView {
+        return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     Image(systemName: "cross.case.fill").foregroundStyle(.teal).font(.title2)
@@ -26,6 +58,7 @@ struct ControlPanelView: View {
                 Text(model.session?.case.learnerBrief
                      ?? "Start a session to meet your patient. Talk to them, examine them, and write your findings in the notebook beside them.")
                     .font(.callout).foregroundStyle(.secondary)
+                ScenarioCard()
                 sessionButtons
                 statusCard
                 if let err = model.lastError, !model.notebookOpen {
@@ -37,13 +70,12 @@ struct ControlPanelView: View {
             }
             .padding(20)
         }
-        .task { await autoDemo() }
     }
 
     /// Scripted run of the whole demo, driven by launch argument `-autoDemo`.
     /// Used by visionos/scripts/simulator_smoke_test.sh; "STEP" lines are screenshot cues.
     private func autoDemo() async {
-        guard SmokeLog.enabled else { return }
+        guard SmokeLog.enabled, !SmokeLog.scenarioDemo else { return }
         func pause(_ seconds: Double) async { try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
         func state() -> String {
             "engine=\(model.engineModeLabel) voice=\(model.voice.status.label) mic=\(model.voice.micStatus.rawValue) "
@@ -74,12 +106,29 @@ struct ControlPanelView: View {
             }
         }
 
-        await pause(3)
+        // The dashboard is what the learner sees first.
+        await pause(2.5)
+        SmokeLog.mark("STEP 00-dashboard")
+        if AppConfig.dashboardOnly {
+            await pause(1.5)
+            focusCustomize = true // mood and avatar pickers into view
+            await pause(2.5)
+            SmokeLog.mark("STEP 00-dashboard-customize")
+            await pause(1)
+            SmokeLog.mark("DONE")
+            return
+        }
+        if model.selectedCase?.ultrasound != nil {
+            await ultrasoundDemo()
+            return
+        }
+        await pause(1)
         SmokeLog.mark("STEP 01-launch")
         await pause(3)
 
-        if case .opened = await openImmersiveSpace(id: "patient") { immersed = true }
-        SmokeLog.mark("immersive opened=\(immersed)")
+        model.prepareStart()
+        let opened = await openImmersiveSpace(id: "patient")
+        SmokeLog.mark("immersive opened=\({ if case .opened = opened { true } else { false } }())")
         await model.startSession()
         await pause(3.5)
         SmokeLog.mark("session id=\(model.session?.sessionId ?? "none") zones=\(model.zones.map(\.id)) \(state())")
@@ -95,6 +144,29 @@ struct ControlPanelView: View {
         await pause(3)
         SmokeLog.mark("STEP 03-seated")
         await pause(2)
+
+        // Test hook: Stop -> change the avatar -> Start with the immersive space left open.
+        if ProcessInfo.processInfo.arguments.contains("-swapTest") {
+            for avatar in ["female", "male"] {
+                await model.stopSession()
+                model.selection.avatar = avatar
+                await start()
+                await pause(4)
+                SmokeLog.mark("swap test avatar=\(avatar) model=\(model.activeAvatarModel) state=\(model.behavior.state.rawValue) "
+                    + "zones=\(model.zones.count)")
+                await say("Please have a seat.", "sit_down")
+                await pause(3)
+                await model.examine(zoneId: "right_anatomical_snuffbox", source: .script)
+                SmokeLog.mark("swap test exam finding=\(model.examinations.last?.finding ?? "none")")
+                await pause(2)
+                SmokeLog.mark("STEP 03-swap-\(avatar)")
+                model.labCommand = LabCommand(item: OrthoticsLab.orthosisPrefix + "medium", axialCm: 3, radialCm: 0, via: "swap")
+                await pause(2)
+                SmokeLog.mark("swap test fit=\(model.fit?.size ?? "none")")
+            }
+            SmokeLog.mark("DONE")
+            return
+        }
 
         for line in model.scriptedDialogue.prefix(2) {
             model.askScripted(line)
@@ -270,8 +342,135 @@ struct ControlPanelView: View {
         await pause(3)
 
         await model.stopSession()
-        if immersed { await dismissImmersiveSpace(); immersed = false }
+        if immersed { await dismissImmersiveSpace() }
         SmokeLog.mark("STEP 11-stopped")
+        SmokeLog.mark("DONE")
+    }
+
+    /// Scripted run of the obstetric ultrasound case (`-autoDemo -scenario obstetric_ultrasound_001`).
+    /// The same model calls the probe drag, the pinches and the buttons make. "STEP" lines are screenshot cues.
+    private func ultrasoundDemo() async {
+        func pause(_ seconds: Double) async { try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
+        func state() -> String {
+            "engine=\(model.engineModeLabel) voice=\(model.voice.status.label) mic=\(model.voice.micStatus.rawValue) "
+                + "exams=\(model.examinations.count) turns=\(model.transcript.count) error=\(model.lastError ?? "none")"
+        }
+        func ask(_ id: String) async {
+            guard let line = model.scriptedDialogue.first(where: { $0.id == id }) else { return }
+            model.askScripted(line)
+            SmokeLog.mark("asked \(id) \(state())")
+            await pause(3.2)
+        }
+        func scan(_ region: String, step: String? = nil, wait: Double = 2.6) async {
+            await model.scan(regionId: region)
+            await pause(wait)
+            if step != nil { model.recenter(); await pause(1.2) } // re-frame in front of the wearer, wherever the simulator camera is now
+            if let step { SmokeLog.mark("STEP \(step)") }
+            if step != nil { await pause(4.2) } // the screenshot is taken while nothing moves
+        }
+
+        await pause(1)
+        model.prepareStart()
+        let opened = await openImmersiveSpace(id: "patient")
+        SmokeLog.mark("immersive opened=\({ if case .opened = opened { true } else { false } }())")
+        await model.startSession()
+        await pause(4.5)
+        SmokeLog.mark("session id=\(model.session?.sessionId ?? "none") regions=\(model.ultrasound?.regions.map(\.id) ?? []) "
+            + "zones=\(model.zones.count) state=\(model.behavior.state.rawValue) recumbent=\(model.behavior.machine.recumbent) \(state())")
+        model.recenter()
+        await pause(1.5)
+        SmokeLog.mark("STEP 01-us-session")
+        await pause(4.5)
+
+        // A request to stand or sit does not apply to a patient lying on the couch.
+        let action = model.performPatientAction("sit_down")
+        SmokeLog.mark("sit_down on the couch -> \(action)")
+
+        await ask("us_greeting")
+        await ask("us_consent")
+        await ask("us_procedure")
+        await ask("us_symptoms")
+        await ask("us_movements")
+        model.recenter()
+        await pause(1.2)
+        SmokeLog.mark("STEP 01-us-conversation")
+        await pause(4)
+
+        // Tapping a region with nothing in hand only reminds the learner.
+        await model.tapRegion("abdomen_center")
+        SmokeLog.mark("hint=\(model.usHint ?? "none") probe=\(model.probeRegion ?? "none")")
+        await pause(1)
+
+        // Dry probe: no usable image, and the patient notices.
+        await scan("abdomen_upper", step: "02-us-no-gel")
+        model.liftProbe()
+        await pause(1.2)
+        SmokeLog.mark("lifted probe=\(model.probeRegion ?? "none")")
+
+        await model.applyGel()
+        await pause(2.4)
+        model.recenter()
+        await pause(1.2)
+        SmokeLog.mark("STEP 03-us-gel")
+        await pause(4.2)
+
+        await scan("abdomen_center", step: "04-us-overview")
+        await scan("abdomen_lower", step: "04-us-head")
+        await scan("abdomen_upper", step: "04-us-heart")
+        await scan("abdomen_left", step: "04-us-spine")
+        await scan("abdomen_right", step: "04-us-femur")
+        await scan("abdomen_fundus", step: "04-us-placenta")
+        // cycle: the same region again (rotate the probe) gives the next view there
+        await model.rotateProbe()
+        await pause(2)
+        SmokeLog.mark("cycled region=\(model.probeRegion ?? "none") view=\(model.lastScan?.viewId ?? "none")")
+        await scan("abdomen_upper")
+        await model.rotateProbe()
+        await pause(1.8)
+        await scan("abdomen_lower")
+        await model.rotateProbe()
+        await pause(1.5)
+        SmokeLog.mark("cycled region=\(model.probeRegion ?? "none") view=\(model.lastScan?.viewId ?? "none")")
+        model.liftProbe()
+        await pause(1.5)
+        SmokeLog.mark("probe up: contact=\(model.probeRegion ?? "none")")
+        model.recenter()
+        await pause(1.2)
+        SmokeLog.mark("STEP 04-us-no-contact")
+        await pause(4.2)
+
+        await ask("us_sex_question")
+        await ask("us_sex_answer")
+        await ask("us_reassure")
+
+        model.setNotebookOpen(true)
+        model.notebookTab = .examination
+        model.notes.history = "G1P0, 20 weeks. Well, no bleeding or pain, feels the baby move. 12 week scan normal."
+        model.notes.examination = "BPD 4.61 cm, HC 16.73 cm. AC 13.82 cm, EFW 289 g. FL 3.17 cm. Heart: four chamber view seen. Spine seen. "
+            + "Posterior placenta. Liquor normal. Femur seen. Nuchal fold measured 3 mm."
+        model.notes.assessment = "All measurements in keeping with 20 weeks. Explained the findings to the patient."
+        model.diagnosis = "Normal singleton intrauterine pregnancy, about 20 weeks, posterior placenta, normal liquor"
+        await pause(2)
+        SmokeLog.mark("notebook open=\(model.notebookOpen) tab=\(model.notebookTab.rawValue) \(state())")
+        model.recenter()
+        await pause(1.2)
+        SmokeLog.mark("STEP 05-us-notebook")
+        await pause(4.5)
+        await model.submitDiagnosis()
+        let f = model.feedback
+        SmokeLog.mark("diagnosed score=\(f?.totalScore ?? -1)/\(f?.maxScore ?? -1) verdict=\(f?.diagnosticAssessment.verdict ?? "?") "
+            + "categories=\(f?.categories.map { "\($0.id):\($0.score)" } ?? []) "
+            + "obtained=\(f?.scanReview?.filter(\.obtained).map(\.id) ?? []) management=\(f?.management.maxScore ?? -1) fitting=\(f?.fitting.maxScore ?? -1) "
+            + "notes=\(f?.documentation.map { "\($0.criterionId):\($0.status)" } ?? []) \(state())")
+        await pause(2)
+        model.recenter()
+        await pause(1.2)
+        SmokeLog.mark("STEP 06-us-feedback")
+        await pause(4.5)
+
+        await model.stopSession()
+        if immersed { await dismissImmersiveSpace() }
+        SmokeLog.mark("STEP 07-us-stopped")
         SmokeLog.mark("DONE")
     }
 
@@ -340,26 +539,14 @@ struct ControlPanelView: View {
 
     private var sessionButtons: some View {
         HStack {
-            if model.phase == .idle {
-                Button {
-                    Task {
-                        if !immersed {
-                            if case .opened = await openImmersiveSpace(id: "patient") { immersed = true }
-                        }
-                        await model.startSession()
-                    }
-                } label: { Label("Start Session", systemImage: "play.fill").frame(maxWidth: .infinity) }
-                    .buttonStyle(.borderedProminent).tint(.teal)
-            } else {
-                Button {
-                    Task {
-                        await model.stopSession()
-                        if immersed { await dismissImmersiveSpace(); immersed = false }
-                    }
-                } label: { Label("Stop Session", systemImage: "stop.fill").frame(maxWidth: .infinity) }
-                    .buttonStyle(.borderedProminent).tint(.red)
-                Button { model.recenter() } label: { Label("Recenter Patient", systemImage: "scope") }
-            }
+            Button {
+                Task {
+                    await model.stopSession()
+                    if immersed { await dismissImmersiveSpace() }
+                }
+            } label: { Label("Stop Session", systemImage: "stop.fill").frame(maxWidth: .infinity) }
+                .buttonStyle(.borderedProminent).tint(.red)
+            Button { model.recenter() } label: { Label("Recenter Patient", systemImage: "scope") }
         }
         .disabled(model.isBusy)
     }
@@ -368,17 +555,39 @@ struct ControlPanelView: View {
     private var debugCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             if !model.examinations.isEmpty { lastExamCard }
-            Text("Examine").font(.subheadline.bold())
-            ForEach(model.zones) { z in
-                Button(z.label) { Task { await model.examine(zoneId: z.id) } }
-                    .buttonStyle(.bordered).disabled(model.phase != .running)
-            }
-            Text("Patient: \(model.behavior.state.rawValue.replacingOccurrences(of: "_", with: " "))").font(.subheadline.bold())
-            ForEach(PatientAction.allCases, id: \.self) { action in
-                Button(action.rawValue.replacingOccurrences(of: "_", with: " ").capitalized) {
-                    model.performPatientAction(action.rawValue)
+            if !model.zones.isEmpty {
+                Text("Examine").font(.subheadline.bold())
+                ForEach(model.zones) { z in
+                    Button(z.label) { Task { await model.examine(zoneId: z.id) } }
+                        .buttonStyle(.bordered).disabled(model.phase != .running)
                 }
-                .buttonStyle(.bordered).disabled(model.phase != .running)
+            }
+            if let ultrasound = model.ultrasound {
+                // Fallback if gaze and pinch do not work: the same engine calls as the probe and the gel bottle.
+                Text("Ultrasound").font(.subheadline.bold())
+                Button("Apply gel") { Task { await model.applyGel() } }
+                    .buttonStyle(.bordered).disabled(model.phase != .running)
+                ForEach(ultrasound.regions) { region in
+                    Button("Scan: \(region.label)") { Task { await model.scan(regionId: region.id) } }
+                        .buttonStyle(.bordered).disabled(model.phase != .running)
+                }
+                HStack {
+                    Button("Rotate probe") { Task { await model.rotateProbe() } }.disabled(model.probeRegion == nil)
+                    Button("Lift probe") { model.liftProbe() }.disabled(model.probeRegion == nil)
+                }
+                .buttonStyle(.bordered)
+                if let scan = model.lastScan, model.probeRegion != nil {
+                    Text("\(scan.title) · \(scan.quality)").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if !model.behavior.machine.recumbent { // stand, sit and arm movements do not apply on the couch
+                Text("Patient: \(model.behavior.state.rawValue.replacingOccurrences(of: "_", with: " "))").font(.subheadline.bold())
+                ForEach(PatientAction.allCases, id: \.self) { action in
+                    Button(action.rawValue.replacingOccurrences(of: "_", with: " ").capitalized) {
+                        model.performPatientAction(action.rawValue)
+                    }
+                    .buttonStyle(.bordered).disabled(model.phase != .running)
+                }
             }
             if model.behavior.canExamine, let orthotics = model.session?.case.orthotics, !orthotics.sizes.isEmpty {
                 // Fallback if neither pinch nor drag works: same placement call, fixed spot on the arm.
@@ -409,8 +618,12 @@ struct ControlPanelView: View {
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                 TextField("ElevenLabs agent ID", text: $agentId)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
+                TextField("Voice ID, male patient (optional)", text: $maleVoiceId)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                TextField("Voice ID, female patient (optional)", text: $femaleVoiceId)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
                 Toggle("Fingertip examination (experimental)", isOn: $fingertip)
-                Text("Backend and agent changes apply on the next Start.")
+                Text("Backend, agent and voice changes apply on the next Start. Voice IDs need the agent's voice override enabled.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             .padding(.top, 8)

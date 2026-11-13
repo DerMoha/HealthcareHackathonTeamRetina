@@ -109,17 +109,34 @@ cd visionos && xcodebuild -quiet -project MedSimXR.xcodeproj -scheme MedSimXR \
 
 ## 4. Using it
 
-- **Control panel**: Start/Stop, Recenter, status, and a **Debug** toggle (examination and
+- **Scenario dashboard** (the control panel while no session runs): cards for every case in
+  `scenarios/` (icon, spoiler-free summary, skills), a **Surprise me** card that draws a random
+  case, mood and patient and keeps them hidden until Start, and a **Customize** section with the
+  patient's **mood** (calm, nervous, angry) and **appearance** (male, female) for the selected
+  case. A case that allows only one value shows it locked. The last choice is remembered. Mood and
+  appearance change how the patient talks and looks, never the findings or the scoring.
+  Launch arguments `-scenario <case_id> -mood <m> -avatar <a>` preselect them.
+- **Control panel during a session**: Stop, Recenter, status, and a **Debug** toggle (examination and
   scripted-question buttons, last finding). Nothing else.
 - **Notebook** (floats beside the patient, pinch to open): History, Examination, Assessment,
-  Conversation. Type or use the keyboard's dictation key. While it is open the patient's
-  microphone is muted, so dictated notes are not heard as speech to the patient.
+  Conversation. Every note has a **Dictate** button: tap it, speak, tap **Stop dictating** and
+  the words are added to that note. Transcription uses ElevenLabs Scribe through the backend
+  (`POST /elevenlabs/transcribe`, needs only `ELEVENLABS_API_KEY`); without it the app uses
+  Apple's speech recognition on the same recording. Typing and the keyboard's own dictation key
+  still work. While the notebook is open the patient's microphone is muted, so dictated notes
+  are not heard as speech to the patient.
 - **Diagnosis**: written by the learner under Assessment, no suggestions offered. Feedback
   appears in the notebook and compares the notes with what was actually asked and examined;
   writing down an examination that never happened earns nothing and is flagged.
-- **Patient model**: `visionos/MedSimXR/Resources/Patient.usdz`, CC0, rebuilt with
-  `assets/patient/build.sh` ([details](assets/patient/README.md)). Launch argument
+- **Patient model**: `visionos/MedSimXR/Resources/Patient.usdz` (male) and `Patient_female.usdz`,
+  each with a `.json` sidecar of the same name, CC0, rebuilt with
+  `assets/patient/build.sh` ([details](assets/patient/README.md)). A case can force a model with
+  `catalog.avatar_model`. A missing model falls back to `Patient`; launch argument
   `-proceduralAvatar` falls back to the primitive body.
+- **Optional voice per appearance**: Settings > ElevenLabs voice ID (male / female). Needs the
+  voice override enabled on the agent ([elevenlabs/setup.md](elevenlabs/setup.md)).
+- **Dashboard screenshots without a headset**:
+  `visionos/scripts/simulator_smoke_test.sh --mock-voice --out DIR --app-args "-dashboardOnly -mood nervous -avatar female"`.
 
 ## 5. Demo
 
@@ -158,7 +175,28 @@ Known limits:
 - The avatar is a static seated pose with a few animated joints: no lip sync, no facial expression, fingers do not move.
 - Notes are compared by keyword, like the transcript: it detects that something was written down, not whether it is right.
 - Offline speech uses macOS `say` placeholder clips until `generate_clips.py` is run.
-- One case, English only, sessions in memory (a backend restart drops them; the app then continues offline).
+- English only, sessions in memory (a backend restart drops them; the app then continues offline).
+
+## MedSim Studio and Live Director
+
+Instructors configure a scenario from a supported case (setting, difficulty, equipment,
+companions), publish it under a launch code, start it in the app, trigger predefined events
+during the session, and get a debrief that reads the score against what the scenario offered.
+Scenarios never hold or change clinical facts. Overview, demo path and what was verified:
+[docs/medsim-studio.md](docs/medsim-studio.md); API: [docs/studio-api.md](docs/studio-api.md).
+
+```bash
+cd studio && npm install && npm run build      # then open http://localhost:8000/app/
+visionos/scripts/scenario_smoke_test.sh --variant walkin   # scenario + director in the simulator
+visionos/scripts/scenario_smoke_test.sh --variant studio   # the Studio window inside the headset
+```
+
+Seeded launch codes: `LKGLZX` (quiet clinic, full kit, guided) and `5344E7` (busy walk-in,
+limited kit, challenging). Both are experimental, not clinician-reviewed.
+
+In the app, *Open MedSim Studio* (control panel) browses My scenarios, Downloaded and the
+Marketplace, launches a scenario without typing its code, and shows debriefs. Authoring and
+the Live Director stay in the web Studio, on the instructor's screen.
 
 ## Orthotics lab
 

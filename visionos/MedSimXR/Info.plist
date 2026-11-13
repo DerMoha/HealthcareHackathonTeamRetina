@@ -34,7 +34,9 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>MedSim XR connects to the clinical scenario server on your local network.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>MedSim XR uses the microphone so you can talk to the virtual patient.</string>
+	<string>MedSim XR uses the microphone so you can talk to the virtual patient and dictate notes.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>MedSim XR turns your dictated notebook notes into text.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationPreferredDefaultSceneSessionRole</key>

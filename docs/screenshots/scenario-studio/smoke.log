@@ -1,0 +1,35 @@
+studio window shown tab=overview
+studio opened library=2 market=["LKGLZX", "5344E7"] error=none
+STEP t01-overview
+STEP t02-marketplace
+studio downloaded tab=downloaded copy=scn_a8e315fc state=draft published=false inMine=false error=none
+STEP t03-downloaded
+STEP t04-mine
+placed at SIMD3<Float>(0.312429, 0.0, -2.9305747) tracked=true
+behavior reset state=standing_idle
+scenario code=5344E7 v1 title="Busy walk-in, limited kit (challenging)" review=experimental env=community_clinic difficulty=challenging hints=off noise=0.60 bystander=anxious helper=false crowd=4 sizes=["small", "large"] tape=true investigations=[] engine=Backend
+studio launch code=5344E7 phase=running scenario=5344E7 error=none
+stage sign=community_clinic figures=5 bystander=anxious helper=false noise=0.60 noisePlaying=true
+zones rebuilt ["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"]
+studio window closed
+director link connected
+avatar usdz joints=53 size=SIMD3<Float>(0.52524173, 1.37687, 0.78019935) minY=0.0
+pose standing_idle right_wrist moved=0.54
+teaching anatomy=false reference=none parts=0
+immersive scene built zones=3
+session id=0444149b5c634c2c969f45356e533c5f scenario=5344E7 phase=running immersive=true error=none
+STEP t05-launched
+pose standing_idle right_wrist moved=0.54
+STEP t06-await-director
+stage sign=community_clinic figures=6 bystander=anxious helper=true noise=0.60 noisePlaying=true
+scene line speaker=Kim shown=true text="Hi, I'm Kim, one of the nurses. Tell me what you need and I'll fetch it."
+director events seen=1 ["A helper arrives"]
+director applied seq=2 kind=helper_arrives event=916a669e4ffb4acaa470a766bbfa9957 sign=community_clinic figures=6 bystander=anxious helper=true noise=0.60 noisePlaying=true sizes=["small", "large"] hints=off exams=0 turns=1
+scene line speaker=Sam shown=true text="Shouldn't someone more senior be looking at this?"
+STEP t07-after-event
+diagnosed score=6/100
+director link lost
+studio window shown tab=debrief
+studio debrief shown code=5344E7 interventions=1 acknowledged=1 score=6/100 resources=7
+STEP t08-debrief
+DONE

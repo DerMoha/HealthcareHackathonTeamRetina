@@ -15,10 +15,12 @@ struct FeedbackView: View {
                         .buttonStyle(.borderedProminent).tint(.indigo)
                     }
                     Text(f.summary).font(.callout)
+                    if let s = model.scenario, let d = model.debrief { scenarioDebrief(s, d) }
 
                     section("Categories") {
                         ForEach(f.categories) { CategoryCard(category: $0) }
                     }
+                    scanReview(f.scanReview ?? [])
                     management(f.management)
                     scored(f.fitting.title, f.fitting.score, f.fitting.maxScore, f.fitting.criteria, [
                         ("measurement", "Measurement"), ("fitting", "Size, position and tension"),
@@ -44,6 +46,56 @@ struct FeedbackView: View {
                     Text(f.disclaimer).font(.caption).foregroundStyle(.secondary)
                 }
                 .padding(4)
+            }
+        }
+    }
+
+    /// Ultrasound: the expected views with the learner's own picture, or an example when missed.
+    @ViewBuilder
+    private func scanReview(_ items: [ScanReviewItem]) -> some View {
+        let expected = items.filter(\.expected), extras = items.filter { !$0.expected && $0.obtained }
+        if !expected.isEmpty {
+            section("Scan checklist · \(expected.filter(\.obtained).count) of \(expected.count) views") {
+                ForEach(expected) { reviewRow($0) }
+                if !extras.isEmpty {
+                    Text("Extra views you obtained").font(.subheadline.bold())
+                    ForEach(extras) { reviewRow($0) }
+                }
+                Text("Images are real example sonograms from other pregnancies. A faded picture is what the missed view looks like.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func reviewRow(_ item: ScanReviewItem) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            ZStack {
+                Color.black
+                if let id = item.image, let image = UltrasoundImage.image(id) {
+                    Image(uiImage: image).resizable().scaledToFit().opacity(item.obtained ? 1 : 0.3)
+                }
+            }
+            .frame(width: 96, height: 72).clipShape(RoundedRectangle(cornerRadius: 8))
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.label).font(.callout.weight(.medium))
+                    Text(item.explanation).font(.caption).foregroundStyle(.secondary)
+                }
+            } icon: {
+                Image(systemName: item.obtained ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundStyle(item.obtained ? .green : .red)
+            }
+        }
+    }
+
+    /// How to read the score: what this scenario offered and what the instructor changed.
+    private func scenarioDebrief(_ s: ScenarioRuntime, _ d: ScenarioDebrief) -> some View {
+        section("Scenario: \(s.title)") {
+            Text(s.reviewLabel).font(.caption).foregroundStyle(s.reviewState == "clinician_reviewed" ? .green : .orange)
+            ForEach(d.interpretation, id: \.self) { Text($0).font(.callout) }
+            ForEach(d.timeline.filter { $0.type == "intervention" || $0.type == "hint" }, id: \.seq) { step in
+                Label(step.label, systemImage: step.type == "hint" ? "lightbulb" : "person.wave.2")
+                    .font(.footnote).foregroundStyle(.secondary)
             }
         }
     }

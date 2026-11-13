@@ -55,6 +55,21 @@ label, whether it was examined, the finding if so, and the zone's `teaching` tex
 MEASUREMENT AND FITTING: a third separate dimension (Feedback.fitting, 20 points, not in
 total_score). Rules and outcome precedence are documented in fitting.py.
 
+ULTRASOUND CASES (`scenario["ultrasound"]`, see ultrasound.py) reuse the same rubric with more check types.
+The record is `Session.gels` and `Session.scans` (events with a shared `seq`); a view is OBTAINED only
+when a good scan returned it, so points follow what was actually scanned, never what was written:
+  learner_said_before_scan  learner turn before the first scan event (any quality); no scan = any turn
+  learner_said_before_gel   before the first gel event; without gel before the first scan; else any turn
+  learner_said_after_scan   learner turn after the first GOOD scan (no good scan = unmet)
+  gel_before_scan           gel applied, and before the first scan (a case with no scan yet is still met)
+  viewed_any                one of `views` obtained; evidence = that view's title
+  documented_in_notes       one of `requires_viewed` obtained AND one of `fields` (notes sections, or
+                            "diagnosis") hits `keywords`; evidence = that text. Notes alone earn nothing.
+A category with `note_kind: "examination"` flags notes about a view that was never obtained as
+"unsupported" with the examination wording. `hidden.management` and `hidden.fitting` are optional: absent,
+Feedback.management and Feedback.fitting are empty (score 0 of 0, no criteria). Feedback.scan_review lists
+`hidden.scan_review` items (views obtained versus expected) after a diagnosis; [] before and for other cases.
+
 SUMMARY TEMPLATE after a diagnosis (deterministic; sentences joined by one space):
   S1  only if transcript_available is false: NO_TRANSCRIPT
   S2  strengths[0], if any
@@ -66,8 +81,8 @@ import re
 from functools import lru_cache
 
 from .models import (CategoryResult, CriterionResult, DiagnosticAssessment, DocumentationItem,
-                     Feedback, ManagementAssessment, ReplayZone)
-from . import fitting
+                     Feedback, FittingAssessment, ManagementAssessment, ReplayZone, ScanReviewItem)
+from . import fitting, ultrasound
 from .sessions import Session
 
 DISCLAIMER = ("Educational simulation only. Not a clinical diagnostic tool. "
@@ -130,7 +145,9 @@ def _management_check(check: dict, ordered: list[str], texts: dict[str, str], la
 
 
 def _management(scenario: dict, s: Session, redact: bool):
-    spec = scenario["hidden"]["management"]
+    spec = scenario["hidden"].get("management")
+    if spec is None:  # cases without investigations or management scoring
+        return ManagementAssessment(title="", score=0, max_score=0, criteria=[]), []
     invs = {i["id"]: i for i in scenario.get("investigations", [])}
     ordered = list(dict.fromkeys(o["investigation_id"] for o in sorted(s.investigations, key=lambda o: o["seq"])))
     texts = {"diagnosis": s.diagnosis or "", **(s.notes or {})}
@@ -176,6 +193,34 @@ def _run_check(check: dict, max_points: int, s: Session, labels: dict[str, str],
         zone = next((e["zone_id"] for e in exams if e["zone_id"] in check["zones"]), None)
         met = zone is not None
         quote = labels[zone] if zone else None
+    elif kind in ("learner_said_before_scan", "learner_said_before_gel", "learner_said_after_scan"):
+        scans = sorted(s.scans, key=lambda e: e["seq"])
+        gels = sorted(s.gels, key=lambda e: e["seq"])
+        first_scan = scans[0]["seq"] if scans else float("inf")
+        if kind == "learner_said_before_scan":
+            quote = _first_quote([t for t in turns if t["seq"] < first_scan], kws)
+        elif kind == "learner_said_before_gel":
+            limit = gels[0]["seq"] if gels else first_scan
+            quote = _first_quote([t for t in turns if t["seq"] < limit], kws)
+        else:
+            good = next((e["seq"] for e in scans if e["quality"] == "good"), None)
+            quote = _first_quote([t for t in turns if good is not None and t["seq"] > good], kws)
+        met = quote is not None
+    elif kind == "gel_before_scan":
+        method = "rule"
+        first_scan = min((e["seq"] for e in s.scans), default=float("inf"))
+        met = bool(s.gels) and min(e["seq"] for e in s.gels) < first_scan
+    elif kind == "viewed_any":
+        method = "rule"
+        view = next((v for v in ultrasound.obtained_views(s) if v in check["views"]), None)
+        met = view is not None
+        quote = labels.get(view) if view else None
+    elif kind == "documented_in_notes":
+        obtained = ultrasound.obtained_views(s)
+        texts = {"diagnosis": s.diagnosis or "", **(s.notes or {})}
+        if any(v in obtained for v in check["requires_viewed"]):
+            quote = next((texts[f] for f in check["fields"] if texts.get(f) and _hit(texts[f], kws)), None)
+        met = quote is not None
     elif kind == "diagnosis_or_learner_said":
         quote = _first_quote(turns, kws)
         if quote is None and plan and _hit(plan, kws):
@@ -194,6 +239,8 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
     diag = hidden["diagnosis"]
     neutral = {z["id"]: z["label"] for z in scenario["examination_zones"]}
     labels = {z["id"]: z.get("clinical_label", z["label"]) for z in scenario["examination_zones"]}
+    us = scenario.get("ultrasound")
+    view_titles = {v["id"]: v["title"] for v in us["views"]} if us else {}
     notes = s.notes or {}
     note_text = "\n".join(notes.get(k, "") for k in ("history", "examination", "assessment"))
     plan = s.diagnosis  # diagnosis plus the written assessment and plan
@@ -222,13 +269,13 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
                 if met:
                     ev = s.diagnosis
             else:
-                pts, met, ev, method = _run_check(check, mx, s, labels, plan)
+                pts, met, ev, method = _run_check(check, mx, s, {**labels, **view_titles}, plan)
             if note_text.strip() and c.get("note_keywords"):
                 noted = _hit(note_text, c["note_keywords"])
                 if noted or met:
                     status = "documented" if noted and met else "unsupported" if noted else "undocumented"
                     comment = {"documented": DOC_OK, "undocumented": DOC_MISSING,
-                               "unsupported": DOC_UNSUPPORTED_EXAM if cat["id"] == "examination"
+                               "unsupported": DOC_UNSUPPORTED_EXAM if cat.get("note_kind", cat["id"]) == "examination"
                                else DOC_UNSUPPORTED_ASK}[status]
                     documentation.append(DocumentationItem(
                         criterion_id=c["id"], label=c["label"], status=status, comment=comment))
@@ -245,6 +292,8 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
     shown = labels if verdict != "not_submitted" else neutral
     relevant = [f"{shown[z]}: {findings[z]['finding'].replace('_', ' ')} (pain {findings[z]['pain_level']}/10)"
                 for z in seen]
+    if us:
+        relevant = _scan_findings(us, s, redact=verdict == "not_submitted")
 
     has_transcript = any(t["role"] == "learner" for t in s.interactions)
     summary = _summary(strengths, missed, text, has_transcript)
@@ -276,8 +325,46 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
         categories=categories, strengths=strengths, missed=missed,
         relevant_findings=relevant, next_steps=next_steps, documentation=documentation,
         management=management, investigations=investigations,
-        fitting=fitting.assess(scenario, s, verdict == "not_submitted", _hit), replay=replay,
+        fitting=(fitting.assess(scenario, s, verdict == "not_submitted", _hit) if "fitting" in hidden else
+                 FittingAssessment(title="", score=0, max_score=0, criteria=[], final_fit=None, reference=None,
+                                   explanation=None)),
+        replay=replay, scan_review=_scan_review(scenario, s, redact=verdict == "not_submitted"),
         disclaimer=DISCLAIMER)
+
+
+def _scan_findings(us: dict, s: Session, redact: bool) -> list[str]:
+    """Ultrasound: what the scans produced. Before a diagnosis only the neutral region and whether an
+    image appeared; after it, each obtained view with its measurements."""
+    if redact:
+        regions = {r["id"]: r["label"] for r in us["regions"]}
+        out = []
+        for rid in dict.fromkeys(e["region_id"] for e in sorted(s.scans, key=lambda e: e["seq"])):
+            good = any(e["region_id"] == rid and e["quality"] == "good" for e in s.scans)
+            out.append(f"{regions[rid]}: " + ("image obtained" if good else "no usable image (no gel)"))
+        return out
+    views = {v["id"]: v for v in us["views"]}
+    out = []
+    for vid in ultrasound.obtained_views(s):
+        v = views[vid]
+        detail = ", ".join(f"{m['label']} {m['value']:g} {m['unit']}" for m in v["measurements"]) or v["caption"]
+        out.append(f"{v['title']}: {detail}")
+    return out
+
+
+def _scan_review(scenario: dict, s: Session, redact: bool) -> list[ScanReviewItem]:
+    """Views obtained versus expected (`hidden.scan_review`); empty before a diagnosis."""
+    items = scenario["hidden"].get("scan_review")
+    if redact or not items:
+        return []
+    obtained = ultrasound.obtained_views(s)
+    images = {v["id"]: v["image"] for v in scenario["ultrasound"]["views"]}
+    out = []
+    for item in items:
+        hit = next((v for v in obtained if v in item["views"]), None)
+        out.append(ScanReviewItem(id=item["id"], label=item["label"], expected=item["expected"], obtained=hit is not None,
+                                  view_id=hit, image=images[hit] if hit else item["image"],
+                                  explanation=item["met_text"] if hit else item["missed_text"]))
+    return out
 
 
 def _summary(strengths, missed, explanation, has_transcript) -> str:

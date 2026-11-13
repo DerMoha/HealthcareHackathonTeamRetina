@@ -1,16 +1,19 @@
 """FastAPI app: routes only; logic lives in sessions/examination/evaluation."""
 import os
+import re
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
-from . import evaluation, examination, fitting
-from .models import (DiagnoseRequest, ExamineRequest, ExamineResult, Feedback, Health,
+from . import evaluation, examination, fitting, studio, studio_routes, ultrasound
+from .models import (ConversationSummary, DiagnoseRequest, ExamineRequest, ExamineResult, Feedback, Health,
                      InteractionCount, InteractionRequest, FitAck, FitRequest, FittingCheckRequest,
-                     FittingCheckResult, MeasurementRequest, MeasurementResult, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
-                     TokenResponse, CasePublic)
-from .sessions import SESSIONS, Session, create_session, load_scenarios, now_iso, public_case
+                     FittingCheckResult, GelResult, MeasurementRequest, ScanRequest, ScanResult, MeasurementResult, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
+                     TokenResponse, TranscriptionResponse, CasePublic)
+from .sessions import SESSIONS, Session, create_session, load_scenarios, now_iso, public_case, resolve_config
 
 VERSION = "0.1.0"
 
@@ -30,6 +33,11 @@ def _load_dotenv() -> None:
 _load_dotenv()
 SCENARIOS = load_scenarios()
 app = FastAPI(title="MedSim XR clinical backend", version=VERSION)
+_studio_router, LIBRARY = studio_routes.build(SCENARIOS)
+app.include_router(_studio_router)
+_STUDIO_UI = Path(__file__).resolve().parents[2] / "studio" / "dist"
+if _STUDIO_UI.is_dir():  # built instructor interface (cd studio && npm run build)
+    app.mount("/app", StaticFiles(directory=_STUDIO_UI, html=True), name="studio-ui")
 
 
 def _session(session_id: str) -> Session:
@@ -40,7 +48,17 @@ def _session(session_id: str) -> Session:
 
 
 def _info(s: Session) -> SessionInfo:
-    return SessionInfo(session_id=s.id, started_at=s.started_at, case=public_case(SCENARIOS[s.case_id]))
+    info = SessionInfo(session_id=s.id, started_at=s.started_at, case=public_case(SCENARIOS[s.case_id], s.config),
+                       config=s.config)
+    live = studio.LIVE.get(s.id)
+    if live:  # a published scenario: its setting and equipment, same clinical case
+        info.case, info.scenario = studio.shape_case(info.case, live), studio.runtime(live).model_dump()
+    return info
+
+
+def _need(s: Session, kind: str, ref: str | None, what: str) -> None:
+    if not studio.allowed(s.id, kind, ref):
+        raise HTTPException(409, f"{what} is not available in this scenario.")
 
 
 @app.get("/health", response_model=Health)
@@ -55,15 +73,31 @@ def cases():
 
 @app.post("/sessions", response_model=SessionInfo, status_code=201)
 def new_session(req: SessionCreate):
-    if req.case_id not in SCENARIOS:
-        raise HTTPException(404, f"Unknown case '{req.case_id}'")
-    return _info(create_session(req.case_id))
+    definition = None
+    if req.scenario_code:
+        try:
+            definition = LIBRARY.by_code(req.scenario_code)
+        except studio.StudioError as e:
+            raise HTTPException(e.status, e.detail)
+    case_id = definition.source_template["case_id"] if definition else req.case_id
+    if case_id not in SCENARIOS:
+        raise HTTPException(404, f"Unknown case '{case_id}'")
+    asked = req.config
+    try:
+        config = resolve_config(SCENARIOS[case_id], asked.mood if asked else None, asked.avatar if asked else None)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    s = create_session(case_id, config)
+    if definition:
+        studio.attach(s.id, definition)
+    return _info(s)
 
 
 @app.post("/sessions/{session_id}/reset", response_model=SessionInfo)
 def reset(session_id: str):
     s = _session(session_id)
     s.reset()
+    studio.reset(s.id)
     return _info(s)
 
 
@@ -79,6 +113,7 @@ def examine(session_id: str, req: ExamineRequest):
 @app.post("/sessions/{session_id}/investigations", response_model=InvestigationResult)
 def investigations(session_id: str, req: InvestigationRequest):
     s = _session(session_id)
+    _need(s, "investigation", req.investigation_id, "That investigation")
     result = examination.investigate(SCENARIOS[s.case_id], s, req.investigation_id)
     if result is None:
         raise HTTPException(404, f"Unknown investigation '{req.investigation_id}'")
@@ -88,6 +123,7 @@ def investigations(session_id: str, req: InvestigationRequest):
 @app.post("/sessions/{session_id}/measurements", response_model=MeasurementResult)
 def measurements(session_id: str, req: MeasurementRequest):
     s = _session(session_id)
+    _need(s, "measurement_tool", None, "A measuring tape")
     result = fitting.measure(SCENARIOS[s.case_id], s, req.measurement_id, req.value_cm)
     if result is None:
         raise HTTPException(404, f"Unknown measurement '{req.measurement_id}'")
@@ -100,6 +136,8 @@ def measurements(session_id: str, req: MeasurementRequest):
 def fit(session_id: str, req: FitRequest):
     s = _session(session_id)
     data = req.fit.model_dump() if req.fit else None
+    if data:
+        _need(s, "orthosis_size", data["size"], "That wrist support")
     if not fitting.valid(SCENARIOS[s.case_id], data):
         raise HTTPException(404, "Unknown orthosis size or tightness")
     return fitting.record_fit(SCENARIOS[s.case_id], s, data)
@@ -109,6 +147,24 @@ def fit(session_id: str, req: FitRequest):
 def checks(session_id: str, req: FittingCheckRequest):
     s = _session(session_id)
     return fitting.check(SCENARIOS[s.case_id], s, req.check)
+
+
+@app.post("/sessions/{session_id}/gel", response_model=GelResult)
+def gel(session_id: str):
+    s = _session(session_id)
+    result = ultrasound.apply_gel(SCENARIOS[s.case_id], s)
+    if result is None:
+        raise HTTPException(404, "This case has no ultrasound")
+    return result
+
+
+@app.post("/sessions/{session_id}/scans", response_model=ScanResult)
+def scans(session_id: str, req: ScanRequest):
+    s = _session(session_id)
+    result = ultrasound.scan(SCENARIOS[s.case_id], s, req.region_id, req.gel_applied)
+    if result is None:
+        raise HTTPException(404, f"Unknown scan region '{req.region_id}'")
+    return result
 
 
 @app.post("/sessions/{session_id}/interactions", response_model=InteractionCount)
@@ -147,3 +203,67 @@ def conversation_token():
         # Never echo the upstream body or key; status code is enough to debug.
         raise HTTPException(502, f"ElevenLabs rejected the token request (HTTP {r.status_code}).")
     return TokenResponse(token=r.json()["token"])
+
+
+_CONVERSATION_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
+# ElevenLabs conversation status -> ours. Anything not finished yet is "pending".
+_SUMMARY_STATUS = {"initiated": "pending", "in-progress": "pending", "processing": "pending",
+                   "done": "done", "failed": "failed"}
+
+
+@app.get("/elevenlabs/conversations/{conversation_id}/summary", response_model=ConversationSummary)
+def conversation_summary(conversation_id: str):
+    """ElevenLabs' generated summary of a finished voice conversation, for the notebook draft.
+
+    Needs ELEVENLABS_API_KEY and ELEVENLABS_AGENT_ID (public agents too): the key reads the
+    account's conversations, so only conversations of the configured agent are returned.
+    """
+    key, agent = os.environ.get("ELEVENLABS_API_KEY"), os.environ.get("ELEVENLABS_AGENT_ID")
+    if not key or not agent:
+        raise HTTPException(503, "ElevenLabs is not configured: set ELEVENLABS_API_KEY and ELEVENLABS_AGENT_ID.")
+    if not _CONVERSATION_ID.match(conversation_id):
+        raise HTTPException(422, "Invalid conversation id")
+    try:
+        r = httpx.get(f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}/summary",
+                      headers={"xi-api-key": key}, timeout=10)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Could not reach ElevenLabs ({type(e).__name__}).")
+    if r.status_code == 404:
+        raise HTTPException(404, f"Unknown conversation '{conversation_id}'")
+    if r.status_code != 200:
+        # Never echo the upstream body or key; status code is enough to debug.
+        raise HTTPException(502, f"ElevenLabs rejected the summary request (HTTP {r.status_code}).")
+    body = r.json()
+    if body.get("agent_id") != agent:
+        raise HTTPException(404, f"Unknown conversation '{conversation_id}'")
+    status = _SUMMARY_STATUS.get(body.get("status"), "pending")
+    summary = (body.get("transcript_summary") or "").strip() or None
+    return ConversationSummary(status=status, summary=summary if status == "done" else None)
+
+
+MAX_DICTATION_BYTES = 25 * 1024 * 1024
+
+
+@app.post("/elevenlabs/transcribe", response_model=TranscriptionResponse)
+async def transcribe(request: Request):
+    """Notebook dictation: the raw audio body (e.g. audio/mp4) goes to ElevenLabs Scribe.
+    Needs only ELEVENLABS_API_KEY. 503 tells the app to use Apple speech recognition instead."""
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        raise HTTPException(503, "ElevenLabs is not configured: set ELEVENLABS_API_KEY.")
+    audio = await request.body()
+    if not audio:
+        raise HTTPException(400, "No audio received.")
+    if len(audio) > MAX_DICTATION_BYTES:
+        raise HTTPException(413, "Dictation too long.")
+    content_type = request.headers.get("content-type") or "application/octet-stream"
+    try:
+        r = await run_in_threadpool(
+            httpx.post, "https://api.elevenlabs.io/v1/speech-to-text",
+            headers={"xi-api-key": key}, data={"model_id": "scribe_v2", "tag_audio_events": "false"},
+            files={"file": ("dictation.m4a", audio, content_type)}, timeout=60)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Could not reach ElevenLabs ({type(e).__name__}).")
+    if r.status_code != 200:
+        raise HTTPException(502, f"ElevenLabs rejected the transcription request (HTTP {r.status_code}).")
+    return TranscriptionResponse(text=(r.json().get("text") or "").strip())

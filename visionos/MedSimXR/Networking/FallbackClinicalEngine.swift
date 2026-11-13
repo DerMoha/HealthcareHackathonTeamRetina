@@ -22,10 +22,21 @@ final class FallbackClinicalEngine: ClinicalEngine {
         catch { usingPrimary = false; return try await shadow() }
     }
 
-    func startSession(caseId: String) async throws -> SessionInfo {
-        let shadow = try await offline.startSession(caseId: caseId)
+    var bundledCases: [CaseInfo] { offline.bundledCases }
+
+    /// The backend's list wins for cases both know; bundled cases the server lacks stay available.
+    func caseCatalog() async throws -> [CaseInfo] {
+        let local = offline.bundledCases
+        guard let remote = try? await primary.caseCatalog(), !remote.isEmpty else { return local }
+        let localOnly = local.filter { l in !remote.contains { $0.caseId == l.caseId } }
+        return remote + localOnly
+    }
+
+    func startSession(caseId: String, config: SessionConfig?) async throws -> SessionInfo {
+        // A case only the server knows has no offline shadow; a bad config fails in both engines.
+        let shadow = await Result { try await offline.startSession(caseId: caseId, config: config) }
         usingPrimary = true // a new session retries the backend
-        return try await route({ try await primary.startSession(caseId: caseId) }, shadow: { shadow })
+        return try await route({ try await primary.startSession(caseId: caseId, config: config) }, shadow: { try shadow.get() })
     }
 
     func reset() async throws -> SessionInfo {
@@ -56,6 +67,16 @@ final class FallbackClinicalEngine: ClinicalEngine {
     func fittingCheck(_ kind: String) async throws -> FittingCheckResult {
         let shadow = await Result { try await offline.fittingCheck(kind) }
         return try await route({ try await primary.fittingCheck(kind) }, shadow: { try shadow.get() })
+    }
+
+    func applyGel() async throws -> GelResult {
+        let shadow = await Result { try await offline.applyGel() }
+        return try await route({ try await primary.applyGel() }, shadow: { try shadow.get() })
+    }
+
+    func scan(regionId: String, gelApplied: Bool?) async throws -> ScanResult {
+        let shadow = await Result { try await offline.scan(regionId: regionId, gelApplied: gelApplied) }
+        return try await route({ try await primary.scan(regionId: regionId, gelApplied: gelApplied) }, shadow: { try shadow.get() })
     }
 
     func recordInteraction(_ turn: TranscriptTurn) async {

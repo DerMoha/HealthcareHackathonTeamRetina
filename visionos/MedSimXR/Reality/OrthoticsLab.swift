@@ -54,23 +54,37 @@ final class OrthoticsLab {
         tray.position = [-0.58, 0.95, 0.55] // beside the patient's right arm, wearer's left
         tray.orientation = simd_quatf(angle: 0.35, axis: [0, 1, 0])
         avatar.root.addChild(tray)
-        elbow.position = [0, -avatar.forearmLength, 0]
         avatar.forearmFrame.addChild(elbow)
         avatar.forearmFrame.addChild(teaching)
 
         // Pinch target covering the whole forearm; only live while a tray item is selected,
         // so it never takes pinches meant for the examination zones.
-        let length = avatar.forearmLength + 0.1
         forearmTarget.name = Self.forearmTargetName
-        forearmTarget.position = [0, -avatar.forearmLength / 2 + 0.02, 0]
-        forearmTarget.components.set(CollisionComponent(shapes: [.generateBox(size: [0.13, length, 0.13])]))
         forearmTarget.components.set(InputTargetComponent())
         forearmTarget.components.set(HoverEffectComponent())
-        let glow = ModelEntity(mesh: .generateCylinder(height: length, radius: 0.058),
-                               materials: [Self.overlay(.systemTeal, 0.16, depth: true)])
-        forearmTarget.addChild(glow)
         forearmTarget.isEnabled = false
         avatar.forearmFrame.addChild(forearmTarget)
+        fitToForearm()
+    }
+
+    /// Positions what depends on the forearm's length: the elbow marker and the pinch target.
+    private func fitToForearm() {
+        guard let avatar else { return }
+        elbow.position = [0, -avatar.forearmLength, 0]
+        let length = avatar.forearmLength + 0.1
+        forearmTarget.position = [0, -avatar.forearmLength / 2 + 0.02, 0]
+        forearmTarget.components.set(CollisionComponent(shapes: [.generateBox(size: [0.13, length, 0.13])]))
+        forearmTarget.children.forEach { $0.removeFromParent() }
+        forearmTarget.addChild(ModelEntity(mesh: .generateCylinder(height: length, radius: 0.058),
+                                           materials: [Self.overlay(.systemTeal, 0.16, depth: true)]))
+    }
+
+    /// The avatar's model was swapped: the forearm may be a different length. The tray, the
+    /// orthosis items and the engine-recorded fit stay as they are.
+    func avatarChanged(fit: OrthosisFit?) {
+        fitToForearm()
+        measurement.clear()
+        sync(fit)
     }
 
     // MARK: Meshes
@@ -205,7 +219,9 @@ final class OrthoticsLab {
         setTeaching(anatomy: false, reference: nil)
         showReplay([], events: [], current: nil)
         select(nil)
-        guard !orthotics.sizes.isEmpty else { return }
+        // A scenario may come without a tape or without supports.
+        let tape = !orthotics.measurements.isEmpty
+        guard !orthotics.sizes.isEmpty || tape else { return }
 
         let count = orthotics.sizes.count + 1
         let pitch: Float = 0.16
@@ -214,7 +230,7 @@ final class OrthoticsLab {
         tray.addChild(board)
         func slot(_ i: Int) -> Float { (Float(i) - Float(count - 1) / 2) * pitch }
 
-        add(Self.tapeMeasure(), name: Self.tapeName, label: "Tape", at: [slot(0) - 0.02, 0.022, 0])
+        if tape { add(Self.tapeMeasure(), name: Self.tapeName, label: "Tape", at: [slot(0) - 0.02, 0.022, 0]) }
         for (i, size) in orthotics.sizes.enumerated() {
             let range = size.wristCm.map { String(format: "%g", $0) }.joined(separator: "–")
             add(Self.brace(radius: Self.radius(i)), name: Self.orthosisPrefix + size.id, label: "\(size.label.prefix(1)) · \(range) cm",
@@ -257,7 +273,7 @@ final class OrthoticsLab {
             selectionDisc.position = [home.translation.x, 0.009, home.translation.z]
             tray.addChild(selectionDisc)
         }
-        forearmTarget.isEnabled = name != nil
+        forearmTarget.isEnabled = name.map { items[$0] != nil } ?? false
     }
 
     func drag(_ item: Entity, to position: SIMD3<Float>) {

@@ -11,6 +11,7 @@ final class MockClinicalEngine: ClinicalEngine {
     let modeLabel = "Mock"
     private var counts: [String: Int] = [:]
 
+    private var current: SessionInfo?
     private let info = SessionInfo(
         sessionId: "mock",
         startedAt: ISO8601DateFormatter().string(from: Date()),
@@ -31,8 +32,17 @@ final class MockClinicalEngine: ClinicalEngine {
         )
     )
 
-    func startSession(caseId: String) async throws -> SessionInfo { counts = [:]; return info }
-    func reset() async throws -> SessionInfo { counts = [:]; return info }
+    var bundledCases: [CaseInfo] { [info.case] }
+    func caseCatalog() async throws -> [CaseInfo] { [info.case] }
+    func startSession(caseId: String, config: SessionConfig?) async throws -> SessionInfo {
+        counts = [:]
+        var started = info
+        started.config = try (info.case.catalog ?? CaseCatalog()).resolve(config)
+        started.sessionId = "mock"
+        current = started
+        return started
+    }
+    func reset() async throws -> SessionInfo { counts = [:]; return current ?? info }
     func recordInteraction(_ turn: TranscriptTurn) async {}
 
     func examine(zoneId: String, action: String) async throws -> ExaminationResult {
@@ -64,6 +74,15 @@ final class MockClinicalEngine: ClinicalEngine {
     func fittingCheck(_ kind: String) async throws -> FittingCheckResult {
         FittingCheckResult(check: kind, phase: "before", finding: nil, patientResponse: "It feels fine.",
                            voiceContext: "[mock check]", comfortable: true, animation: "none")
+    }
+
+    func applyGel() async throws -> GelResult {
+        GelResult(applied: true, patientResponse: "That's cold.", voiceContext: "[mock gel]", repeatCount: 1)
+    }
+    func scan(regionId: String, gelApplied: Bool?) async throws -> ScanResult {
+        ScanResult(regionId: regionId, viewId: nil, image: nil, title: "Mock scan", caption: "Mock.", measurements: [],
+                   imageCredit: "", depthCm: 10, gain: 50, quality: "poor", gelApplied: false, patientResponse: "",
+                   voiceContext: "", repeatCount: 1)
     }
 
     func diagnose(_ diagnosis: String, notes: ClinicalNotes) async throws -> Feedback { makeFeedback(diagnosis) }
@@ -116,8 +135,9 @@ final class MockVoiceService: VoiceService {
 
     init(scripted: Bool = false) { self.scripted = scripted }
 
-    func start(caseContext: String) async {
+    func start(caseContext: String, voiceId: String?) async {
         guard scripted else { return }
+        summaryPolls = 0
         status = .connecting
         try? await Task.sleep(nanoseconds: 600_000_000)
         status = .connected
@@ -176,5 +196,20 @@ final class MockVoiceService: VoiceService {
         onTranscript?(TranscriptTurn(role: .patient, text: line))
         try? await Task.sleep(nanoseconds: 900_000_000)
         isAgentSpeaking = false
+    }
+
+    private struct NoSummary: LocalizedError {
+        var errorDescription: String? { "No voice conversation was recorded, so there is nothing to summarise." }
+    }
+
+    /// Scripted: a fixed draft after one "still processing" poll. Otherwise there is no conversation.
+    @ObservationIgnored private var summaryPolls = 0
+
+    func fetchSummary() async throws -> String? {
+        guard scripted else { throw NoSummary() }
+        summaryPolls += 1
+        guard summaryPolls > 1 else { return nil }
+        return "Mock summary: the student greeted Alex and asked about the injury to the right wrist. "
+            + "With a live ElevenLabs agent this is the agent's generated call summary."
     }
 }

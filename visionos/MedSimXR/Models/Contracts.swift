@@ -71,6 +71,101 @@ struct Orthotics: Codable, Hashable, Sendable {
     var tightness: [String] = []
 }
 
+/// A scan area on the patient's belly. Which views it yields stays with the engine.
+struct UltrasoundRegion: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var label: String
+    /// Anchor name in the avatar's sidecar (abdomen_fundus, ...).
+    var attachTo: String
+    var radius: Float
+}
+
+/// Present only for cases with an ultrasound machine, probe and gel.
+struct UltrasoundInfo: Codable, Hashable, Sendable {
+    var regions: [UltrasoundRegion]
+}
+
+/// Dashboard metadata of a case. Spoiler-free by contract: never names the diagnosis.
+/// Mirrors `CaseCatalog` in backend/app/models.py, defaults included.
+struct CaseCatalog: Codable, Hashable, Sendable {
+    var summary = ""
+    /// SF Symbol name.
+    var icon: String?
+    var setting: String?
+    var skills: [String] = []
+    var allowedMoods = ["calm"]
+    var allowedAvatars = ["male"]
+    var defaultMood = "calm"
+    var defaultAvatar = "male"
+    /// Bundled avatar model name that wins over the avatar choice (e.g. "Patient_pregnant").
+    var avatarModel: String?
+
+    init(summary: String = "", icon: String? = nil, setting: String? = nil, skills: [String] = [],
+         allowedMoods: [String] = ["calm"], allowedAvatars: [String] = ["male"],
+         defaultMood: String = "calm", defaultAvatar: String = "male", avatarModel: String? = nil) {
+        self.summary = summary; self.icon = icon; self.setting = setting; self.skills = skills
+        self.allowedMoods = allowedMoods.isEmpty ? ["calm"] : allowedMoods
+        self.allowedAvatars = allowedAvatars.isEmpty ? ["male"] : allowedAvatars
+        self.defaultMood = self.allowedMoods.contains(defaultMood) ? defaultMood : self.allowedMoods[0]
+        self.defaultAvatar = self.allowedAvatars.contains(defaultAvatar) ? defaultAvatar : self.allowedAvatars[0]
+        self.avatarModel = avatarModel
+    }
+
+    /// Tolerant: every key is optional, so old and hand-written JSON decodes.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(summary: try c.decodeIfPresent(String.self, forKey: .summary) ?? "",
+                  icon: try c.decodeIfPresent(String.self, forKey: .icon),
+                  setting: try c.decodeIfPresent(String.self, forKey: .setting),
+                  skills: try c.decodeIfPresent([String].self, forKey: .skills) ?? [],
+                  allowedMoods: try c.decodeIfPresent([String].self, forKey: .allowedMoods) ?? ["calm"],
+                  allowedAvatars: try c.decodeIfPresent([String].self, forKey: .allowedAvatars) ?? ["male"],
+                  defaultMood: try c.decodeIfPresent(String.self, forKey: .defaultMood) ?? "calm",
+                  defaultAvatar: try c.decodeIfPresent(String.self, forKey: .defaultAvatar) ?? "male",
+                  avatarModel: try c.decodeIfPresent(String.self, forKey: .avatarModel))
+    }
+
+    /// Requested values checked against the case; omitted ones come from the defaults.
+    /// Same rules as `resolve_config` in the backend (which answers 422).
+    func resolve(_ requested: SessionConfig?) throws -> SessionConfig {
+        try resolve(mood: requested?.mood, avatar: requested?.avatar)
+    }
+
+    func resolve(mood requestedMood: String?, avatar requestedAvatar: String?) throws -> SessionConfig {
+        let mood = requestedMood ?? defaultMood, avatar = requestedAvatar ?? defaultAvatar
+        guard allowedMoods.contains(mood) else {
+            throw ConfigError(errorDescription: "Mood '\(mood)' is not available for this case. Allowed: \(allowedMoods.joined(separator: ", ")).")
+        }
+        guard allowedAvatars.contains(avatar) else {
+            throw ConfigError(errorDescription: "Avatar '\(avatar)' is not available for this case. Allowed: \(allowedAvatars.joined(separator: ", ")).")
+        }
+        return SessionConfig(mood: mood, avatar: avatar)
+    }
+
+    /// A random combination the case allows ("Surprise me").
+    func randomConfig() -> SessionConfig {
+        SessionConfig(mood: allowedMoods.randomElement() ?? defaultMood, avatar: allowedAvatars.randomElement() ?? defaultAvatar)
+    }
+
+    /// Bundled model for an avatar choice: `Patient` for male, `Patient_<avatar>` otherwise,
+    /// unless the case names its own model.
+    func avatarModelName(for avatar: String) -> String {
+        avatarModel ?? (avatar == "male" ? "Patient" : "Patient_\(avatar)")
+    }
+}
+
+struct ConfigError: LocalizedError {
+    let errorDescription: String?
+}
+
+/// What the patient is like in one encounter. Never changes findings or scoring.
+struct SessionConfig: Codable, Hashable, Sendable {
+    /// calm | nervous | angry (the case lists what it allows)
+    var mood: String
+    /// male | female
+    var avatar: String
+}
+
 struct CaseInfo: Codable, Hashable, Sendable {
     var caseId: String
     var title: String
@@ -81,12 +176,98 @@ struct CaseInfo: Codable, Hashable, Sendable {
     var scriptedDialogue: [ScriptedLine]
     var investigations: [InvestigationInfo] = []
     var orthotics = Orthotics()
+    /// Absent in older scenario files and servers.
+    var catalog: CaseCatalog?
+    /// Only cases with an ultrasound machine.
+    var ultrasound: UltrasoundInfo?
 }
 
 struct SessionInfo: Codable, Hashable, Sendable {
     var sessionId: String
     var startedAt: String
     var `case`: CaseInfo
+    /// The mood and avatar this session runs with (nil from an older server).
+    var config: SessionConfig?
+    /// Set when the session was launched from a published MedSim Studio scenario.
+    var scenario: ScenarioRuntime? = nil
+}
+
+// MARK: - MedSim Studio scenario (docs/studio-api.md)
+
+/// How a published scenario presents the case: setting, companions, equipment, coaching.
+/// It never carries findings; `CaseInfo` in the same session is already shaped to it.
+struct ScenarioRuntime: Codable, Hashable, Sendable {
+    struct Figure: Codable, Hashable, Sendable { var angleDeg: Float; var distanceM: Float }
+    struct Bystander: Codable, Hashable, Sendable {
+        var name: String
+        var roleLabel: String
+        /// calm | anxious
+        var mood: String
+        var lines: [String: [String]]
+        var interjectEveryS: Double
+    }
+    struct Teammate: Codable, Hashable, Sendable { var name: String; var roleLabel: String; var present: Bool }
+    struct Equipment: Codable, Hashable, Identifiable, Sendable {
+        var id: String; var label: String; var kind: String; var available: Bool
+    }
+    var scenarioId: String
+    var version: Int
+    var code: String
+    var title: String
+    /// draft | experimental | clinician_reviewed
+    var reviewState: String
+    var seed: Int
+    var environmentId: String
+    var environmentLabel: String
+    var difficulty: String
+    /// auto | on_request | off
+    var hintPolicy: String
+    /// 0...1
+    var noiseLevel: Double
+    var crowdFigures: [Figure]
+    var bystander: Bystander?
+    var teammate: Teammate
+    var equipment: [Equipment]
+
+    var reviewLabel: String {
+        reviewState == "clinician_reviewed" ? "Clinician-reviewed" : "\(reviewState.capitalized) · not clinician-reviewed"
+    }
+}
+
+/// A published scenario as the launch list shows it.
+struct ScenarioSummary: Codable, Hashable, Identifiable, Sendable {
+    var code: String
+    var title: String
+    var reviewState: String
+    var environment: String
+    var difficulty: String
+    var crowdedness: String
+    var id: String { code }
+}
+
+/// One instructor event from the Live Director, with the scenario and case as they are after it.
+struct DirectorEventMessage: Codable, Sendable {
+    struct Line: Codable, Hashable, Sendable { var speaker: String; var text: String }
+    var type: String
+    var seq: Int
+    var eventId: String
+    var kind: String
+    var label: String
+    var line: Line?
+    var voiceContext: String?
+    var scenario: ScenarioRuntime
+    var `case`: CaseInfo
+}
+
+/// The parts of GET /sessions/{id}/debrief the app shows next to the feedback.
+struct ScenarioDebrief: Codable, Hashable, Sendable {
+    struct Intervention: Codable, Hashable, Sendable { var seq: Int; var label: String; var acknowledged: Bool }
+    struct Hint: Codable, Hashable, Sendable { var seq: Int; var text: String }
+    struct Step: Codable, Hashable, Sendable { var seq: Int; var type: String; var label: String }
+    var interpretation: [String]
+    var interventions: [Intervention]
+    var hints: [Hint]
+    var timeline: [Step]
 }
 
 // MARK: - Examination
@@ -103,6 +284,66 @@ struct ExaminationResult: Codable, Hashable, Sendable {
     var animation: String
     var voiceContext: String
     var repeatCount: Int
+}
+
+// MARK: - Ultrasound
+
+struct GelResult: Codable, Hashable, Sendable {
+    var applied: Bool
+    var patientResponse: String
+    var voiceContext: String
+    var repeatCount: Int
+}
+
+struct ScanMeasurement: Codable, Hashable, Sendable {
+    var label: String
+    var value: Double
+    var unit: String
+
+    /// "BPD 4.61 cm"
+    var text: String { "\(label) \(String(format: "%g", value)) \(unit)" }
+}
+
+/// One probe contact as answered by the case engine. The images are real example sonograms
+/// from different pregnancies (Resources/Ultrasound), not this patient.
+struct ScanResult: Codable, Hashable, Identifiable, Sendable {
+    var id = UUID()
+    var regionId: String
+    /// Nil: no usable image (no gel).
+    var viewId: String?
+    /// Id in ultrasound_manifest.json, or nil.
+    var image: String?
+    var title: String
+    var caption: String
+    var measurements: [ScanMeasurement]
+    var imageCredit: String
+    /// Decoration of the simulated machine.
+    var depthCm: Double
+    var gain: Int
+    /// good | poor
+    var quality: String
+    var gelApplied: Bool
+    /// May be empty: the patient says nothing.
+    var patientResponse: String
+    var voiceContext: String
+    var repeatCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case regionId, viewId, image, title, caption, measurements, imageCredit, depthCm, gain, quality
+        case gelApplied, patientResponse, voiceContext, repeatCount
+    }
+}
+
+/// One expected (or optional) view versus what the learner obtained. Only after a diagnosis.
+struct ScanReviewItem: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var label: String
+    var expected: Bool
+    var obtained: Bool
+    var viewId: String?
+    /// Manifest id: the learner's own view, or an example when missed.
+    var image: String?
+    var explanation: String
 }
 
 // MARK: - Investigations
@@ -321,6 +562,8 @@ struct Feedback: Codable, Hashable, Sendable {
     var investigations: [String]
     var fitting: FittingAssessment
     var replay: [ReplayZone]
+    /// Ultrasound cases only (absent from older servers).
+    var scanReview: [ScanReviewItem]? = nil
     var disclaimer: String
 }
 
@@ -331,7 +574,12 @@ struct Feedback: Codable, Hashable, Sendable {
 protocol ClinicalEngine: AnyObject {
     /// Short human-readable mode for the status UI, e.g. "Backend", "Offline".
     var modeLabel: String { get }
-    func startSession(caseId: String) async throws -> SessionInfo
+    /// Cases bundled with the app, available instantly and offline (empty for a pure backend engine).
+    var bundledCases: [CaseInfo] { get }
+    /// Every case the engine can start. The backend answers `GET /cases`.
+    func caseCatalog() async throws -> [CaseInfo]
+    /// `config` nil = the case's defaults. A value the case does not allow is an error.
+    func startSession(caseId: String, config: SessionConfig?) async throws -> SessionInfo
     func examine(zoneId: String, action: String) async throws -> ExaminationResult
     /// Records the order and returns the scenario's predefined result.
     func orderInvestigation(_ id: String) async throws -> InvestigationResult
@@ -341,11 +589,21 @@ protocol ClinicalEngine: AnyObject {
     func recordFit(_ fit: OrthosisFit?) async throws -> FitAck
     /// comfort | neurovascular, answered for the current fit.
     func fittingCheck(_ kind: String) async throws -> FittingCheckResult
+    /// Ultrasound: records a gel application.
+    func applyGel() async throws -> GelResult
+    /// Ultrasound: one probe contact with a belly region. `gelApplied` is what the scene shows;
+    /// the engine's own gel record decides, the flag can only make the scan worse.
+    func scan(regionId: String, gelApplied: Bool?) async throws -> ScanResult
     /// Best effort; must never throw into the UI.
     func recordInteraction(_ turn: TranscriptTurn) async
     func diagnose(_ diagnosis: String, notes: ClinicalNotes) async throws -> Feedback
     func feedback() async throws -> Feedback
     func reset() async throws -> SessionInfo
+}
+
+extension ClinicalEngine {
+    var bundledCases: [CaseInfo] { [] }
+    func startSession(caseId: String) async throws -> SessionInfo { try await startSession(caseId: caseId, config: nil) }
 }
 
 enum VoiceStatus: Equatable, Sendable {
@@ -389,7 +647,9 @@ protocol VoiceService: AnyObject {
     var onOrder: ((String) async -> String)? { get set }
 
     /// Connects and passes `caseContext` as dynamic variable `case_context`.
-    func start(caseContext: String) async
+    /// `voiceId` (optional) overrides the agent's TTS voice for this conversation; the agent
+    /// must allow voice overrides (elevenlabs/setup.md).
+    func start(caseContext: String, voiceId: String?) async
     func stop() async
     /// Note-taking mode: while muted the agent must not hear the learner (dictated notes).
     func setMicMuted(_ muted: Bool) async
@@ -397,4 +657,12 @@ protocol VoiceService: AnyObject {
     func sendContext(_ text: String) async
     /// Forwards `ExaminationResult.voiceContext`; the agent must speak a reaction.
     func sendExaminationEvent(_ text: String) async
+    /// After `stop()`: the voice provider's generated summary of the conversation(s) since the
+    /// last `start`. nil while it is still being generated; throws when none can be had.
+    /// A draft for the learner only; it never reaches the notes or the scoring by itself.
+    func fetchSummary() async throws -> String?
+}
+
+extension VoiceService {
+    func start(caseContext: String) async { await start(caseContext: caseContext, voiceId: nil) }
 }

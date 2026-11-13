@@ -1,0 +1,84 @@
+catalog cases=["wrist_trauma_001", "obstetric_ultrasound_001"]
+STEP 00-dashboard
+immersive opened=true
+placed at SIMD3<Float>(0.45002234, 0.0, -1.6999941) tracked=true
+behavior reset state=standing_idle
+session config case=obstetric_ultrasound_001 mood=calm avatar=female model=Patient_pregnant
+avatar usdz joints=53 size=SIMD3<Float>(0.53123343, 0.6871135, 1.4858327) minY=0.62
+avatar variant=Patient_pregnant loaded=Patient_pregnant
+pose seated_idle right_wrist moved=0.00
+ultrasound scene built regions=["abdomen_fundus", "abdomen_upper", "abdomen_center", "abdomen_lower", "abdomen_left", "abdomen_right"]
+teaching anatomy=false reference=none parts=0
+immersive scene built zones=0
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+pose seated_idle right_wrist moved=0.00
+session id=204d839b09ac409eaeb3b929aa04bb2f regions=["abdomen_fundus", "abdomen_upper", "abdomen_center", "abdomen_lower", "abdomen_left", "abdomen_right"] zones=0 state=seated_idle recumbent=true engine=Backend voice=Connected mic=Live exams=0 turns=1 error=none
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 01-us-session
+action sit_down -> failure: This movement is not available: the patient is lying on the examination couch. exams=0 turns=1
+sit_down on the couch -> failure: This movement is not available: the patient is lying on the examination couch.
+asked us_greeting engine=Backend voice=Connected mic=Live exams=0 turns=3 error=none
+audio clip=us_greeting started=true duration=4.61s
+asked us_consent engine=Backend voice=Connected mic=Live exams=0 turns=5 error=none
+audio clip=us_consent started=true duration=2.36s
+asked us_procedure engine=Backend voice=Connected mic=Live exams=0 turns=7 error=none
+audio clip=us_procedure started=true duration=3.70s
+asked us_symptoms engine=Backend voice=Connected mic=Live exams=0 turns=9 error=none
+audio clip=us_symptoms started=true duration=2.78s
+asked us_movements engine=Backend voice=Connected mic=Live exams=0 turns=11 error=none
+audio clip=us_movements started=true duration=4.97s
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 01-us-conversation
+tap region=abdomen_center with nothing in hand
+hint=Pick up the probe first: pinch it on the trolley. probe=none
+scan region=abdomen_upper view=none quality=poor image=none imageFound=false measurements=[] repeat=1 gel=false engine=Backend exams=0 turns=11
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 02-us-no-gel
+probe lifted
+lifted probe=none
+gel applied repeat=1 response="Ooh, that's a bit cold!" engine=Backend exams=0 turns=12
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 03-us-gel
+scan region=abdomen_center view=overview quality=good image=us_overview imageFound=true measurements=[] repeat=1 gel=true engine=Backend exams=0 turns=13
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 04-us-overview
+scan region=abdomen_lower view=head_bpd quality=good image=us_head_bpd imageFound=true measurements=["BPD 4.61 cm"] repeat=1 gel=true engine=Backend exams=0 turns=14
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 04-us-head
+scan region=abdomen_upper view=heart_4ch quality=good image=us_heart_4ch imageFound=true measurements=[] repeat=1 gel=true engine=Backend exams=0 turns=14
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 04-us-heart
+scan region=abdomen_left view=spine quality=good image=us_spine imageFound=true measurements=[] repeat=1 gel=true engine=Backend exams=0 turns=15
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 04-us-spine
+scan region=abdomen_right view=femur quality=good image=us_femur imageFound=true measurements=["FL 3.17 cm"] repeat=1 gel=true engine=Backend exams=0 turns=15
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 04-us-femur
+scan region=abdomen_fundus view=placenta quality=good image=us_placenta imageFound=true measurements=[] repeat=1 gel=true engine=Backend exams=0 turns=15
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 04-us-placenta
+scan region=abdomen_fundus view=amniotic_fluid quality=good image=us_amniotic_fluid imageFound=true measurements=[] repeat=1 gel=true engine=Backend exams=0 turns=15
+cycled region=abdomen_fundus view=amniotic_fluid
+scan region=abdomen_upper view=abdomen_ac quality=good image=us_abdomen_ac imageFound=true measurements=["AC 13.82 cm", "EFW 289 g"] repeat=1 gel=true engine=Backend exams=0 turns=15
+scan region=abdomen_upper view=heart_4ch quality=good image=us_heart_4ch imageFound=true measurements=[] repeat=2 gel=true engine=Backend exams=0 turns=15
+scan region=abdomen_lower view=head_hc quality=good image=us_head_bpd_2 imageFound=true measurements=["HC 16.73 cm", "OFD 5.78 cm"] repeat=1 gel=true engine=Backend exams=0 turns=15
+scan region=abdomen_lower view=head_cerebellum quality=good image=us_head_cerebellum imageFound=true measurements=["Cerebellum 2.01 cm", "Cisterna magna 6.55 mm"] repeat=1 gel=true engine=Backend exams=0 turns=15
+cycled region=abdomen_lower view=head_cerebellum
+probe lifted
+probe up: contact=none
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 04-us-no-contact
+asked us_sex_question engine=Backend voice=Connected mic=Live exams=0 turns=17 error=none
+audio clip=us_sex_question started=true duration=2.65s
+asked us_sex_answer engine=Backend voice=Connected mic=Live exams=0 turns=19 error=none
+audio clip=us_sex_answer started=true duration=4.05s
+asked us_reassure engine=Backend voice=Connected mic=Live exams=0 turns=21 error=none
+audio clip=us_reassure started=true duration=2.63s
+notebook open=true tab=Examination engine=Backend voice=Connected mic=Muted exams=0 turns=21 error=none
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 05-us-notebook
+diagnosed score=95/100 verdict=correct categories=["communication:40", "scanning:35", "documentation:20"] obtained=["head", "heart", "spine", "abdomen", "femur", "placenta", "liquor", "cerebellum", "overview"] management=0 fitting=0 notes=["view_head:documented", "view_heart:documented", "view_spine:documented", "view_abdomen:documented", "view_femur:documented", "view_placenta:documented", "view_liquor:documented"] engine=Backend voice=Disconnected mic=Unknown exams=0 turns=21 error=none
+placed at SIMD3<Float>(0.30002236, 0.0, -1.6999961) tracked=true
+STEP 06-us-feedback
+STEP 07-us-stopped
+DONE

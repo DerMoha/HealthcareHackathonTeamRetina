@@ -1,0 +1,25 @@
+{
+  "_doc": "Fixed ultrasound run for Swift/Python parity (case_id). Steps are applied in order against a fresh session; ultrasound_parity_expected.json holds the public case, each gel/scan result in order, and the final /diagnose response (session_id replaced by \"SESSION\"). The run scans once before gel (poor), applies gel twice, cycles the upper abdomen through two views, sends one scan with an explicit gel_applied false (poor), never obtains the femur but writes a femur measurement (unsupported), and writes the head, abdomen and placental findings.",
+  "case_id": "obstetric_ultrasound_001",
+  "config": {"mood": "nervous", "avatar": "female"},
+  "steps": [
+    {"op": "interaction", "role": "learner", "text": "Hello, I'm a medical student. Are you Sarah? Could you confirm your full name and date of birth?"},
+    {"op": "interaction", "role": "patient", "text": "Yes, I'm Sarah."},
+    {"op": "interaction", "role": "learner", "text": "I'd like to do your scan today. Is that all right with you?"},
+    {"op": "scan", "region_id": "abdomen_upper"},
+    {"op": "interaction", "role": "learner", "text": "I'll put some gel on your tummy. It may be a bit cold."},
+    {"op": "gel"},
+    {"op": "gel"},
+    {"op": "scan", "region_id": "abdomen_lower", "gel_applied": true},
+    {"op": "scan", "region_id": "abdomen_upper"},
+    {"op": "scan", "region_id": "abdomen_upper"},
+    {"op": "scan", "region_id": "abdomen_upper"},
+    {"op": "scan", "region_id": "abdomen_fundus", "gel_applied": false},
+    {"op": "scan", "region_id": "abdomen_fundus"},
+    {"op": "interaction", "role": "learner", "text": "That is the heartbeat, it looks good."},
+    {"op": "diagnose", "diagnosis": "Singleton pregnancy, about 20 weeks, posterior placenta",
+     "notes": {"history": "First pregnancy, feels well.",
+               "examination": "BPD 4.61 cm. AC 13.82 cm. Femur length 3.17 cm. Placenta posterior.",
+               "assessment": "Measurements in keeping with 20 weeks."}}
+  ]
+}

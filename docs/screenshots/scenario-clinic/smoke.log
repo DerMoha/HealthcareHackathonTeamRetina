@@ -1,0 +1,63 @@
+STEP s01-launch
+immersive opened=true
+placed at SIMD3<Float>(0.45, 0.0, -2.9) tracked=false
+behavior reset state=standing_idle
+scenario code=LKGLZX v1 title="Quiet clinic, full kit (guided)" review=experimental env=outpatient_clinic difficulty=guided hints=auto noise=0.00 bystander=none helper=false crowd=0 sizes=["small", "medium", "large"] tape=true investigations=["right_wrist_xray", "right_wrist_mri", "right_wrist_ct"] engine=Backend
+stage sign=outpatient_clinic figures=0 bystander=none helper=false noise=0.00 noisePlaying=false
+zones rebuilt ["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"]
+director link connected
+avatar usdz joints=53 size=SIMD3<Float>(0.52524173, 1.37687, 0.78019935) minY=0.0
+pose standing_idle right_wrist moved=0.54
+teaching anatomy=false reference=none parts=0
+immersive scene built zones=3
+pose standing_idle right_wrist moved=0.54
+session id=eb35309e7d5349829776125004ffc340 scenario=LKGLZX phase=running notice=none error=none
+STEP s02-scenario
+behavior standing_idle -> sitting_down
+action sit_down -> success: Alex is sitting down. exams=0 turns=1
+pose sitting_down right_wrist moved=0.01
+behavior sitting_down -> seated_idle
+pose seated_idle right_wrist moved=0.01
+behavior seated_idle -> extending_arms
+action extend_both_arms -> success: Alex is holding both arms out. exams=0 turns=1
+pose extending_arms right_wrist moved=0.32
+behavior extending_arms -> arms_extended
+pose arms_extended right_wrist moved=0.31
+behavior arms_extended -> pain_recoil
+animation arm_withdrawal
+zone flash right_anatomical_snuffbox painful=true
+audio clip=ouch started=true duration=0.53s
+pose pain_recoil right_wrist moved=0.23
+behavior pain_recoil -> returning_to_rest
+pose returning_to_rest right_wrist moved=0.32
+behavior returning_to_rest -> arms_extended
+examined right_anatomical_snuffbox finding=marked_tenderness pain=8 engine=Backend
+pose arms_extended right_wrist moved=0.32
+investigation right_wrist_xray impression="No definite fracture visible." image=wrist_xray_pa imageFound=true engine=Backend results=1 exams=1 turns=2
+order right_wrist_xray -> success: Right wrist radiographs requested. The result is sh results=1
+hint policy=auto text="Start by introducing yourself and asking what happened."
+hint before events=Start by introducing yourself and asking what happened.
+hint policy=auto text="Examine more than one area: the sore part, the area next to it, and the uninjured side for comparison."
+STEP s03-await-director
+stage sign=outpatient_clinic figures=2 bystander=none helper=false noise=0.25 noisePlaying=true
+director events seen=1 expected=1 ["Crowd noise increases"]
+director applied seq=7 kind=crowd_noise_up event=d04faac85b004d0d85de3d27a95e86d3 sign=outpatient_clinic figures=2 bystander=none helper=false noise=0.25 noisePlaying=true sizes=["small", "medium", "large"] hints=auto exams=1 turns=2
+STEP s04-after-events
+hint policy=auto text="If an examination hurt, acknowledge it before you carry on."
+hint after events=If an examination hurt, acknowledge it before you carry on.
+lab drop orthosis_medium via=script axial=3.0cm radial=0.0cm snapped=true
+fit size=medium offset=3.0 orientation=thumb_radial tightness=loose attempt=1 engine=Backend exams=1
+fit reaction unprompted response="It's the right shape, but it's loose. It shifts when I move."
+fit size=medium offset=3.0 orientation=thumb_radial tightness=snug attempt=2 engine=Backend exams=1
+fitted medium snug exams=1 error=none
+STEP s07-fitted
+diagnosed score=40/100 management=15/20 fitting=10/20
+debrief loaded=true interventions=1 acknowledged=1 hints=3 timeline=["examination", "investigation", "hint", "hint", "intervention", "hint", "fitting", "fitting"]
+debrief note: Difficulty: Guided. Coaching hints appear on their own as the encounter goes on.
+debrief note: Setting: Outpatient clinic room, quiet; noise level 25% at the end.
+debrief note: Coaching hints given: 3.
+debrief note: Instructor interventions: 1 (Crowd noise increases).
+debrief note: This scenario is experimental, not clinician-reviewed.
+STEP s08-debrief
+director link lost
+DONE

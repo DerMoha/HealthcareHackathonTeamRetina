@@ -43,7 +43,8 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         MEDSIM_BACKEND_HOST: $(MEDSIM_BACKEND_HOST)
         ELEVENLABS_AGENT_ID: $(ELEVENLABS_AGENT_ID)
-        NSMicrophoneUsageDescription: MedSim XR uses the microphone so you can talk to the virtual patient.
+        NSMicrophoneUsageDescription: MedSim XR uses the microphone so you can talk to the virtual patient and dictate notes.
+        NSSpeechRecognitionUsageDescription: MedSim XR turns your dictated notebook notes into text.
         NSHandsTrackingUsageDescription: MedSim XR tracks your hands so you can examine the virtual patient by touch.
         NSLocalNetworkUsageDescription: MedSim XR connects to the clinical scenario server on your local network.
         NSAppTransportSecurity:

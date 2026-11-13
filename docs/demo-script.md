@@ -57,3 +57,11 @@ With Alex seated and his arms extended ("Could you hold both arms out?"):
 Fallbacks without dragging: with the tape picked up the panel offers *Measure wrist* / *Measure forearm*; a placed support can be moved, turned, tightened and taken off from the panel. A support can only be put on by dragging.
 
 Say: "This is a teaching simulation of fitting, not a sizing tool."
+
+## Updated lab interaction and replay
+
+- **Putting a support on, two ways:** pinch it on the tray (it lifts, its base lights up, the forearm glows), then pinch the forearm; or drag it there. "Cancel" on the panel, or pinch the item again, deselects. Same for the tape.
+- **If neither works:** Debug → Equipment has "Measure wrist", "Measure forearm" and "Put S/M/L support on the wrist".
+- **Alex speaks up by himself** about a loose, tight or wrong-size support about a second after you stop adjusting. He does not repeat the same complaint.
+- **After submitting:** feedback → **Open Spatial Clinical Replay**. Step through what you actually examined, in order; missed areas are marked amber; the last step compares your support with the reference (green). "Anatomy" toggles the schematic bones on the injured forearm. **Exit** returns to the feedback.
+- Say: "The replay shows recorded examination areas, not hand movements, and the anatomy is a schematic."

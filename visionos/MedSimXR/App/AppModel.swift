@@ -20,10 +20,65 @@ enum NotebookTab: String, CaseIterable, Identifiable {
     case history = "History", examination = "Examination", investigations = "Investigations",
          assessment = "Assessment", conversation = "Transcript"
     var id: String { rawValue }
+
+    /// Tab label for the kind of case: an ultrasound learner records scan findings and an impression.
+    func title(ultrasound: Bool) -> String {
+        guard ultrasound else { return rawValue }
+        switch self {
+        case .examination: return "Scan findings"
+        case .assessment: return "Impression"
+        default: return rawValue
+        }
+    }
+
+    /// The Investigations tab does not apply to an ultrasound encounter.
+    static func tabs(ultrasound: Bool) -> [NotebookTab] { allCases.filter { !ultrasound || $0 != .investigations } }
 }
 
 enum SessionPhase: Equatable {
     case idle, running, feedback
+}
+
+enum SummaryState: Equatable {
+    case idle, waiting
+    case ready(String)
+    case failed(String)
+}
+
+/// What the learner picked on the dashboard. Nil fields mean "the case's default". With
+/// `surprise` the case, mood and avatar are drawn at Start and stay hidden until then.
+struct ScenarioSelection: Equatable {
+    var caseId: String?
+    var mood: String?
+    var avatar: String?
+    var surprise = false
+
+    private static let keys = (caseId: "dashboard.caseId", mood: "dashboard.mood", avatar: "dashboard.avatar", surprise: "dashboard.surprise")
+
+    /// Last dashboard choice, overridden by `-scenario`, `-mood`, `-avatar`. An unattended
+    /// run (`-autoDemo`) ignores the stored choice so it is repeatable.
+    static func initial() -> ScenarioSelection {
+        let defaults = UserDefaults.standard
+        var s = ScenarioSelection()
+        if !SmokeLog.enabled {
+            s.caseId = defaults.string(forKey: keys.caseId)
+            s.mood = defaults.string(forKey: keys.mood)
+            s.avatar = defaults.string(forKey: keys.avatar)
+            s.surprise = defaults.bool(forKey: keys.surprise)
+        }
+        if let id = AppConfig.launchArgument("-scenario") { s.caseId = id; s.surprise = false }
+        if let mood = AppConfig.launchArgument("-mood") { s.mood = mood }
+        if let avatar = AppConfig.launchArgument("-avatar") { s.avatar = avatar }
+        return s
+    }
+
+    func persist() {
+        let defaults = UserDefaults.standard
+        defaults.set(caseId, forKey: Self.keys.caseId)
+        defaults.set(mood, forKey: Self.keys.mood)
+        defaults.set(avatar, forKey: Self.keys.avatar)
+        defaults.set(surprise, forKey: Self.keys.surprise)
+    }
 }
 
 /// The only object views talk to. Orchestrates engine + voice + avatar reactions.
@@ -36,6 +91,9 @@ final class AppModel {
     let behavior = PatientBehaviorController()
 
     private(set) var phase: SessionPhase = .idle
+    /// Whether the patient's immersive space is open (set by the space itself), so the control
+    /// panel and the Studio window can both start and stop sessions.
+    var immersiveOpen = false
     private(set) var session: SessionInfo?
     private(set) var transcript: [TranscriptTurn] = []
     private(set) var examinations: [ExaminationResult] = []
@@ -47,11 +105,23 @@ final class AppModel {
     private(set) var isBusy = false
     var debugMode = false
 
+    /// Cases the dashboard offers: bundled ones at once, the backend's list when it answers.
+    private(set) var catalog: [CaseInfo] = []
+    var selection = ScenarioSelection.initial() {
+        didSet { if selection != oldValue { selection.persist() } }
+    }
+    /// Bundled avatar model for the encounter being started or running ("Patient", "Patient_female", ...).
+    private(set) var activeAvatarModel = "Patient"
+    /// Resolved at Start (random picks included) and consumed by `startSession`.
+    @ObservationIgnored private var pending: (caseId: String, config: SessionConfig?)?
+
     /// The learner's notebook: free-text notes plus the diagnosis they formulate themselves.
     var notes = ClinicalNotes()
     var diagnosis = ""
     var notebookTab = NotebookTab.history
     private(set) var notebookOpen = false
+    /// Tap-to-dictate for the notebook's notes.
+    let dictation = NoteDictation()
 
     /// Results the learner has received, latest order of each investigation.
     private(set) var investigationResults: [InvestigationResult] = []
@@ -66,6 +136,17 @@ final class AppModel {
     var selectedTool: String?
     /// One-shot instruction for the 3D lab (scripted demo, panel fallback buttons).
     var labCommand: LabCommand?
+    /// Ultrasound: gel on the belly, the probe's contact and what the machine shows. Everything comes
+    /// from the engine's answers; the scene follows these values.
+    private(set) var gelApplied = false
+    private(set) var lastScan: ScanResult?
+    /// Belly region the probe rests on; nil = in the holder or in the air (the monitor shows no contact).
+    private(set) var probeRegion: String?
+    /// Counts scans, so the probe can turn a quarter turn each time.
+    private(set) var scanSerial = 0
+    private(set) var scanLog: [ScanResult] = []
+    /// Short reminder for the monitor's idle screen, e.g. after a tap with nothing in hand.
+    var usHint: String?
     /// Spatial Clinical Replay; only available once feedback is showing.
     private(set) var teachingMode = false
     var replayStep = 0
@@ -79,38 +160,150 @@ final class AppModel {
     /// Quiet time after the last adjustment before the patient speaks up unprompted.
     static let fitReactionDelay: TimeInterval = 1.3
 
+    /// The ElevenLabs post-call summary of the consultation. Only a draft: it reaches the
+    /// notes when the learner inserts it, so the documentation feedback stays theirs.
+    private(set) var summaryState = SummaryState.idle
+    @ObservationIgnored private var summaryTask: Task<Void, Never>?
+    /// How long to wait for ElevenLabs to finish its analysis, and how often to ask.
+    static let summaryTimeout: TimeInterval = 90
+    static let summaryPollInterval: TimeInterval = 3
+
     /// Replay steps: one per examination, then the support placement.
     var replayStepCount: Int { examEvents.count + 1 }
     var replayEvent: ExamEvent? { teachingMode && examEvents.indices.contains(replayStep) ? examEvents[replayStep] : nil }
+
+    // MedSim Studio scenario (nil = the fixed default case). Everything below is setting,
+    // companions and coaching; findings and scoring never come from here.
+    var scenario: ScenarioRuntime? { session?.scenario }
+    let director = DirectorLink()
+    /// The last thing a companion said; the immersive scene speaks and shows it.
+    private(set) var sceneLine: SceneLine?
+    /// Latest coaching hint, when the scenario offers coaching.
+    private(set) var hint: String?
+    /// Instructor events applied in this session, newest last.
+    private(set) var directorLog: [String] = []
+    /// Why a selected scenario is not running, if it is not.
+    private(set) var scenarioNotice: String?
+    private(set) var debrief: ScenarioDebrief?
+    /// Set by the immersive view after it rebuilt the room; reported back to the instructor.
+    var stageStatus = "immersive scene not open"
+    @ObservationIgnored private var companionTask: Task<Void, Never>?
+    @ObservationIgnored private var coachTask: Task<Void, Never>?
+    private var companionIndex = 0
 
     /// Seconds between accepted examination events (gaze+pinch or fingertip).
     static let examineCooldown: TimeInterval = 1.5
     private var lastExamineAt = Date.distantPast
 
     var zones: [ZoneInfo] { session?.case.zones ?? [] }
+    var ultrasound: UltrasoundInfo? { session?.case.ultrasound }
+    var isUltrasound: Bool { ultrasound != nil }
     var scriptedDialogue: [ScriptedLine] { session?.case.scriptedDialogue ?? [] }
     var engineModeLabel: String { engine.modeLabel }
 
     init(engine: any ClinicalEngine, voice: any VoiceService) {
         self.engine = engine
         self.voice = voice
+        self.catalog = Self.ordered(engine.bundledCases)
+        normalizeSelection()
         voice.onTranscript = { [weak self] turn in self?.record(turn) }
         voice.onAction = { [weak self] raw in self?.performPatientAction(raw) ?? "failure: unavailable" }
         voice.onOrder = { [weak self] raw in await self?.orderInvestigation(raw) ?? "failure: unavailable" }
+        director.onEvent = { [weak self] event in await self?.apply(event) ?? (false, "the app has no session") }
     }
 
     // MARK: Session
 
-    func startSession() async {
-        await run {
-            let info = try await self.engine.startSession(caseId: AppConfig.defaultCaseId)
-            self.apply(info)
-            Task { await self.voice.start(caseContext: info.case.voiceContext) }
+    /// The default case first, the others in the order the engine lists them.
+    private static func ordered(_ cases: [CaseInfo]) -> [CaseInfo] {
+        cases.filter { $0.caseId == AppConfig.defaultCaseId } + cases.filter { $0.caseId != AppConfig.defaultCaseId }
+    }
+
+    /// The chosen case, else the default case, else the first one.
+    var selectedCase: CaseInfo? {
+        catalog.first { $0.caseId == selection.caseId } ?? catalog.first { $0.caseId == AppConfig.defaultCaseId } ?? catalog.first
+    }
+
+    func loadCatalog() async {
+        if catalog.isEmpty { catalog = Self.ordered(engine.bundledCases) }
+        if let all = try? await engine.caseCatalog(), !all.isEmpty { catalog = Self.ordered(all) }
+        normalizeSelection()
+        SmokeLog.mark("catalog cases=\(catalog.map(\.caseId))")
+    }
+
+    /// Keeps the selection inside what the catalog offers (a stored case may be gone, a mood
+    /// may not exist in the newly chosen case).
+    func normalizeSelection() {
+        guard !catalog.isEmpty else { return }
+        var next = selection
+        let chosen = selectedCase
+        next.caseId = chosen?.caseId
+        let cat = chosen?.catalog ?? CaseCatalog()
+        if let mood = next.mood, !cat.allowedMoods.contains(mood) { next.mood = nil }
+        if let avatar = next.avatar, !cat.allowedAvatars.contains(avatar) { next.avatar = nil }
+        if next != selection { selection = next }
+    }
+
+    /// Settles case, mood and avatar for the coming encounter and the avatar model the scene
+    /// must load. Called before the immersive space opens; `startSession` uses the result.
+    @discardableResult
+    func prepareStart() -> (caseId: String, config: SessionConfig?) {
+        if let pending { return pending }
+        var chosen = selectedCase
+        var config: SessionConfig?
+        if selection.surprise, let random = catalog.randomElement() {
+            chosen = random
+            config = random.catalog.map { $0.randomConfig() }
+        } else if let cat = chosen?.catalog {
+            config = (try? cat.resolve(mood: selection.mood, avatar: selection.avatar)) ?? (try? cat.resolve(nil))
         }
+        let plan = (caseId: chosen?.caseId ?? AppConfig.defaultCaseId, config: config)
+        activeAvatarModel = avatarModel(chosen?.catalog, config?.avatar)
+        pending = plan
+        return plan
+    }
+
+    private func avatarModel(_ catalog: CaseCatalog?, _ avatar: String?) -> String {
+        let cat = catalog ?? CaseCatalog()
+        return cat.avatarModelName(for: avatar ?? cat.defaultAvatar)
+    }
+
+    func startSession() async {
+        scenarioNotice = nil
+        var scenarioCase = false
+        if let code = AppConfig.scenarioCode {
+            // A wrong code must be an error, not a quiet fall back to the default case.
+            switch await ScenarioClient.lookup(code) {
+            case .found: scenarioCase = true
+            case .unknown:
+                pending = nil
+                lastError = "No published scenario with code \(code). Check the code in MedSim Studio, or clear it to run the default case."
+                SmokeLog.mark("scenario code=\(code) unknown, session not started")
+                return
+            case .unreachable:
+                scenarioNotice = "Scenario \(code) needs the backend, which is not reachable. Running the selected case offline."
+            }
+        }
+        let plan = prepareStart()
+        pending = nil
+        // A scenario brings its own case; the dashboard's mood and avatar may not exist there.
+        let config = scenarioCase ? nil : plan.config
+        await run {
+            let info = try await self.engine.startSession(caseId: plan.caseId, config: config)
+            self.apply(info)
+            SmokeLog.mark("session config case=\(info.case.caseId) mood=\(info.config?.mood ?? "none") "
+                + "avatar=\(info.config?.avatar ?? "none") model=\(self.activeAvatarModel)")
+            Task { await self.startVoice(info) }
+        }
+    }
+
+    private func startVoice(_ info: SessionInfo) async {
+        await voice.start(caseContext: info.case.voiceContext, voiceId: info.config.flatMap { AppConfig.voiceId(for: $0.avatar) })
     }
 
     func stopSession() async {
         await voice.stop()
+        endScenario()
         phase = .idle
     }
 
@@ -119,7 +312,7 @@ final class AppModel {
         await run {
             let info = try await self.engine.reset()
             self.apply(info)
-            Task { await self.voice.start(caseContext: info.case.voiceContext) }
+            Task { await self.startVoice(info) }
         }
     }
 
@@ -129,7 +322,11 @@ final class AppModel {
     /// dictated notes are not heard as speech to the patient.
     func setNotebookOpen(_ open: Bool) {
         notebookOpen = open
-        if !open { viewing = nil }
+        if !open {
+            viewing = nil
+            // Stops recording before the patient's microphone opens again; the transcript still lands.
+            Task { await dictation.stop() }
+        }
         Task { await voice.setMicMuted(open && phase == .running) }
     }
 
@@ -262,9 +459,9 @@ final class AppModel {
 
     /// The patient speaks a line the engine supplied: through the live agent when connected,
     /// otherwise locally. A flinch goes through the behaviour controller.
-    private func patientSays(_ text: String, voiceContext: String, animation: String) async {
+    private func patientSays(_ text: String, voiceContext: String, animation: String, clip: String? = nil) async {
         let live = voice.status == .connected
-        reaction = ReactionEvent(animation: animation, painLevel: 0, text: text, clip: nil, speakLocally: !live)
+        reaction = ReactionEvent(animation: animation, painLevel: 0, text: text, clip: clip, speakLocally: !live)
         if animation != "none" { behavior.pain(withdrawArm: false) }
         if live { await voice.sendExaminationEvent(voiceContext) }
         else { record(TranscriptTurn(role: .patient, text: text)) }
@@ -282,6 +479,84 @@ final class AppModel {
             self.lastFitComplaint = ack.patientResponse
             SmokeLog.mark("fit reaction unprompted response=\"\(ack.patientResponse)\"")
             await self.patientSays(ack.patientResponse, voiceContext: ack.voiceContext, animation: ack.animation)
+        }
+    }
+
+    // MARK: Ultrasound
+
+    /// Gel on the belly. Recorded by the engine; the patient reacts to the cold.
+    func applyGel() async {
+        guard phase == .running, isUltrasound else { return }
+        selectedTool = nil
+        do {
+            let result = try await engine.applyGel()
+            gelApplied = true
+            usHint = nil
+            lastError = nil
+            SmokeLog.mark("gel applied repeat=\(result.repeatCount) response=\"\(result.patientResponse)\" engine=\(engineModeLabel) "
+                + "exams=\(examinations.count) turns=\(transcript.count)")
+            await patientSays(result.patientResponse, voiceContext: result.voiceContext, animation: "none", clip: "us_gel")
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// The probe touches a belly region (drag, pinch or button). The engine decides what the image is;
+    /// scanning again at the same region cycles through the views available there.
+    func scan(regionId: String) async {
+        guard phase == .running, isUltrasound else { return }
+        selectedTool = nil
+        do {
+            let result = try await engine.scan(regionId: regionId, gelApplied: gelApplied)
+            lastScan = result
+            probeRegion = regionId
+            scanSerial += 1
+            scanLog.append(result)
+            usHint = nil
+            lastError = nil
+            SmokeLog.mark("scan region=\(regionId) view=\(result.viewId ?? "none") quality=\(result.quality) image=\(result.image ?? "none") "
+                + "imageFound=\(result.image.map { UltrasoundImage.url($0) != nil } ?? false) measurements=\(result.measurements.map(\.text)) "
+                + "repeat=\(result.repeatCount) gel=\(result.gelApplied) engine=\(engineModeLabel) exams=\(examinations.count) turns=\(transcript.count)")
+            // The patient reacts the first time something shows (and to the dry probe), not to every cycle.
+            if !result.patientResponse.isEmpty, result.repeatCount == 1 {
+                await patientSays(result.patientResponse, voiceContext: result.voiceContext, animation: "none",
+                                  clip: result.viewId.map { "us_view_\($0)" } ?? "us_no_gel")
+            }
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Same region again: the next view there.
+    func rotateProbe() async {
+        if let region = probeRegion { await scan(regionId: region) }
+    }
+
+    /// The probe leaves the belly: the monitor shows no contact.
+    func liftProbe() {
+        guard probeRegion != nil || selectedTool != nil else { return }
+        probeRegion = nil
+        selectedTool = nil
+        SmokeLog.mark("probe lifted")
+    }
+
+    /// The probe was dragged off the belly (scene side of `liftProbe`: keeps the selection alone).
+    func probeLeftBelly() {
+        guard probeRegion != nil else { return }
+        probeRegion = nil
+        SmokeLog.mark("probe left the belly")
+    }
+
+    /// Pinch on a belly region: use what is in hand there.
+    func tapRegion(_ id: String) async {
+        guard phase == .running, isUltrasound else { return }
+        if selectedTool == UltrasoundScene.gelName {
+            await applyGel()
+        } else if selectedTool == UltrasoundScene.probeName || probeRegion != nil {
+            await scan(regionId: id)
+        } else {
+            usHint = "Pick up the probe first: pinch it on the trolley."
+            SmokeLog.mark("tap region=\(id) with nothing in hand")
         }
     }
 
@@ -347,6 +622,54 @@ final class AppModel {
         reaction = ReactionEvent(animation: "none", painLevel: 0, text: line.patient, clip: line.id, speakLocally: true)
     }
 
+    // MARK: Consultation summary
+
+    /// Ends the conversation with the patient and waits for ElevenLabs' post-call summary.
+    /// The session keeps running: examinations and notes still work, the patient then
+    /// speaks locally. Calling it again after a failure only retries the fetch.
+    func endConsultation() {
+        guard phase == .running, summaryState != .waiting else { return }
+        summaryState = .waiting
+        summaryTask?.cancel()
+        summaryTask = Task { [weak self] in
+            guard let self else { return }
+            await self.voice.stop()
+            let deadline = Date().addingTimeInterval(Self.summaryTimeout)
+            while !Task.isCancelled {
+                do {
+                    if let text = try await self.voice.fetchSummary() {
+                        guard !Task.isCancelled else { return }
+                        self.summaryState = .ready(text)
+                        SmokeLog.mark("summary ready chars=\(text.count)")
+                        return
+                    }
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    self.summaryState = .failed(error.localizedDescription)
+                    return
+                }
+                if Date() >= deadline {
+                    self.summaryState = .failed("ElevenLabs has not finished the summary yet. Try again in a minute.")
+                    return
+                }
+                try? await Task.sleep(nanoseconds: UInt64(Self.summaryPollInterval * 1_000_000_000))
+            }
+        }
+    }
+
+    /// The learner accepts the draft: it is appended to their history notes, where they can edit it.
+    func insertSummary() {
+        guard case .ready(let text) = summaryState else { return }
+        let existing = notes.history.trimmingCharacters(in: .whitespacesAndNewlines)
+        notes.history = existing.isEmpty ? text : existing + "\n\n" + text
+        summaryState = .idle
+    }
+
+    func discardSummary() {
+        summaryTask?.cancel()
+        summaryState = .idle
+    }
+
     // MARK: Diagnosis / feedback
 
     func submitDiagnosis() async {
@@ -356,6 +679,11 @@ final class AppModel {
             self.feedback = try await self.engine.diagnose(diagnosis, notes: self.notes)
             self.phase = .feedback
             await self.voice.stop()
+            self.companionTask?.cancel()
+            self.coachTask?.cancel()
+            if self.scenario != nil, let id = self.session?.sessionId {
+                self.debrief = await ScenarioClient.debrief(sessionId: id)
+            }
         }
     }
 
@@ -368,10 +696,12 @@ final class AppModel {
 
     private func apply(_ info: SessionInfo) {
         session = info
+        activeAvatarModel = avatarModel(info.case.catalog, info.config?.avatar)
         transcript = []
         examinations = []
         feedback = nil
         reaction = nil
+        dictation.cancel()
         notes = ClinicalNotes()
         diagnosis = ""
         notebookTab = .history
@@ -382,15 +712,103 @@ final class AppModel {
         fit = nil
         lastCheck = nil
         selectedTool = nil
+        gelApplied = false
+        lastScan = nil
+        probeRegion = nil
+        scanSerial = 0
+        scanLog = []
+        usHint = nil
         teachingMode = false
         replayStep = 0
         examEvents = []
         sessionStart = Date()
         fitReactionTask?.cancel()
         lastFitComplaint = nil
+        summaryTask?.cancel()
+        summaryState = .idle
         lastExamineAt = .distantPast
         behavior.reset()
         phase = .running
+        startScenario()
+    }
+
+    // MARK: Scenario runtime
+
+    private func endScenario() {
+        companionTask?.cancel()
+        coachTask?.cancel()
+        director.disconnect()
+    }
+
+    /// Called for every new encounter. With no scenario this only clears the scenario state.
+    private func startScenario() {
+        endScenario()
+        sceneLine = nil; hint = nil; directorLog = []; debrief = nil; companionIndex = 0
+        guard let s = scenario, let id = session?.sessionId else {
+            if AppConfig.scenarioCode != nil, scenarioNotice == nil {
+                scenarioNotice = "The backend did not answer, so the scenario was not loaded. Running the fixed default case offline."
+            }
+            return
+        }
+        scenarioNotice = nil
+        director.connect(sessionId: id)
+        SmokeLog.mark("scenario code=\(s.code) v\(s.version) title=\"\(s.title)\" review=\(s.reviewState) env=\(s.environmentId) "
+            + "difficulty=\(s.difficulty) hints=\(s.hintPolicy) noise=\(String(format: "%.2f", s.noiseLevel)) "
+            + "bystander=\(s.bystander?.mood ?? "none") helper=\(s.teammate.present) crowd=\(s.crowdFigures.count) "
+            + "sizes=\(session?.case.orthotics.sizes.map(\.id) ?? []) tape=\(session?.case.orthotics.measurements.isEmpty == false) "
+            + "investigations=\(session?.case.investigations.map(\.id) ?? []) engine=\(engineModeLabel)")
+        companionTask = Task { [weak self] in
+            // The bystander speaks up on their own: once early, then at the scenario's interval.
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            while !Task.isCancelled, let self, self.phase == .running, let b = self.scenario?.bystander {
+                let lines = b.lines[b.mood] ?? []
+                guard self.companionIndex < lines.count else { return }
+                self.sceneLine = SceneLine(speaker: b.name, text: lines[self.companionIndex])
+                self.companionIndex += 1
+                try? await Task.sleep(nanoseconds: UInt64(b.interjectEveryS * 1_000_000_000))
+            }
+        }
+        coachTask = Task { [weak self] in
+            // Guided scenarios: hints arrive without asking, as the encounter goes on.
+            while !Task.isCancelled, let self, self.phase == .running {
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+                if !Task.isCancelled, self.phase == .running, self.scenario?.hintPolicy == "auto" { await self.requestHint() }
+            }
+        }
+    }
+
+    /// The next coaching hint from the backend, which records it for the debrief.
+    func requestHint() async {
+        guard phase == .running, let s = scenario, s.hintPolicy != "off", let id = session?.sessionId else { return }
+        let text = await ScenarioClient.hint(sessionId: id)
+        if let text { hint = text }
+        SmokeLog.mark("hint policy=\(s.hintPolicy) text=\"\(text ?? "none")\"")
+    }
+
+    /// An instructor event from the Live Director. The message carries the scenario and the
+    /// case as they are after the event; examinations, results and the transcript are not
+    /// touched, so nothing the student already found changes.
+    private func apply(_ event: DirectorEventMessage) async -> (applied: Bool, detail: String) {
+        guard phase == .running, var info = session, info.scenario != nil else {
+            return (false, "no scenario session is running in the app")
+        }
+        info.scenario = event.scenario
+        info.case.investigations = event.case.investigations
+        info.case.orthotics = event.case.orthotics
+        info.case.learnerBrief = event.case.learnerBrief
+        session = info
+        directorLog.append(event.label)
+        if let line = event.line {
+            sceneLine = SceneLine(speaker: line.speaker, text: line.text)
+            if event.kind == "bystander_anxious" { companionIndex = 1 } // the first anxious line was just said
+        }
+        if let context = event.voiceContext { await voice.sendContext(context) }
+        if event.kind == "enable_coaching", event.scenario.hintPolicy == "auto" { await requestHint() }
+        try? await Task.sleep(nanoseconds: 400_000_000) // let the immersive view rebuild the room first
+        let detail = "\(stageStatus) sizes=\(info.case.orthotics.sizes.map(\.id)) hints=\(event.scenario.hintPolicy)"
+        SmokeLog.mark("director applied seq=\(event.seq) kind=\(event.kind) event=\(event.eventId) \(detail) "
+            + "exams=\(examinations.count) turns=\(transcript.count)")
+        return (true, detail)
     }
 
     private func record(_ turn: TranscriptTurn) {

@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 FIXTURES = Path(__file__).parent / "fixtures"
+CASE = "wrist_trauma_001"
 
 
 def say(client, sid, text, role="learner"):
@@ -19,7 +20,8 @@ def crit(fb, cid):
 
 
 def test_health_and_session_creation(client):
-    assert client.get("/health").json() == {"status": "ok", "version": "0.1.0", "cases": 1}
+    from app.sessions import load_scenarios
+    assert client.get("/health").json() == {"status": "ok", "version": "0.1.0", "cases": len(load_scenarios())}
     r = client.post("/sessions", json={"case_id": "wrist_trauma_001"})
     assert r.status_code == 201
     body = r.json()
@@ -227,6 +229,40 @@ def test_token_success(client, monkeypatch):
     assert client.get("/elevenlabs/conversation-token").json() == {"token": "t"}
 
 
+def test_transcribe_unconfigured_503(client, monkeypatch):
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    r = client.post("/elevenlabs/transcribe", content=b"audio", headers={"content-type": "audio/mp4"})
+    assert r.status_code == 503 and "not configured" in r.json()["detail"]
+
+
+def test_transcribe_empty_400(client, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "k")
+    assert client.post("/elevenlabs/transcribe", content=b"").status_code == 400
+
+
+def test_transcribe_upstream_rejection_502_hides_key(client, monkeypatch):
+    import httpx
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "sk-secret")
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: httpx.Response(401, json={"detail": "sk-secret"}))
+    r = client.post("/elevenlabs/transcribe", content=b"audio", headers={"content-type": "audio/mp4"})
+    assert r.status_code == 502 and "sk-secret" not in r.text
+
+
+def test_transcribe_success(client, monkeypatch):
+    import httpx
+    seen = {}
+
+    def fake_post(url, **k):
+        seen.update(url=url, model=k["data"]["model_id"], file=k["files"]["file"], key=k["headers"]["xi-api-key"])
+        return httpx.Response(200, json={"text": " Tender over the snuffbox. ", "language_code": "en"})
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "k")
+    monkeypatch.setattr(httpx, "post", fake_post)
+    r = client.post("/elevenlabs/transcribe", content=b"audio", headers={"content-type": "audio/mp4"})
+    assert r.json() == {"text": "Tender over the snuffbox."}
+    assert seen["url"].endswith("/v1/speech-to-text") and seen["model"] == "scribe_v2" and seen["key"] == "k"
+    assert seen["file"][1] == b"audio" and seen["file"][2] == "audio/mp4"
+
+
 def run_parity(client):
     spec = json.loads((FIXTURES / "parity_input.json").read_text(encoding="utf-8"))
     sid = client.post("/sessions", json={"case_id": spec["case_id"]}).json()["session_id"]
@@ -324,7 +360,7 @@ def test_no_notes_means_no_documentation_and_nothing_before_diagnosis(client, si
 
 
 def test_public_case_text_is_spoiler_free(client):
-    case = client.get("/cases").json()[0]
+    case = next(c for c in client.get("/cases").json() if c["case_id"] == CASE)
     # zone ids are internal contract ids and never displayed; labels are
     shown = json.dumps([case["title"], case["learner_brief"], case["patient"],
                         [z["label"] for z in case["zones"]]]).lower()
@@ -360,7 +396,7 @@ def mgmt(client, sid, diagnosis="Suspected scaphoid fracture", **notes):
 
 
 def test_investigation_results_come_from_the_scenario(client, sid):
-    case = client.get("/cases").json()[0]
+    case = next(c for c in client.get("/cases").json() if c["case_id"] == CASE)
     assert [i["id"] for i in case["investigations"]] == [XRAY, MRI, CT]
     assert all(set(i) == {"id", "label"} for i in case["investigations"])  # no results in the public case
     x = order(client, sid, XRAY).json()
@@ -471,7 +507,7 @@ def fitting_feedback(client, sid):
 
 
 def test_measurements_circumference_is_predefined_length_comes_from_avatar(client, sid):
-    case = client.get("/cases").json()[0]
+    case = next(c for c in client.get("/cases").json() if c["case_id"] == CASE)
     assert [x["id"] for x in case["orthotics"]["sizes"]] == ["small", "medium", "large"]
     assert "reference" not in json.dumps(case["orthotics"]) and "16.8" not in json.dumps(case)
     c = post(client, sid, "measurements", {"measurement_id": "right_wrist_circumference", "value_cm": 99}).json()
@@ -584,3 +620,135 @@ def test_replay_only_after_diagnosis_and_reflects_real_examinations(client, sid)
     assert snuff["label"] == "Right anatomical snuffbox" and "key sign" in snuff["explanation"]
     assert not r["left_wrist"]["examined"] and r["left_wrist"]["finding"] is None
     assert "not examined" in r["left_wrist"]["explanation"] and not r["right_distal_forearm"]["examined"]
+
+
+# --- Case catalog and session configuration (mood, avatar) ---
+
+def create(client, **config):
+    body = {"case_id": CASE}
+    if config:
+        body["config"] = config
+    return client.post("/sessions", json=body)
+
+
+def test_cases_expose_catalog_metadata_without_leaks(client):
+    cases = client.get("/cases").json()
+    wrist = next(c for c in cases if c["case_id"] == CASE)
+    cat = wrist["catalog"]
+    assert cat["icon"] and cat["setting"] and cat["skills"] and cat["summary"]
+    assert set(cat["allowed_moods"]) >= {"calm", "nervous", "angry"}
+    assert cat["allowed_avatars"] == ["male", "female"]
+    assert (cat["default_mood"], cat["default_avatar"]) == ("calm", "male")
+    assert cat["avatar_model"] is None
+    # spoiler-free: the summary never names the diagnosis, nothing hidden leaks
+    blob = json.dumps(cases).lower()
+    for word in ["scaphoid", "navicular", "\"hidden\"", "\"result\"", "\"persona\"", "patient_by_mood"]:
+        assert word not in blob, word
+    assert "fracture" not in cat["summary"].lower()
+    # the case list is not personalised
+    assert "HOW YOU COME ACROSS" not in wrist["voice_context"]
+
+
+def test_session_config_defaults_and_echo(client):
+    default = create(client).json()
+    assert default["config"] == {"mood": "calm", "avatar": "male"}
+    partial = create(client, mood="nervous").json()
+    assert partial["config"] == {"mood": "nervous", "avatar": "male"}
+    full = create(client, mood="angry", avatar="female").json()
+    assert full["config"] == {"mood": "angry", "avatar": "female"}
+    assert create(client, **{}).json()["config"] == default["config"]
+    # reset keeps the configuration
+    sid = full["session_id"]
+    again = client.post(f"/sessions/{sid}/reset").json()
+    assert again["config"] == {"mood": "angry", "avatar": "female"}
+    assert again["case"]["voice_context"] == full["case"]["voice_context"]
+
+
+@pytest.mark.parametrize("config", [
+    {"mood": "furious"}, {"avatar": "robot"}, {"mood": "calm", "avatar": "robot"}, {"mood": "CALM"},
+])
+def test_session_config_rejects_values_the_case_does_not_allow(client, config):
+    r = create(client, **config)
+    assert r.status_code == 422, config
+    assert "not available" in r.json()["detail"]
+
+
+def test_session_config_rejects_wrong_types(client):
+    assert client.post("/sessions", json={"case_id": CASE, "config": {"mood": 3}}).status_code == 422
+    assert client.post("/sessions", json={"case_id": CASE, "config": "angry"}).status_code == 422
+
+
+def test_mood_and_avatar_shape_the_voice_context(client):
+    base = next(c for c in client.get("/cases").json() if c["case_id"] == CASE)["voice_context"]
+    contexts = {}
+    for mood in ("calm", "nervous", "angry"):
+        for avatar in ("male", "female"):
+            ctx = create(client, mood=mood, avatar=avatar).json()["case"]["voice_context"]
+            assert ctx.startswith(base), (mood, avatar)  # case facts stay first and untouched
+            contexts[(mood, avatar)] = ctx
+    assert len(set(contexts.values())) == 6
+    assert "hesitant" in contexts[("nervous", "male")] and "serious" in contexts[("nervous", "male")]
+    assert "waiting" in contexts[("angry", "male")] and "acknowledges the wait" in contexts[("angry", "male")]
+    assert "she/her" in contexts[("calm", "female")] and "he/him" in contexts[("calm", "male")]
+    assert "Alex" in contexts[("calm", "female")]  # the name stays
+    for ctx in contexts.values():
+        assert "scaphoid" not in ctx.lower()  # still no diagnosis
+
+
+def test_mood_variants_in_scripted_dialogue_keep_the_same_lines(client):
+    def lines(**cfg):
+        return {d["id"]: d for d in create(client, **cfg).json()["case"]["scripted_dialogue"]}
+    calm, nervous, angry = lines(mood="calm"), lines(mood="nervous"), lines(mood="angry")
+    assert list(calm) == list(nervous) == list(angry)
+    assert calm["greeting"]["patient"] != nervous["greeting"]["patient"] != angry["greeting"]["patient"]
+    assert nervous["permission"]["patient"] != calm["permission"]["patient"]
+    assert all(calm[i]["learner"] == angry[i]["learner"] for i in calm)
+    assert lines()["greeting"]["patient"] == calm["greeting"]["patient"]  # default = calm wording
+    # clinical content of a mood variant is unchanged
+    assert "bike" in angry["greeting"]["patient"] and "wrist" in angry["greeting"]["patient"]
+
+
+def test_findings_and_scoring_do_not_depend_on_mood_or_avatar(client):
+    def run(**cfg):
+        sid = create(client, **cfg).json()["session_id"]
+        out = []
+        for zone in ("right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"):
+            out.append(examine(client, sid, zone).json())
+        say(client, sid, "Hello, I'm a medical student. Where exactly does it hurt?")
+        say(client, sid, "I'm sorry, I know that hurt.")
+        fb = client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": "Suspected scaphoid fracture"}).json()
+        fb["session_id"] = "SESSION"
+        return out, fb
+    reference = run()
+    for mood in ("nervous", "angry"):
+        for avatar in ("male", "female"):
+            assert run(mood=mood, avatar=avatar) == reference, (mood, avatar)
+
+
+def test_session_config_golden_voice_context(client):
+    """Swift's OfflineClinicalEngine must produce the same text (checked by check_offline_engine.sh).
+    Regenerate after editing persona text: REGEN_FIXTURES=1 python -m pytest -k golden_voice."""
+    import os
+    out = {}
+    for mood in ("calm", "nervous", "angry"):
+        for avatar in ("male", "female"):
+            case = create(client, mood=mood, avatar=avatar).json()["case"]
+            dialogue = {d["id"]: d["patient"] for d in case["scripted_dialogue"]}
+            out[f"{mood}/{avatar}"] = {"voice_context": case["voice_context"],
+                                       "greeting": dialogue["greeting"], "permission": dialogue["permission"]}
+    path = FIXTURES / "session_config_expected.json"
+    if os.environ.get("REGEN_FIXTURES"):
+        path.write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    assert out == json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_case_without_catalog_gets_calm_male_defaults():
+    from app import sessions
+    plain = {k: v for k, v in sessions.load_scenarios()[CASE].items() if k not in ("catalog", "persona")}
+    assert sessions.catalog_of(plain) is None
+    assert sessions.resolve_config(plain, None, None).model_dump() == {"mood": "calm", "avatar": "male"}
+    with pytest.raises(ValueError):
+        sessions.resolve_config(plain, "angry", None)
+    assert sessions.public_case(plain).catalog is None
+    cfg = sessions.resolve_config(plain, None, None)
+    assert sessions.public_case(plain, cfg).voice_context == plain["voice_context"]  # no persona: nothing appended
