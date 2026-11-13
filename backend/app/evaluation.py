@@ -70,6 +70,15 @@ A category with `note_kind: "examination"` flags notes about a view that was nev
 Feedback.management and Feedback.fitting are empty (score 0 of 0, no criteria). Feedback.scan_review lists
 `hidden.scan_review` items (views obtained versus expected) after a diagnosis; [] before and for other cases.
 
+JOURNEY CASES (`scenario["journey"]`, see journey.py) move through places with an AI medical team. The record
+is `Session.stages` (moves after the first stage) and `Session.team_actions` (requests; done=False when a
+prerequisite was missing). Points follow what the team actually did, never what was written:
+  team_action_any        one of `actions` DONE, while in one of `stages` (all stages when omitted);
+                         evidence = "<stage label>: <action label>" of the first such action
+  learner_said_in_stage  learner turn said while in one of `stages` (stage of a turn = by seq)
+  examined_after_action  an examination of one of `zones` after the first DONE action among `actions`
+                         (any stage); evidence = the zone's label
+
 SUMMARY TEMPLATE after a diagnosis (deterministic; sentences joined by one space):
   S1  only if transcript_available is false: NO_TRANSCRIPT
   S2  strengths[0], if any
@@ -82,7 +91,7 @@ from functools import lru_cache
 
 from .models import (CategoryResult, CriterionResult, DiagnosticAssessment, DocumentationItem,
                      Feedback, FittingAssessment, ManagementAssessment, ReplayZone, ScanReviewItem)
-from . import fitting, ultrasound
+from . import fitting, journey, ultrasound
 from .sessions import Session
 
 DISCLAIMER = ("Educational simulation only. Not a clinical diagnostic tool. "
@@ -167,7 +176,8 @@ def _first_quote(turns: list[dict], keywords: list[str]) -> str | None:
     return next((t["text"] for t in turns if _hit(t["text"], keywords)), None)
 
 
-def _run_check(check: dict, max_points: int, s: Session, labels: dict[str, str], plan: str | None):
+def _run_check(check: dict, max_points: int, s: Session, labels: dict[str, str], plan: str | None,
+               scenario: dict | None = None):
     """Return (points, met, evidence, method) for one criterion."""
     kind = check["type"]
     kws = check.get("keywords", [])
@@ -229,6 +239,23 @@ def _run_check(check: dict, max_points: int, s: Session, labels: dict[str, str],
         if need and not any(e["zone_id"] in need for e in exams):
             quote = None
         met = quote is not None
+    elif kind == "team_action_any":
+        method = "rule"
+        stages = check.get("stages")
+        hit = next((e for e in sorted(s.team_actions, key=lambda e: e["seq"])
+                    if e["done"] and e["action_id"] in check["actions"] and (not stages or e["stage_id"] in stages)), None)
+        met = hit is not None
+        quote = journey.action_label(scenario, hit["stage_id"], hit["action_id"]) if hit else None
+    elif kind == "learner_said_in_stage":
+        quote = _first_quote([t for t in turns if journey.stage_at(scenario, s, t["seq"]) in check.get("stages", [])], kws)
+        met = quote is not None
+    elif kind == "examined_after_action":
+        method = "rule"
+        done = [e["seq"] for e in s.team_actions if e["done"] and e["action_id"] in check["actions"]]
+        first = min(done) if done else None
+        zone = next((e["zone_id"] for e in exams if first is not None and e["seq"] > first and e["zone_id"] in check["zones"]), None)
+        met = zone is not None
+        quote = labels[zone] if zone else None
     else:  # diagnosis_matches is handled in evaluate()
         raise ValueError(f"unknown check type {kind!r}")
     return (max_points if met else 0), met, (quote if met else None), method
@@ -269,7 +296,7 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
                 if met:
                     ev = s.diagnosis
             else:
-                pts, met, ev, method = _run_check(check, mx, s, {**labels, **view_titles}, plan)
+                pts, met, ev, method = _run_check(check, mx, s, {**labels, **view_titles}, plan, scenario)
             if note_text.strip() and c.get("note_keywords"):
                 noted = _hit(note_text, c["note_keywords"])
                 if noted or met:

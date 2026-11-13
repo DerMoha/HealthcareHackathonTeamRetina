@@ -52,6 +52,7 @@ struct ImmersivePatientView: View {
             }
             stage.install(on: avatar)
             stage.sync(model.scenario)
+            stage.showInjury(model.visibleInjury)
             model.stageStatus = stage.status
             SmokeLog.mark("immersive scene built zones=\(avatar.zoneEntities.count)")
         } attachments: {
@@ -190,6 +191,15 @@ private struct StageSync: ViewModifier {
             }
             .onChange(of: model.sceneLine) { _, line in if let line { stage.say(line) } }
             .onChange(of: model.phase) { _, phase in if phase != .running { stage.stop() } }
+            .onChange(of: model.currentStage, initial: true) { showJourney() }
+            .onChange(of: model.session?.sessionId) { showJourney(); stage.showInjury(model.visibleInjury) }
+            .onChange(of: model.visibleInjury) { _, injury in stage.showInjury(injury) }
+    }
+
+    private func showJourney() {
+        stage.showJourney(model.currentStage, team: model.teamPresent, position: model.stageIndex,
+                          count: model.journey?.stages.count ?? 0)
+        stage.showInjury(model.visibleInjury) // showJourney(nil) clears it; a journey keeps it
     }
 }
 

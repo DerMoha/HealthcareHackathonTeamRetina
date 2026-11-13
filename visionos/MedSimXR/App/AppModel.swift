@@ -17,7 +17,7 @@ struct ReactionEvent: Identifiable, Equatable {
 }
 
 enum NotebookTab: String, CaseIterable, Identifiable {
-    case history = "History", examination = "Examination", investigations = "Investigations",
+    case team = "Team", history = "History", examination = "Examination", investigations = "Investigations",
          assessment = "Assessment", conversation = "Transcript"
     var id: String { rawValue }
 
@@ -31,8 +31,10 @@ enum NotebookTab: String, CaseIterable, Identifiable {
         }
     }
 
-    /// The Investigations tab does not apply to an ultrasound encounter.
-    static func tabs(ultrasound: Bool) -> [NotebookTab] { allCases.filter { !ultrasound || $0 != .investigations } }
+    /// The Investigations tab does not apply to an ultrasound encounter; the Team tab only to a journey.
+    static func tabs(ultrasound: Bool, journey: Bool = false) -> [NotebookTab] {
+        allCases.filter { (!ultrasound || $0 != .investigations) && (journey || $0 != .team) }
+    }
 }
 
 enum SessionPhase: Equatable {
@@ -198,6 +200,39 @@ final class AppModel {
     var zones: [ZoneInfo] { session?.case.zones ?? [] }
     var ultrasound: UltrasoundInfo? { session?.case.ultrasound }
     var isUltrasound: Bool { ultrasound != nil }
+
+    // Journey cases: the place the encounter is in and the AI medical team there. Every line the
+    // team says and every result comes from the clinical engine.
+    var journey: JourneyInfo? { session?.case.journey }
+    /// Index into `journey.stages`; moved only by `advanceStage()`.
+    private(set) var stageIndex = 0
+    /// Everything the team was asked to do, oldest first (refusals included).
+    private(set) var teamLog: [TeamActionResult] = []
+    @ObservationIgnored private var teamSpeech: Task<Void, Never>?
+    var currentStage: JourneyStage? {
+        guard let stages = journey?.stages, stages.indices.contains(stageIndex) else { return nil }
+        return stages[stageIndex]
+    }
+    var nextStage: JourneyStage? {
+        guard let stages = journey?.stages, stages.indices.contains(stageIndex + 1) else { return nil }
+        return stages[stageIndex + 1]
+    }
+    var teamPresent: [JourneyMember] { currentStage?.team.compactMap { journey?.member($0) } ?? [] }
+    /// True while a team request or a move is with the engine: a second tap would race it and a
+    /// resulting 409 would switch the whole session offline.
+    private(set) var journeyBusy = false
+    @ObservationIgnored private var teamReaction: Task<Void, Never>?
+    /// How the injured arm looks now: an open bleeding wound, then dressed, then splinted, following
+    /// what the team actually did (ids of road_trauma_journey_001). nil outside a journey.
+    var visibleInjury: ScenarioStage.Injury? {
+        guard journey != nil else { return nil }
+        func did(_ id: String) -> Bool { teamLog.contains { $0.done && $0.actionId == id } }
+        return ScenarioStage.Injury(dressed: did("haemorrhage_control"), splinted: did("splint_arm"))
+    }
+    /// Investigations the learner can request where the encounter is now (all of them outside a journey).
+    var availableInvestigations: [InvestigationInfo] {
+        (session?.case.investigations ?? []).filter { investigationBlock($0.id) == nil }
+    }
     var scriptedDialogue: [ScriptedLine] { session?.case.scriptedDialogue ?? [] }
     var engineModeLabel: String { engine.modeLabel }
 
@@ -209,6 +244,7 @@ final class AppModel {
         voice.onTranscript = { [weak self] turn in self?.record(turn) }
         voice.onAction = { [weak self] raw in self?.performPatientAction(raw) ?? "failure: unavailable" }
         voice.onOrder = { [weak self] raw in await self?.orderInvestigation(raw) ?? "failure: unavailable" }
+        voice.onTeamAction = { [weak self] raw in await self?.requestTeamAction(raw) ?? "failure: unavailable" }
         director.onEvent = { [weak self] event in await self?.apply(event) ?? (false, "the app has no session") }
     }
 
@@ -304,6 +340,8 @@ final class AppModel {
     func stopSession() async {
         await voice.stop()
         endScenario()
+        teamSpeech?.cancel()
+        teamReaction?.cancel()
         phase = .idle
     }
 
@@ -350,6 +388,11 @@ final class AppModel {
         guard phase == .running, let offered = session?.case.investigations else { return "failure: no session is running" }
         guard let info = offered.first(where: { $0.id == raw }) else {
             return "failure: Unknown investigation. Allowed: \(offered.map(\.id).joined(separator: ", "))."
+        }
+        // Checked here so a wrong place never reaches the backend (a 409 would switch the session offline).
+        if let blocked = investigationBlock(raw) {
+            lastError = blocked
+            return "failure: \(blocked)"
         }
         do {
             let result = try await engine.orderInvestigation(raw)
@@ -560,6 +603,96 @@ final class AppModel {
         }
     }
 
+    // MARK: Journey (roadside -> ambulance -> hospital)
+
+    /// Why `id` cannot be requested where the encounter is now, or nil. Same rule as the engines.
+    private func investigationBlock(_ id: String) -> String? {
+        guard let stages = journey?.stages, let here = currentStage else { return nil }
+        let places = stages.filter { $0.investigations.contains(id) }
+        guard !places.isEmpty, !places.contains(where: { $0.id == here.id }) else { return nil }
+        return "That investigation is not available \(here.label.lowercased()). "
+            + "It can be requested \(places.map { $0.label.lowercased() }.joined(separator: " or "))."
+    }
+
+    /// The learner asks the team to do something: a team button or the voice agent's client tool
+    /// `request_team_action`. The member's line is spoken in the room; a patient reaction follows it.
+    /// The returned text goes back to the voice agent.
+    @discardableResult
+    func requestTeamAction(_ raw: String) async -> String {
+        guard phase == .running, let stage = currentStage else { return "failure: this case has no medical team" }
+        guard !journeyBusy else { return "failure: The team is busy with the last request. Ask again in a moment." }
+        guard stage.actions.contains(where: { $0.id == raw }) else {
+            return "failure: Not available \(stage.label.lowercased()). Available here: "
+                + stage.actions.map(\.id).joined(separator: ", ") + "."
+        }
+        journeyBusy = true
+        defer { journeyBusy = false }
+        do {
+            let r = try await engine.requestTeamAction(raw)
+            teamLog.append(r)
+            lastError = nil
+            let line = JourneyLine(member: r.member.id, speaker: r.member.name, text: r.response)
+            speakTeam([line])
+            if r.patientResponse.isEmpty {
+                await voice.sendContext(r.voiceContext)
+            } else {
+                // After the team member has finished, so the two voices do not overlap; dropped if the
+                // encounter was reset or stopped in the meantime.
+                let wait = Self.speechSeconds(r.response), started = session?.sessionId
+                teamReaction?.cancel()
+                teamReaction = Task { [weak self] in
+                    try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+                    guard let self, !Task.isCancelled, self.phase == .running, self.session?.sessionId == started else { return }
+                    await self.patientSays(r.patientResponse, voiceContext: r.voiceContext, animation: "none")
+                }
+            }
+            SmokeLog.mark("team \(r.stageId)/\(raw) member=\(r.member.name) done=\(r.done) repeat=\(r.repeatCount) "
+                + "result=\"\(r.result ?? "none")\" engine=\(engineModeLabel) exams=\(examinations.count) turns=\(transcript.count)")
+            return r.done
+                ? "success: \(r.member.name) is doing it and says so out loud. Do not repeat what they say or report results."
+                : "blocked: \(r.member.name) could not do it yet and said: \(r.response)"
+        } catch {
+            lastError = error.localizedDescription
+            return "failure: The request could not be sent."
+        }
+    }
+
+    /// Moves the encounter to the next place. The patient agent learns where it is now; the team
+    /// there introduces itself.
+    func advanceStage() async {
+        guard phase == .running, !journeyBusy, let next = nextStage else { return }
+        journeyBusy = true
+        defer { journeyBusy = false }
+        do {
+            let r = try await engine.advanceStage(next.id)
+            stageIndex = r.index
+            viewing = nil
+            lastError = nil
+            if !r.voiceContext.isEmpty { await voice.sendContext(r.voiceContext) }
+            speakTeam(r.arrival)
+            SmokeLog.mark("stage \(r.stageId) index=\(r.index + 1)/\(r.count) team=\(teamPresent.map(\.name)) "
+                + "investigations=\(availableInvestigations.map(\.id)) engine=\(engineModeLabel)")
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Rough speaking time of a line with the system voice.
+    static func speechSeconds(_ text: String) -> Double { 0.8 + Double(text.split(separator: " ").count) * 0.38 }
+
+    /// Speaks team lines one after another (the immersive scene says and shows `sceneLine`).
+    private func speakTeam(_ lines: [JourneyLine]) {
+        teamSpeech?.cancel()
+        guard !lines.isEmpty else { return }
+        teamSpeech = Task { [weak self] in
+            for line in lines {
+                guard let self, !Task.isCancelled, self.phase == .running else { return }
+                self.sceneLine = SceneLine(speaker: line.speaker, text: line.text)
+                try? await Task.sleep(nanoseconds: UInt64(Self.speechSeconds(line.text) * 1_000_000_000))
+            }
+        }
+    }
+
     // MARK: Spatial Clinical Replay
 
     /// Only after submission: the teaching content it shows would give the diagnosis away.
@@ -728,8 +861,15 @@ final class AppModel {
         summaryState = .idle
         lastExamineAt = .distantPast
         behavior.reset()
+        teamSpeech?.cancel()
+        teamReaction?.cancel()
+        journeyBusy = false
+        stageIndex = 0
+        teamLog = []
         phase = .running
         startScenario()
+        // Journey: the team at the first place introduces itself.
+        if let first = journey?.stages.first { speakTeam(first.arrival) }
     }
 
     // MARK: Scenario runtime

@@ -59,6 +59,7 @@ struct ControlPanelView: View {
                      ?? "Start a session to meet your patient. Talk to them, examine them, and write your findings in the notebook beside them.")
                     .font(.callout).foregroundStyle(.secondary)
                 ScenarioCard()
+                JourneyPanel(compact: true)
                 sessionButtons
                 statusCard
                 if let err = model.lastError, !model.notebookOpen {
@@ -120,6 +121,10 @@ struct ControlPanelView: View {
         }
         if model.selectedCase?.ultrasound != nil {
             await ultrasoundDemo()
+            return
+        }
+        if model.selectedCase?.journey != nil {
+            await journeyDemo()
             return
         }
         await pause(1)
@@ -474,6 +479,123 @@ struct ControlPanelView: View {
         SmokeLog.mark("DONE")
     }
 
+    /// Scripted run of the road trauma journey (`-autoDemo -scenario road_trauma_journey_001`): roadside,
+    /// ambulance, emergency department. Team requests go through the scripted voice when it is connected,
+    /// else through the same model call the team buttons make. "STEP" lines are screenshot cues.
+    private func journeyDemo() async {
+        func pause(_ seconds: Double) async { try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
+        func state() -> String {
+            "engine=\(model.engineModeLabel) voice=\(model.voice.status.label) stage=\(model.currentStage?.id ?? "none") "
+                + "team=\(model.teamLog.count) exams=\(model.examinations.count) turns=\(model.transcript.count) error=\(model.lastError ?? "none")"
+        }
+        func ask(_ id: String) async {
+            guard let line = model.scriptedDialogue.first(where: { $0.id == id }) else { return }
+            model.askScripted(line)
+            SmokeLog.mark("asked \(id) \(state())")
+            await pause(3.2)
+        }
+        func team(_ text: String, _ action: String) async {
+            if let mock = model.voice as? MockVoiceService, mock.status == .connected {
+                await mock.hear(text)
+            } else {
+                await model.requestTeamAction(action)
+            }
+            SmokeLog.mark("team asked \(action) last=\(model.teamLog.last.map { "\($0.actionId):\($0.done)" } ?? "none") \(state())")
+            await pause(AppModel.speechSeconds(model.teamLog.last?.response ?? "") + 0.6)
+        }
+        func move() async {
+            await model.advanceStage()
+            await pause(5)
+            SmokeLog.mark("moved \(state())")
+        }
+
+        await pause(1)
+        model.prepareStart()
+        let opened = await openImmersiveSpace(id: "patient")
+        SmokeLog.mark("immersive opened=\({ if case .opened = opened { true } else { false } }())")
+        await model.startSession()
+        await pause(6) // Sam introduces the crew
+        SmokeLog.mark("session id=\(model.session?.sessionId ?? "none") stages=\(model.journey?.stages.map(\.id) ?? []) \(state())")
+        SmokeLog.mark("STEP 01-rt-roadside")
+        await pause(2)
+
+        await ask("rt_greeting")
+        await team("Sam, is the scene safe?", "scene_safety")
+        await ask("rt_mechanism")
+        await ask("rt_head_neck")
+        await team("Sam, please get pressure on that bleeding and a dressing on.", "haemorrhage_control")
+        await team("Lena, can you get a set of observations?", "observations")
+        await team("Lena, please take a photo of the wound first.", "photograph_wound")
+        model.performPatientAction(PatientAction.sitDown.rawValue)
+        await pause(3)
+        await ask("rt_permission")
+        await model.examine(zoneId: "rt_forearm_wound", source: .script)
+        await pause(3)
+        await ask("rt_empathy")
+        await team("Sam, let's give some pain relief.", "analgesia")
+        await team("Sam, can we splint the arm?", "splint_arm")
+        await model.examine(zoneId: "rt_right_hand", source: .script)
+        await pause(3)
+        await ask("rt_allergies")
+        SmokeLog.mark("STEP 02-rt-treated")
+        await pause(2)
+
+        await ask("rt_explain_transfer")
+        await move()
+        SmokeLog.mark("STEP 03-rt-ambulance")
+        await team("Lena, could you repeat the observations?", "observations")
+        await team("Lena, IV pain relief please.", "iv_analgesia") // refused: no cannula yet
+        await team("Lena, please put in a cannula.", "iv_access")
+        await team("Lena, IV pain relief please.", "iv_analgesia")
+        await team("Sam, please pre-alert the hospital.", "pre_alert")
+        await ask("rt_tetanus")
+        SmokeLog.mark("STEP 04-rt-ambulance-treated")
+        await pause(2)
+
+        await move()
+        SmokeLog.mark("STEP 05-rt-hospital")
+        let handover = "Handover: Jordan, 34-year-old cyclist knocked off by a car about forty minutes ago. Bleeding wound over a "
+            + "deformed right forearm, splinted, hand neurovascularly intact. Heart rate down to 104. We've given Penthrox and morphine."
+        if let mock = model.voice as? MockVoiceService, mock.status == .connected { await mock.hear(handover) }
+        else { model.askScripted(ScriptedLine(id: "rt_handover", learner: handover, patient: "Thank you.")) }
+        await pause(3)
+        await team("Priya, please give IV antibiotics.", "iv_antibiotics")
+        await team("Priya, he needs a tetanus booster.", "tetanus")
+        await team("Omar, can you refer him to the orthopaedic team?", "orthopaedic_referral")
+        await model.orderInvestigation("rt_xray_forearm")
+        await pause(2)
+        SmokeLog.mark("viewer open=\(model.viewing?.investigationId ?? "none") \(state())")
+        SmokeLog.mark("STEP 06-rt-xray")
+        await pause(3)
+        model.closeViewer()
+
+        model.notebookTab = .team
+        await pause(2)
+        SmokeLog.mark("STEP 07-rt-team-log")
+        model.notes.history = "34-year-old cyclist knocked off by a car. Helmet, no head injury, no neck pain. Penicillin allergy."
+        model.notes.examination = "Bleeding wound over a deformed right distal forearm. Hand pink, sensation intact after the splint."
+        model.notes.interpretation = "Displaced fractures of the radius and ulna with soft tissue gas."
+        model.notes.management = "IV antibiotics and tetanus given. Urgent orthopaedic referral for debridement and fixation in theatre."
+        model.notes.followUp = "Admit, nil by mouth."
+        model.diagnosis = "Open fracture of the right distal radius and ulna"
+        model.notebookTab = .assessment
+        await pause(2)
+        SmokeLog.mark("STEP 08-rt-notebook")
+        await model.submitDiagnosis()
+        let f = model.feedback
+        SmokeLog.mark("diagnosed score=\(f?.totalScore ?? -1)/\(f?.maxScore ?? -1) verdict=\(f?.diagnosticAssessment.verdict ?? "?") "
+            + "categories=\(f?.categories.map { "\($0.id):\($0.score)" } ?? []) "
+            + "management=\(f?.management.score ?? -1)/\(f?.management.maxScore ?? -1) \(state())")
+        await pause(2)
+        SmokeLog.mark("STEP 09-rt-feedback")
+        await pause(4)
+
+        await model.stopSession()
+        if immersed { await dismissImmersiveSpace() }
+        SmokeLog.mark("STEP 10-rt-stopped")
+        SmokeLog.mark("DONE")
+    }
+
     // MARK: Sections
 
     private var statusCard: some View {
@@ -487,8 +609,10 @@ struct ControlPanelView: View {
             statusRow("server.rack", "Engine", model.engineModeLabel, color: .secondary)
             // One-tap fallback when nobody is listening: without it a standing patient cannot be examined.
             if model.phase == .running, model.behavior.state == .standingIdle, model.voice.status != .connected {
-                Button("Ask Alex to sit down") { model.performPatientAction(PatientAction.sitDown.rawValue) }
-                    .buttonStyle(.bordered)
+                Button("Ask \(model.session?.case.patient.name ?? "the patient") to sit down") {
+                    model.performPatientAction(PatientAction.sitDown.rawValue)
+                }
+                .buttonStyle(.bordered)
             }
         }
         .padding(14)

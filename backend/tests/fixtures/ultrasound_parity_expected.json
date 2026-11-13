@@ -135,7 +135,8 @@
           "radius": 0.045
         }
       ]
-    }
+    },
+    "journey": null
   },
   "config": {
     "mood": "nervous",

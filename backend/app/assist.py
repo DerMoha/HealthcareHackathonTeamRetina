@@ -8,8 +8,10 @@ diagnosis is rejected and the deterministic template draft is returned instead, 
 reason. Objectives outside the template's list are dropped. A draft is never clinical
 ground truth and a scenario that uses one is marked `ai_generated`.
 
-Without ANTHROPIC_API_KEY (or without the `anthropic` package) the draft is built from the
-template alone and is the same every time.
+The model is reached with ANTHROPIC_API_KEY (Anthropic API) or, failing that, with AWS
+credentials (Amazon Bedrock: AWS_ACCESS_KEY_ID or AWS_PROFILE, region from AWS_REGION /
+AWS_DEFAULT_REGION). With neither (or without the `anthropic` package) the draft is built
+from the template alone and is the same every time.
 """
 import os
 from typing import Literal
@@ -19,6 +21,7 @@ from pydantic import BaseModel, Field
 from . import studio
 
 MODEL = "claude-opus-5-5"
+BEDROCK_MODEL = os.environ.get("MEDSIM_BEDROCK_MODEL", "us.anthropic.claude-opus-5-5")
 
 
 class AssistRequest(BaseModel):
@@ -99,17 +102,28 @@ def draft(req: AssistRequest, cases: dict[str, dict]) -> AssistResult:
     def from_template(note: str) -> AssistResult:
         return AssistResult(**fallback.model_dump(), source="template", notes=[note], requires_review=False)
 
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return from_template("No ANTHROPIC_API_KEY: built from the template.")
+    use_bedrock = not os.environ.get("ANTHROPIC_API_KEY")
+    if use_bedrock and not (os.environ.get("AWS_ACCESS_KEY_ID") or os.environ.get("AWS_PROFILE")):
+        return from_template("No ANTHROPIC_API_KEY or AWS credentials: built from the template.")
     try:
         import anthropic
     except ImportError:
         return from_template("The 'anthropic' package is not installed: built from the template.")
+    model = BEDROCK_MODEL if use_bedrock else MODEL
+    errors: tuple[type[Exception], ...] = (anthropic.APIError,)
+    if use_bedrock:
+        import botocore.exceptions  # expired or missing AWS credentials surface as botocore errors
+        errors += (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError)
     try:
-        response = anthropic.Anthropic(timeout=40).messages.parse(
-            model=MODEL, max_tokens=2000, output_config={"effort": "low"},
+        if use_bedrock:
+            region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION")
+            client = anthropic.AnthropicBedrock(aws_region=region, timeout=40)
+        else:
+            client = anthropic.Anthropic(timeout=40)
+        response = client.messages.parse(
+            model=model, max_tokens=2000, output_config={"effort": "low"},
             messages=[{"role": "user", "content": _prompt(req, t, case)}], output_format=AssistDraft)
-    except anthropic.APIError as e:
+    except errors as e:
         return from_template(f"The model call failed ({type(e).__name__}): built from the template.")
     out = response.parsed_output
     if response.stop_reason == "refusal" or out is None:
@@ -128,4 +142,4 @@ def draft(req: AssistRequest, cases: dict[str, dict]) -> AssistResult:
     objectives = [o for o in out.learning_objectives if o in known] or fallback.learning_objectives
     lines = [line[:160] for line in out.bystander_lines] if req.bystander != "none" else []
     return AssistResult(description=out.description, patient_personality=out.patient_personality,
-                        bystander_lines=lines, learning_objectives=objectives, source="llm", model=MODEL, notes=notes)
+                        bystander_lines=lines, learning_objectives=objectives, source="llm", model=model, notes=notes)

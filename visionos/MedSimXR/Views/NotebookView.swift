@@ -53,7 +53,9 @@ struct NotebookView: View {
                 FeedbackView()
             } else {
                 Picker("Section", selection: $model.notebookTab) {
-                    ForEach(NotebookTab.tabs(ultrasound: model.isUltrasound)) { Text($0.title(ultrasound: model.isUltrasound)).tag($0) }
+                    ForEach(NotebookTab.tabs(ultrasound: model.isUltrasound, journey: model.journey != nil)) {
+                        Text($0.title(ultrasound: model.isUltrasound)).tag($0)
+                    }
                 }
                 .pickerStyle(.segmented)
                 if model.voice.status == .connected {
@@ -61,6 +63,8 @@ struct NotebookView: View {
                         .font(.caption).foregroundStyle(.orange)
                 }
                 switch model.notebookTab {
+                case .team:
+                    JourneyPanel()
                 case .history:
                     summaryDraft
                     editor($model.notes.history, "What did the patient tell you?", id: "history")
@@ -113,11 +117,14 @@ struct NotebookView: View {
     private var investigations: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Request an investigation").font(.subheadline).foregroundStyle(.secondary)
-            ForEach(model.session?.case.investigations ?? []) { item in
+            ForEach(model.availableInvestigations) { item in
                 Button { Task { await model.orderInvestigation(item.id) } } label: {
                     Label(item.label, systemImage: "plus.circle").frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.bordered).disabled(model.phase != .running)
+            }
+            if let stage = model.currentStage, model.availableInvestigations.isEmpty {
+                Text("No investigations can be requested \(stage.label.lowercased()).").foregroundStyle(.tertiary)
             }
             Text("Results").font(.subheadline).foregroundStyle(.secondary).padding(.top, 6)
             if model.investigationResults.isEmpty {

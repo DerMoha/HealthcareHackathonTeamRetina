@@ -15,6 +15,8 @@ SNUFFBOX = "right_anatomical_snuffbox"
 def library(tmp_path, monkeypatch):
     monkeypatch.setenv("MEDSIM_STUDIO_DB", str(tmp_path / "library.json"))
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    for var in ("AWS_ACCESS_KEY_ID", "AWS_PROFILE"):  # keep Bedrock out of the deterministic tests
+        monkeypatch.delenv(var, raising=False)
     studio.LIVE.clear()
     director.HUB.clear()
 

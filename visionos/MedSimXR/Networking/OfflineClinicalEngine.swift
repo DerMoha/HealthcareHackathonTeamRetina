@@ -1,8 +1,10 @@
 import Foundation
 
-/// Failure reported by the offline engine (mirrors the backend's 404 / no-session cases).
+/// Failure reported by the offline engine (mirrors the backend's 404 / 409 / no-session cases).
 struct OfflineEngineError: LocalizedError {
     let errorDescription: String?
+    /// The HTTP status the backend answers in the same situation.
+    var status = 404
 }
 
 /// Implements the contract's examination + rubric rules from the bundled scenario JSON.
@@ -60,6 +62,9 @@ final class OfflineClinicalEngine: ClinicalEngine {
                 // ultrasound checks
                 var views: [String]?
                 var requiresViewed: [String]?
+                // journey checks
+                var actions: [String]?
+                var stages: [String]?
             }
             var id: String
             var label: String
@@ -182,6 +187,35 @@ final class OfflineClinicalEngine: ClinicalEngine {
             var avatars: [String: String]?
         }
 
+        /// Places and the AI medical team (mirrors backend/app/journey.py).
+        struct Journey: Decodable {
+            struct Line: Decodable { var member: String; var text: String }
+            struct Action: Decodable {
+                var id: String
+                var label: String
+                var member: String
+                var response: String
+                var result: String?
+                var patientResponse: String?
+                var requires: [String]?
+                var blockedResponse: String?
+            }
+            struct Stage: Decodable {
+                var id: String
+                var label: String
+                var setting: String
+                var brief: String
+                var team: [String]
+                var noise: Double?
+                var investigations: [String]?
+                var arrival: [Line]?
+                var voiceContext: String?
+                var actions: [Action]
+            }
+            var team: [JourneyMember]
+            var stages: [Stage]
+        }
+
         var caseId: String
         var title: String
         var learnerBrief: String
@@ -194,6 +228,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
         var investigations: [Investigation]
         var orthotics: Orthotics
         var ultrasound: Ultrasound?
+        var journey: Journey?
         var hidden: Hidden
     }
 
@@ -220,6 +255,9 @@ final class OfflineClinicalEngine: ClinicalEngine {
     private var checks: [(seq: Int, kind: String)] = []
     private var gels: [Int] = []
     private var scans: [Scan] = []
+    /// Journey: moves after the first stage, and every team request (done == false: prerequisite missing).
+    private var stageEvents: [(seq: Int, stageId: String)] = []
+    private var teamEvents: [(seq: Int, stageId: String, actionId: String, done: Bool)] = []
     private var diagnosis: String?
     private var notes = ClinicalNotes()
 
@@ -284,6 +322,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
 
     func orderInvestigation(_ id: String) async throws -> InvestigationResult {
         guard sessionId != nil else { throw noSession }
+        if let blocked = investigationError(id) { throw OfflineEngineError(errorDescription: blocked, status: 409) }
         guard let inv = scenario.investigations.first(where: { $0.id == id }) else {
             throw OfflineEngineError(errorDescription: "Unknown investigation '\(id)'.")
         }
@@ -295,6 +334,91 @@ final class OfflineClinicalEngine: ClinicalEngine {
             impression: r.impression, image: r.image, imageCredit: r.imageCredit,
             orderedAt: ISO8601DateFormatter().string(from: Date()), repeatCount: orders.filter { $0 == id }.count
         )
+    }
+
+    // MARK: Journey (mirrors backend/app/journey.py)
+
+    private var currentStage: Scenario.Journey.Stage? {
+        guard let j = scenario.journey, let first = j.stages.first else { return nil }
+        let id = stageEvents.last?.stageId ?? first.id
+        return j.stages.first { $0.id == id }
+    }
+
+    /// Stage the session was in when the event with `seq` happened.
+    private func stageAt(_ seq: Int) -> String {
+        stageEvents.last { $0.seq < seq }?.stageId ?? scenario.journey?.stages.first?.id ?? ""
+    }
+
+    private func teamMember(_ id: String) -> JourneyMember {
+        scenario.journey?.team.first { $0.id == id } ?? JourneyMember(id: id, name: id, role: "")
+    }
+
+    private func investigationError(_ id: String) -> String? {
+        guard let j = scenario.journey, let here = currentStage else { return nil }
+        let places = j.stages.filter { ($0.investigations ?? []).contains(id) }
+        guard !places.isEmpty, !places.contains(where: { $0.id == here.id }) else { return nil }
+        return "That investigation is not available \(here.label.lowercased()). "
+            + "It can be requested \(places.map { $0.label.lowercased() }.joined(separator: " or "))."
+    }
+
+    func advanceStage(_ stageId: String) async throws -> StageResult {
+        guard sessionId != nil else { throw noSession }
+        guard let j = scenario.journey, let here = currentStage,
+              let index = j.stages.firstIndex(where: { $0.id == here.id }) else {
+            throw OfflineEngineError(errorDescription: "This case has no journey")
+        }
+        guard j.stages.contains(where: { $0.id == stageId }) else {
+            throw OfflineEngineError(errorDescription: "Unknown stage '\(stageId)'")
+        }
+        guard index + 1 < j.stages.count else {
+            throw OfflineEngineError(errorDescription: "The journey already ended at '\(here.label)'.", status: 409)
+        }
+        let next = j.stages[index + 1]
+        guard next.id == stageId else {
+            throw OfflineEngineError(errorDescription: "You can only move on to the next place: '\(next.label)'.", status: 409)
+        }
+        seq += 1
+        stageEvents.append((seq, stageId))
+        return StageResult(
+            stageId: stageId, label: next.label, index: index + 1, count: j.stages.count,
+            arrival: (next.arrival ?? []).map { JourneyLine(member: $0.member, speaker: teamMember($0.member).name, text: $0.text) },
+            voiceContext: next.voiceContext ?? "")
+    }
+
+    func requestTeamAction(_ actionId: String) async throws -> TeamActionResult {
+        guard sessionId != nil else { throw noSession }
+        guard let j = scenario.journey, let stage = currentStage else {
+            throw OfflineEngineError(errorDescription: "This case has no medical team")
+        }
+        guard let action = stage.actions.first(where: { $0.id == actionId }) else {
+            let allowed = stage.actions.map(\.id).joined(separator: ", ")
+            if j.stages.contains(where: { $0.actions.contains { $0.id == actionId } }) {
+                throw OfflineEngineError(errorDescription: "'\(actionId)' is not available \(stage.label.lowercased()). Available here: \(allowed).",
+                                         status: 409)
+            }
+            throw OfflineEngineError(errorDescription: "Unknown team action '\(actionId)'. Available here: \(allowed).")
+        }
+        let doneBefore = Set(teamEvents.filter { $0.done }.map { $0.actionId })
+        let done = (action.requires ?? []).allSatisfy { doneBefore.contains($0) }
+        seq += 1
+        teamEvents.append((seq, stage.id, actionId, done))
+        let member = teamMember(action.member)
+        let response = done ? action.response : (action.blockedResponse ?? "")
+        let patient = done ? (action.patientResponse ?? "") : ""
+        let voice = patient.isEmpty
+            ? "[Context only, do not speak now. \(member.name) (\(member.role)) just said: \"\(response)\"]"
+            : "[\(member.name) (\(member.role)) is helping you. Say out loud right now, in one short sentence, "
+              + "something with this meaning: \"\(patient)\"]"
+        return TeamActionResult(
+            stageId: stage.id, actionId: actionId, label: action.label, member: member, done: done, response: response,
+            result: done ? action.result : nil, patientResponse: patient, voiceContext: voice,
+            repeatCount: teamEvents.filter { $0.actionId == actionId && $0.stageId == stage.id && $0.done }.count)
+    }
+
+    private func teamLabel(_ stageId: String, _ actionId: String) -> String {
+        let stage = scenario.journey?.stages.first { $0.id == stageId }
+        let action = stage?.actions.first { $0.id == actionId }
+        return "\(stage?.label ?? stageId): \(action?.label ?? actionId)"
     }
 
     // MARK: Ultrasound (mirrors backend/app/ultrasound.py)
@@ -366,6 +490,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
 
     private func clear() -> SessionInfo {
         seq = 0; exams = []; turns = []; orders = []; measured = []; fittings = []; checks = []; gels = []; scans = []; diagnosis = nil; notes = ClinicalNotes()
+        stageEvents = []; teamEvents = []
         return SessionInfo(
             sessionId: sessionId ?? "", startedAt: ISO8601DateFormatter().string(from: Date()),
             case: publicCase(scenario, config: config), config: config
@@ -391,6 +516,18 @@ final class OfflineClinicalEngine: ClinicalEngine {
             ultrasound: s.ultrasound.map { us in
                 UltrasoundInfo(regions: us.regions.map {
                     UltrasoundRegion(id: $0.id, label: $0.label, attachTo: $0.attachTo, radius: $0.radius)
+                })
+            },
+            journey: s.journey.map { j in
+                JourneyInfo(team: j.team, stages: j.stages.map { st in
+                    JourneyStage(id: st.id, label: st.label, setting: st.setting, brief: st.brief, team: st.team,
+                                 noise: st.noise ?? 0,
+                                 arrival: (st.arrival ?? []).map { line in
+                                     JourneyLine(member: line.member, speaker: j.team.first { $0.id == line.member }?.name ?? line.member,
+                                                 text: line.text)
+                                 },
+                                 actions: st.actions.map { JourneyAction(id: $0.id, label: $0.label, member: $0.member) },
+                                 investigations: st.investigations ?? [])
                 })
             }
         )
@@ -484,6 +621,21 @@ final class OfflineClinicalEngine: ClinicalEngine {
         case "examined_any":
             let zones = c.check.zones ?? []
             let hit = exams.first { zones.contains($0.zoneId) }
+            return Outcome(met: hit != nil, points: hit != nil ? full : 0, method: "rule", evidence: hit.map { label($0.zoneId) })
+        case "team_action_any":
+            let actions = c.check.actions ?? [], stages = c.check.stages ?? []
+            let hit = teamEvents.first { $0.done && actions.contains($0.actionId) && (stages.isEmpty || stages.contains($0.stageId)) }
+            return Outcome(met: hit != nil, points: hit != nil ? full : 0, method: "rule",
+                           evidence: hit.map { teamLabel($0.stageId, $0.actionId) })
+        case "learner_said_in_stage":
+            let stages = c.check.stages ?? []
+            return keyword(firstLearnerQuote(kw) { stages.contains(stageAt($0.seq)) })
+        case "examined_after_action":
+            let actions = c.check.actions ?? [], zones = c.check.zones ?? []
+            guard let first = teamEvents.first(where: { $0.done && actions.contains($0.actionId) })?.seq else {
+                return Outcome(met: false, points: 0, method: "rule", evidence: nil)
+            }
+            let hit = exams.first { $0.seq > first && zones.contains($0.zoneId) }
             return Outcome(met: hit != nil, points: hit != nil ? full : 0, method: "rule", evidence: hit.map { label($0.zoneId) })
         case "diagnosis_or_learner_said":
             let required = c.check.requiresExamined ?? []

@@ -24,6 +24,7 @@ final class ElevenLabsVoiceService: VoiceService {
     @ObservationIgnored var onTranscript: ((TranscriptTurn) -> Void)?
     @ObservationIgnored var onAction: ((String) -> String)?
     @ObservationIgnored var onOrder: ((String) async -> String)?
+    @ObservationIgnored var onTeamAction: ((String) async -> String)?
 
     @ObservationIgnored private var conversation: Conversation?
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
@@ -168,8 +169,8 @@ final class ElevenLabsVoiceService: VoiceService {
         return config
     }
 
-    /// Client tools `perform_patient_action(action:)` and `order_investigation(investigation:)`.
-    /// Both strings are validated by the app; the agent always gets an explicit result back.
+    /// Client tools `perform_patient_action(action:)`, `order_investigation(investigation:)` and
+    /// `request_team_action(action:)`. Every string is validated by the app; the agent always gets an explicit result back.
     private func handleTool(_ call: ClientToolCallEvent, gen: Int) async {
         guard gen == generation, let conversation else { return }
         var result = "failure: unknown tool \(call.toolName)"
@@ -180,9 +181,15 @@ final class ElevenLabsVoiceService: VoiceService {
             // The app asks the clinical engine; the agent only learns that the order was placed.
             let id = (try? call.getParameters())?["investigation"] as? String ?? ""
             result = await onOrder?(id) ?? "failure: unavailable"
+        } else if call.toolName == "request_team_action" {
+            // Journey cases: the app asks the clinical engine; the team member's line is spoken by the app.
+            let id = (try? call.getParameters())?["action"] as? String ?? ""
+            result = await onTeamAction?(id) ?? "failure: unavailable"
         }
         guard call.expectsResponse else { return conversation.markToolCallCompleted(call.toolCallId) }
-        try? await conversation.sendToolResult(for: call.toolCallId, result: result, isError: !result.hasPrefix("success"))
+        // "blocked: …" (a team member could not do it yet) is an answer, not a tool error.
+        let isError = result.hasPrefix("failure") || result.hasPrefix("invalid_state")
+        try? await conversation.sendToolResult(for: call.toolCallId, result: result, isError: isError)
     }
 
     private func fetchToken() async throws -> String {
