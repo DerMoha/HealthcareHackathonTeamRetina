@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, type LibraryRow, type PublishedRow } from './api'
-import { ErrorText, ReviewBadge, useAction } from './ui'
+import { ErrorText, KindBadge, ReviewBadge, StageStrip, useAction } from './ui'
 
 /** Published scenarios, to launch by code or to copy into your own library.
  *  shortcut: lists what is published on this server only, no accounts, ratings or payment;
@@ -10,6 +10,7 @@ export default function Marketplace({ visible, version, onDownloaded }: { visibl
   const [library, setLibrary] = useState<LibraryRow[]>([])
   const [query, setQuery] = useState('')
   const [onlyReviewed, setOnlyReviewed] = useState(false)
+  const [onlyJourneys, setOnlyJourneys] = useState(false)
   const load = useAction()
   const get = useAction()
   useEffect(() => {
@@ -21,7 +22,7 @@ export default function Marketplace({ visible, version, onDownloaded }: { visibl
   }, [visible, version, load.run])
 
   const q = query.trim().toLowerCase()
-  const shown = (items ?? []).filter(s => (!onlyReviewed || s.review_state === 'clinician_reviewed')
+  const shown = (items ?? []).filter(s => (!onlyReviewed || s.review_state === 'clinician_reviewed') && (!onlyJourneys || s.kind === 'journey')
     && (!q || [s.title, s.description, s.environment, s.difficulty, s.code].some(t => t.toLowerCase().includes(q))))
 
   return (
@@ -32,6 +33,7 @@ export default function Marketplace({ visible, version, onDownloaded }: { visibl
       <div className="row filters">
         <label className="field"><span>Search</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Title, setting, difficulty, code" /></label>
         <label className="check"><input type="checkbox" checked={onlyReviewed} onChange={e => setOnlyReviewed(e.target.checked)} /><span>Clinician-reviewed only</span></label>
+        <label className="check"><input type="checkbox" checked={onlyJourneys} onChange={e => setOnlyJourneys(e.target.checked)} /><span>Multi-stage journeys only</span></label>
       </div>
       <ErrorText error={load.error} />
       <ErrorText error={get.error} onDismiss={get.clearError} />
@@ -43,6 +45,8 @@ export default function Marketplace({ visible, version, onDownloaded }: { visibl
           return (
             <article key={s.code} className="panel market-card">
               <div className="head-row"><h3>{s.title}</h3><ReviewBadge state={s.review_state} /></div>
+              <KindBadge kind={s.kind} stages={s.stages?.length} />
+              <StageStrip stages={s.stages ?? []} />
               <p>{s.description}</p>
               <p className="muted small">{s.environment} · {s.crowdedness} · {s.difficulty} · v{s.version}</p>
               <div className="actions wrap">

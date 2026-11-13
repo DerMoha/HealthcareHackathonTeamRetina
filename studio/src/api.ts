@@ -21,8 +21,22 @@ export interface ScenarioConfig {
   teammate: string
   learning_objectives: string[]
   narrative: Narrative
+  /** Advanced mode only; every field optional. Absent = what the basic choices imply. */
+  advanced?: Advanced
   seed: number | null
 }
+
+export interface Advanced {
+  hint_policy?: HintPolicy | null
+  interject_every_s?: number | null
+  crowd_figures?: number | null
+  /** Journey cases: place id -> noise 0..1. */
+  stage_noise?: Record<string, number>
+}
+
+export type CaseKind = 'single' | 'journey'
+/** A place of a journey case, in the case's fixed order. */
+export interface Stage { id: string; label: string; setting: string; team: string[]; noise: number; actions: number }
 
 export interface Issue { field: string; severity: 'error' | 'warning'; message: string }
 export interface Validation { valid: boolean; issues: Issue[] }
@@ -41,7 +55,7 @@ export interface Template {
   label: string
   summary: string
   clinical_review: string
-  environments: { id: string; label: string; brief: string; unsupported_equipment: string[] }[]
+  environments: { id: string; label: string; brief: string; ambient_level: number; unsupported_equipment: string[] }[]
   unsupported_environments: { id: string; label: string; reason: string }[]
   equipment: { id: string; label: string; kind: string }[]
   difficulties: { id: string; label: string; hint_policy: HintPolicy; description: string }[]
@@ -51,6 +65,10 @@ export interface Template {
   learning_objectives: (Choice & { needs_kind?: string })[]
   hints: string[]
   dimensions: Dimension[]
+  kind: CaseKind
+  stages: Stage[]
+  patient: { name: string; age: number }
+  fixed_facts: string[]
 }
 
 export interface Assist {
@@ -114,6 +132,7 @@ export interface ScenarioDefinition {
   clinical_rules: { case_id: string; immutable_facts: string[]; findings_sha256: string; statement: string; constraints: string[] }
   assessment: { dimensions: Dimension[]; learning_objectives: Choice[]; note: string }
   narrative: { description: string; patient_personality: string; source: string; ai_generated: boolean }
+  journey: { stages: Stage[] } | null
   origin: Origin | null
 }
 
@@ -124,6 +143,7 @@ export const isDownloaded = (o: Origin | null) => !!o && (o.downloaded_from != n
 export interface PublishedRow {
   code: string; scenario_id: string; version: number; title: string; description: string
   review_state: ReviewState; environment: string; difficulty: string; crowdedness: string
+  kind?: CaseKind; stages?: string[]
 }
 
 export interface LibraryRow {
@@ -141,6 +161,8 @@ export interface LibraryRow {
   created_at: string
   ai_generated: boolean
   origin: Origin | null
+  kind?: CaseKind
+  stages?: string[]
 }
 export interface VersionRow { version: number; created_at: string; review_state: ReviewState; published: boolean }
 

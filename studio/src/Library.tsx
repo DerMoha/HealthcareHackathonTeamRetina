@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, isDownloaded, type LibraryRow, type ScenarioConfig, type ScenarioDefinition, type VersionRow } from './api'
 import DefinitionView from './Definition'
-import { ErrorText, fmtDate, ReviewBadge, useAction } from './ui'
+import { ErrorText, fmtDate, KindBadge, ReviewBadge, StageStrip, useAction } from './ui'
 
 const human = (s: string) => s.replace(/_/g, ' ')
 
@@ -21,6 +21,8 @@ export default function Library({ scope, version, visible, focus, onEdit, onChan
   const list = useAction()
   const imp = useAction()
   const [note, setNote] = useState<string | null>(null)
+  const [kind, setKind] = useState<'all' | 'single' | 'journey'>('all')
+  const shown = (rows ?? []).filter(r => kind === 'all' || (r.kind ?? 'single') === kind)
 
   const reload = useCallback(() => list.run(async () =>
     setRows((await api.library()).filter(r => isDownloaded(r.origin) === (scope === 'downloaded')))), [list.run, scope])
@@ -58,18 +60,29 @@ export default function Library({ scope, version, visible, focus, onEdit, onChan
       {note && <div className="notice" role="status">{note}</div>}
 
       {rows && (
+        <div className="seg" role="group" aria-label="Filter by type">
+          {(['all', 'journey', 'single'] as const).map(k => (
+            <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>
+              {{ all: 'All', journey: 'Multi-stage journeys', single: 'Single encounters' }[k]} ({k === 'all' ? rows.length : rows.filter(r => (r.kind ?? 'single') === k).length})
+            </button>
+          ))}
+        </div>
+      )}
+      {rows && (
         <div className="table-wrap">
           <table className="table selectable">
             <thead>
-              <tr><th>Title</th><th>Code</th><th>Version</th><th>Review</th><th>Published</th><th>Environment</th><th>Difficulty</th><th>AI</th></tr>
+              <tr><th>Title</th><th>Type</th><th>Code</th><th>Version</th><th>Review</th><th>Published</th><th>Environment</th><th>Difficulty</th><th>AI</th></tr>
             </thead>
             <tbody>
-              {rows.map(r => (
+              {shown.map(r => (
                 <tr key={r.scenario_id} className={selected === r.scenario_id ? 'selected' : ''}>
                   <td>
                     <button type="button" className="rowlink" aria-pressed={selected === r.scenario_id}
                       onClick={() => setSelected(r.scenario_id)}>{r.title}</button>
+                    <StageStrip stages={r.stages ?? []} />
                   </td>
+                  <td><KindBadge kind={r.kind} stages={r.stages?.length} /></td>
                   <td><code>{r.code}</code></td>
                   <td>v{r.version}{r.versions > 1 && <span className="muted"> ({r.versions} versions)</span>}</td>
                   <td><ReviewBadge state={r.review_state} /></td>
@@ -79,7 +92,7 @@ export default function Library({ scope, version, visible, focus, onEdit, onChan
                   <td>{r.ai_generated ? <span className="tag">AI text</span> : ''}</td>
                 </tr>
               ))}
-              {!rows.length && <tr><td colSpan={8} className="muted">{scope === 'mine' ? 'Nothing here yet. Create one in the generator.' : 'Nothing downloaded yet. Browse the marketplace or import a file.'}</td></tr>}
+              {!shown.length && <tr><td colSpan={9} className="muted">{rows.length ? 'Nothing of this type.' : scope === 'mine' ? 'Nothing here yet. Create one in the generator.' : 'Nothing downloaded yet. Browse the marketplace or import a file.'}</td></tr>}
             </tbody>
           </table>
         </div>
