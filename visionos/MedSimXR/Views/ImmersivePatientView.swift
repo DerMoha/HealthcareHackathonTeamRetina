@@ -64,7 +64,7 @@ struct ImmersivePatientView: View {
             panels.markHomes()
             panels.updates = content.subscribe(to: SceneEvents.Update.self) { [panels] _ in panels.layout() }
             place.install(on: avatar)
-            place.show(model.environmentKind)
+            showPlace()
             stage.install(on: avatar)
             stage.sync(model.scenario)
             stage.showInjury(model.visibleInjury)
@@ -135,7 +135,7 @@ struct ImmersivePatientView: View {
             lab.sync(model.fit) // equipment delivered mid-session: a support already on the arm stays there
         }
         .modifier(StageSync(stage: stage))
-        .modifier(PlaceSync(place: place))
+        .modifier(PlaceSync(show: showPlace))
         .onChange(of: model.session?.sessionId) { lab.build(model.session?.case.orthotics ?? Orthotics()) }
         .modifier(UltrasoundSync(model: model, us: us))
         .onChange(of: model.activeAvatarModel) { _, variant in
@@ -145,6 +145,7 @@ struct ImmersivePatientView: View {
                 model.behavior.attach(animated: avatar.isAnimated, recumbent: avatar.isRecumbent) { await avatar.apply($0) }
                 await avatar.apply(model.behavior.machine, snap: true)
                 avatar.rebuildZones(model.zones)
+                showPlace() // the seat follows the new model's seat height
                 us.build(model.ultrasound)
                 us.setEnabled(model.phase == .running)
                 lab.avatarChanged(fit: model.fit)
@@ -191,15 +192,23 @@ struct ImmersivePatientView: View {
         }
         .onDisappear { avatar.stopIdle(); stage.stop(); place.stop(); model.stageStatus = "immersive scene not open" }
     }
+
+    /// The room for the current place. Road, ambulance and resus bring their own seat for the
+    /// patient, so the clinic stool hides there.
+    private func showPlace() {
+        let kind = model.environmentKind
+        avatar.furnitureHidden = kind.bringsSeat
+        place.show(kind, seat: avatar.seatHeight)
+    }
 }
 
 /// Rebuilds the room when the place changes (another case, the next journey stage, a Studio environment).
 private struct PlaceSync: ViewModifier {
     @Environment(AppModel.self) private var model
-    let place: EnvironmentSet
+    let show: () -> Void
 
     func body(content: Content) -> some View {
-        content.onChange(of: model.environmentKind) { _, kind in place.show(kind) }
+        content.onChange(of: model.environmentKind) { show() }
     }
 }
 

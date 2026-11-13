@@ -25,10 +25,14 @@ final class EnvironmentSet {
             }
             return .clinic
         }
+
+        /// Places with their own seat for the patient (instead of the clinic stool).
+        var bringsSeat: Bool { self != .clinic && self != .antenatal }
     }
 
     let root = Entity()
     private(set) var kind: Kind?
+    private var seat: Float = 0
     private var ambience: AVAudioPlayer?
     private var blinkers: [Task<Void, Never>] = []
 
@@ -37,9 +41,11 @@ final class EnvironmentSet {
         avatar.root.addChild(root)
     }
 
-    func show(_ kind: Kind) {
-        guard kind != self.kind else { return }
-        self.kind = kind
+    /// `seat`: the patient's seat height (avatar space), for the places that bring their own seat.
+    func show(_ kind: Kind, seat: Float) {
+        guard kind != self.kind || seat != self.seat else { return }
+        let sound = kind != self.kind
+        self.kind = kind; self.seat = seat
         blinkers.forEach { $0.cancel() }; blinkers = []
         Array(root.children).forEach { $0.removeFromParent() }
         let set = Entity()
@@ -51,8 +57,9 @@ final class EnvironmentSet {
         case .ambulance: buildAmbulance(set)
         case .traumaBay: buildTraumaBay(set)
         }
+        if kind.bringsSeat { buildSeat(set, kind) }
         root.addChild(set)
-        playAmbience(kind)
+        if sound { playAmbience(kind) }
         SmokeLog.mark("environment set=\(kind.rawValue) parts=\(set.children.count) sound=\(ambience?.isPlaying ?? false)")
     }
 
@@ -60,6 +67,28 @@ final class EnvironmentSet {
         ambience?.stop(); ambience = nil
         blinkers.forEach { $0.cancel() }; blinkers = []
         kind = nil // the next show() rebuilds and restarts the sound
+    }
+
+    /// What the patient sits on outside the clinic: a response case at the roadside, the stretcher in
+    /// the ambulance, the trolley in resus. Across the patient's hips, just behind the origin.
+    private func buildSeat(_ e: Entity, _ kind: Kind) {
+        let steel = Self.mat(UIColor(white: 0.75, alpha: 1), metal: true)
+        switch kind {
+        case .roadside, .roadsideNight:
+            box(e, [0.75, seat - 0.03, 0.42], Self.mat(UIColor(red: 0.95, green: 0.5, blue: 0.1, alpha: 1), rough: 0.5), at: [0, (seat - 0.03) / 2, -0.12])
+            box(e, [0.77, 0.03, 0.44], Self.mat(UIColor(white: 0.25, alpha: 1)), at: [0, seat - 0.015, -0.12])
+            box(e, [0.5, 0.04, 0.44], Self.mat(UIColor(red: 0.2, green: 0.6, blue: 0.3, alpha: 1)), at: [0, seat * 0.6, -0.11])
+        case .ambulance, .traumaBay:
+            let mattress = kind == .ambulance ? UIColor(red: 0.95, green: 0.55, blue: 0.12, alpha: 1) : UIColor(red: 0.2, green: 0.4, blue: 0.7, alpha: 1)
+            box(e, [1.9, 0.12, 0.66], Self.mat(mattress, rough: 0.6), at: [0, seat - 0.06, -0.12])
+            box(e, [1.9, 0.05, 0.7], steel, at: [0, seat - 0.15, -0.12])
+            box(e, [0.3, 0.1, 0.5], Self.mat(UIColor(white: 0.97, alpha: 1)), at: [-0.75, seat + 0.03, -0.12]) // pillow
+            for x: Float in [-0.8, 0.8] {
+                cylinder(e, height: seat - 0.18, radius: 0.025, steel, at: [x, (seat - 0.18) / 2 + 0.05, -0.12])
+                sphere(e, radius: 0.05, Self.mat(UIColor(white: 0.2, alpha: 1)), at: [x, 0.05, -0.12])
+            }
+        case .clinic, .antenatal: break
+        }
     }
 
     // MARK: Clinic / antenatal room
@@ -256,8 +285,20 @@ final class EnvironmentSet {
         e.addChild(sun)
 
         // The collision: a car stopped askew ahead right, a bicycle on its side, cones around.
-        car(e, at: [2.1, 0, -3.4], yaw: 0.45, color: UIColor(red: 0.2, green: 0.25, blue: 0.4, alpha: 1), lightsOn: night)
+        let crashed = car(e, at: [2.1, 0, -3.4], yaw: 0.45, color: UIColor(red: 0.2, green: 0.25, blue: 0.4, alpha: 1), lightsOn: night)
+        // Bonnet pushed up, cracked windscreen, hazard lights on.
+        let paint = Self.mat(UIColor(red: 0.2, green: 0.25, blue: 0.4, alpha: 1), rough: 0.25, metal: true)
+        box(crashed, [1.7, 0.07, 0.95], paint, at: [0, 0.95, -1.6]).orientation = simd_quatf(angle: -0.35, axis: [1, 0, 0])
+        box(crashed, [1.3, 0.4, 0.03], Self.mat(UIColor(white: 0.85, alpha: 1)), at: [0.1, 1.12, -1.32])
+        for x: Float in [-0.8, 0.8] { box(crashed, [0.2, 0.08, 0.12], Self.glow(.systemOrange), at: [x, 0.75, 2.17]) }
         bicycle(e, at: [-0.9, 0, -2.0], yaw: 0.9)
+        // The cyclist's helmet and debris on the road.
+        let helmet = ModelEntity(mesh: .generateSphere(radius: 0.14), materials: [Self.mat(UIColor(red: 0.1, green: 0.35, blue: 0.75, alpha: 1), rough: 0.3)])
+        helmet.position = [0.3, 0.08, -1.3]; helmet.scale = [1, 0.65, 1.3]
+        e.addChild(helmet)
+        for (i, p) in [SIMD3<Float>(0.9, 0.01, -2.4), [1.2, 0.01, -2.8], [0.6, 0.01, -3.0], [1.5, 0.01, -2.2]].enumerated() {
+            box(e, [0.12 + 0.04 * Float(i % 2), 0.015, 0.08], Self.mat(i % 2 == 0 ? UIColor(white: 0.85, alpha: 1) : .systemRed), at: p, yaw: Float(i))
+        }
         for (x, z) in [(Float(-2.6), Float(-0.5)), (-2.6, 1.5), (-2.4, -3.5), (0.4, -5.6), (-1.0, -6.0)] { cone(e, at: [x, 0, z]) }
         // Police car with flashing blue lights further back, the ambulance behind the wearer.
         let police = car(e, at: [-1.9, 0, -8.5], yaw: -0.2, color: UIColor(white: 0.95, alpha: 1), lightsOn: true)

@@ -216,6 +216,10 @@ final class PatientAvatar {
     private(set) var anchorNormals: [String: SIMD3<Float>] = [:]
     /// True while a patient lying on a couch is shown (not the seated models).
     private(set) var isRecumbent = false
+    /// Height of the seat the model sits on (stool or couch top), avatar space.
+    private(set) var seatHeight: Float = 0.5
+    /// Journey cases hide the clinic stool: the surroundings bring their own seat (wall, stretcher, trolley).
+    var furnitureHidden = false { didSet { stoolParts.forEach { $0.isEnabled = !furnitureHidden } } }
 
     /// True when the skinned model is in use and can be posed.
     var isAnimated: Bool { skinned != nil }
@@ -273,6 +277,8 @@ final class PatientAvatar {
         if size.z > size.y { model.orientation = simd_quatf(angle: -.pi / 2, axis: [1, 0, 0]) }
         if let couch = sidecar.couch { buildCouch(couch) } else { buildStool(seatHeight: sidecar.seatHeight) }
         isRecumbent = sidecar.couch != nil
+        seatHeight = sidecar.couch?.seatHeight ?? sidecar.seatHeight
+        stoolParts.forEach { $0.isEnabled = !furnitureHidden }
         for (name, p) in sidecar.anchors where p.count == 3 {
             if anchors[name] == nil { // belly points and the like: plain markers on the root
                 let marker = Entity()
@@ -322,7 +328,7 @@ final class PatientAvatar {
         stoolParts.forEach { $0.removeFromParent() }
         stoolParts = []
         for name in extraAnchors { anchors[name]?.removeFromParent(); anchors[name] = nil }
-        extraAnchors = []; anchorNormals = [:]; isRecumbent = false
+        extraAnchors = []; anchorNormals = [:]; isRecumbent = false; seatHeight = 0.5
         for (visual, component) in hiddenVisuals { visual.components.set(component) }
         hiddenVisuals = []
         for (name, transform) in proceduralAnchors { anchors[name]?.transform = transform }
