@@ -489,7 +489,7 @@ class Library:
     def _save(self, data: dict) -> None:
         path = _db_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
+        tmp = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")  # own temp file: concurrent first loads all seed and save
         tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")
         tmp.replace(path)
 

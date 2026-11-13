@@ -54,11 +54,15 @@ def body(raw: bytes, content_type: str | None):
 def event(kind: str, **fields) -> None:
     if not enabled():
         return
-    line = json.dumps({"ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"), "kind": kind, **fields},
-                      default=_default)
-    if len(line) > MAX_BODY:
-        line = json.dumps({"ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"), "kind": kind,
-                           "truncated": line[:MAX_BODY]})
+    record = {"ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"), "pid": os.getpid(), "kind": kind,
+              **fields}
+    line = json.dumps(record, default=_default)
+    if len(line) > MAX_BODY:  # keep the metadata, cut only the big bodies
+        for k in ("request", "response", "message"):
+            if k in record:
+                text = json.dumps(record[k], default=_default)
+                record[k] = {"truncated": text[:MAX_BODY // 4], "chars": len(text)} if len(text) > MAX_BODY // 4 else record[k]
+        line = json.dumps(record, default=_default)
     path = _dir() / "events.jsonl"
     with _lock:
         path.parent.mkdir(parents=True, exist_ok=True)

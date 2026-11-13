@@ -6,7 +6,6 @@ import SwiftUI
 /// as typing its code on the Session page and pressing Start Session.
 struct StudioView: View {
     @Environment(StudioState.self) private var studio
-
     var body: some View {
         @Bindable var studio = studio
         TabView(selection: $studio.tab) {
@@ -15,7 +14,7 @@ struct StudioView: View {
             }
         }
         .frame(minWidth: 960, minHeight: 640)   // below this the pages stop fitting
-        .background { if SmokeLog.enabled { SmokeDemos() } }
+        .background { if SmokeLog.pitch { PitchLauncher() } else if SmokeLog.enabled { SmokeDemos() } }
         .task { await studio.reload() }
         .onAppear { SmokeLog.mark("studio window shown tab=\(studio.tab.rawValue)") }
         .onDisappear { SmokeLog.mark("studio window closed") }

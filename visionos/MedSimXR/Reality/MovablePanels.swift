@@ -65,7 +65,7 @@ final class MovablePanels {
         for p in panels {
             let b = p.view.attachment.bounds
             let visible = p.view.isEnabled && b.extents.x > 0.01 && b.extents.y > 0.01
-            p.handle.isEnabled = visible
+            p.handle.isEnabled = visible && !SmokeLog.pitch
             guard visible else { continue }
             p.handle.position = p.view.convert(position: [b.center.x, b.min.y - 0.025, b.center.z], to: p.mover)
         }

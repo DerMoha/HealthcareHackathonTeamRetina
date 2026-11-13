@@ -16,10 +16,12 @@ struct MedSimXRApp: App {
         return AppModel(engine: MockClinicalEngine(), voice: MockVoiceService())
     }()
     @State private var studio = StudioState()
+    @State private var immersion: any ImmersionStyle = Self.room
+    private static let room = ProgressiveImmersionStyle.progressive(0.2...1, initialAmount: 1)
 
     var body: some Scene {
         // One window: MedSim Studio, with the session controls on its Session page.
-        WindowGroup {
+        WindowGroup(id: "studio") {
             StudioView()
                 .environment(model)
                 .environment(studio)
@@ -32,8 +34,10 @@ struct MedSimXRApp: App {
                 .environment(model)
                 .onAppear { model.immersiveOpen = true }
                 .onDisappear { model.immersiveOpen = false }
+                // pitch shots: without the case's room the patient sits in the wearer's own room
+                .onChange(of: Pitch.shared.hideRoom) { _, hide in immersion = hide ? .mixed : Self.room }
         }
         // Progressive: the Digital Crown blends the case's room (EnvironmentSet) with the real one.
-        .immersionStyle(selection: .constant(.progressive(0.2...1, initialAmount: 1)), in: .progressive(0.2...1, initialAmount: 1))
+        .immersionStyle(selection: $immersion, in: .mixed, Self.room)
     }
 }

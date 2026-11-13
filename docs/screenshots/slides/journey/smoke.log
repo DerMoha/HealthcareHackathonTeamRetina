@@ -1,0 +1,144 @@
+studio window shown tab=overview
+voice policy selfcheck ok=true
+catalog cases=["wrist_trauma_001", "obstetric_ultrasound_001", "road_trauma_journey_001"]
+STEP 00-dashboard
+immersive opened=true
+placed at SIMD3<Float>(0.45, 0.0, -1.7) tracked=false
+behavior reset state=standing_idle
+session config case=road_trauma_journey_001 mood=calm avatar=male model=Patient
+stage journey journey=scene team=["Sam", "Lena"] noise=0.55 noisePlaying=true
+stage journey journey=scene team=["Sam", "Lena"] noise=0.55 noisePlaying=true
+zones rebuilt ["rt_forearm_wound", "rt_right_hand", "rt_left_wrist"]
+scene line speaker=Sam shown=true text="I'm Sam, I'm leading the crew today. Lena and I will follow your lead with this patient. Tell us what you need."
+avatar usdz joints=53 size=SIMD3<Float>(0.52524173, 1.37687, 0.78019935) minY=0.0
+avatar variant=Patient loaded=Patient
+pose standing_idle right_wrist moved=0.54
+teaching anatomy=false reference=none parts=0
+environment set=roadside parts=156 sound=true
+injury shown dressed=false splinted=false parts=3
+immersive scene built zones=3
+pose standing_idle right_wrist moved=0.54
+session id=668d91c249e046aaa5d8b69f0499aba2 stages=["scene", "ambulance", "hospital"] engine=Backend voice=Connected stage=scene team=0 exams=0 turns=1 error=none
+STEP 01-rt-roadside
+asked rt_greeting engine=Backend voice=Connected stage=scene team=0 exams=0 turns=3 error=none
+audio clip=rt_greeting MISSING
+audio tts fallback
+team scene/scene_safety member=Sam done=true repeat=1 result="Scene safe: lane closed by the police, vehicle engine off, no fuel leak." engine=Backend exams=0 turns=4
+heard "Sam, is the scene safe?" team=scene_safety result=success: Sam is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Sam shown=true text="Police have closed the lane and the car's engine is off. We're safe to work here."
+team asked scene_safety last=scene_safety:true engine=Backend voice=Connected stage=scene team=1 exams=0 turns=5 error=none
+asked rt_mechanism engine=Backend voice=Connected stage=scene team=1 exams=0 turns=7 error=none
+audio clip=rt_mechanism MISSING
+audio tts fallback
+asked rt_head_neck engine=Backend voice=Connected stage=scene team=1 exams=0 turns=9 error=none
+audio clip=rt_head_neck MISSING
+audio tts fallback
+team scene/haemorrhage_control member=Sam done=true repeat=1 result="Bleeding controlled with direct pressure and a saline-soaked dressing." engine=Backend exams=0 turns=10
+heard "Sam, please get pressure on that bleeding and a dressing on." team=haemorrhage_control result=success: Sam is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Sam shown=true text="Firm pressure on, and a saline-soaked dressing over the wound. The bleeding's controlled."
+injury shown dressed=true splinted=false parts=2
+team asked haemorrhage_control last=haemorrhage_control:true engine=Backend voice=Connected stage=scene team=2 exams=0 turns=11 error=none
+team scene/observations member=Lena done=true repeat=1 result="HR 112 · BP 124/78 · RR 22 · SpO2 97% on air · GCS 15 · CRT 2 s central · temp 36.4 °C" engine=Backend exams=0 turns=13
+heard "Lena, can you get a set of observations?" team=observations result=success: Lena is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Lena shown=true text="First set: heart rate 112, blood pressure 124 over 78, breathing 22, sats 97 percent on air, GCS 15, central cap refill two seconds."
+team asked observations last=observations:true engine=Backend voice=Connected stage=scene team=3 exams=0 turns=14 error=none
+team scene/photograph_wound member=Lena done=true repeat=1 result="Wound photographed for the receiving team." engine=Backend exams=0 turns=15
+heard "Lena, please take a photo of the wound first." team=photograph_wound result=success: Lena is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Lena shown=true text="Photo taken for the hospital team, so nobody has to lift the dressing again."
+team asked photograph_wound last=photograph_wound:true engine=Backend voice=Connected stage=scene team=4 exams=0 turns=16 error=none
+behavior standing_idle -> sitting_down
+action sit_down -> success: Alex is sitting down. exams=0 turns=16
+pose sitting_down right_wrist moved=0.00
+behavior sitting_down -> seated_idle
+pose seated_idle right_wrist moved=0.00
+asked rt_permission engine=Backend voice=Connected stage=scene team=4 exams=0 turns=18 error=none
+audio clip=rt_permission MISSING
+audio tts fallback
+behavior seated_idle -> pain_recoil
+animation arm_withdrawal
+zone flash rt_forearm_wound painful=true
+audio clip=ouch started=true duration=0.53s
+pose pain_recoil right_wrist moved=0.11
+behavior pain_recoil -> returning_to_rest
+pose returning_to_rest right_wrist moved=0.00
+behavior returning_to_rest -> seated_idle
+pose seated_idle right_wrist moved=0.01
+asked rt_empathy engine=Backend voice=Connected stage=scene team=4 exams=1 turns=21 error=none
+audio clip=rt_empathy MISSING
+audio tts fallback
+team scene/analgesia member=Sam done=true repeat=1 result="Inhaled methoxyflurane (Penthrox) given for pain." engine=Backend exams=1 turns=22
+heard "Sam, let's give some pain relief." team=analgesia result=success: Sam is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Sam shown=true text="Penthrox inhaler for now. Breathe in and out through this, Jordan."
+team asked analgesia last=analgesia:true engine=Backend voice=Connected stage=scene team=5 exams=1 turns=23 error=none
+team scene/splint_arm member=Sam done=true repeat=1 result="Right arm immobilised in a vacuum splint, hand to above the elbow." engine=Backend exams=1 turns=25
+heard "Sam, can we splint the arm?" team=splint_arm result=success: Sam is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Sam shown=true text="Vacuum splint on, from the hand to above the elbow. Worth checking his fingers again now it's on."
+injury shown dressed=true splinted=true parts=1
+team asked splint_arm last=splint_arm:true engine=Backend voice=Connected stage=scene team=6 exams=1 turns=26 error=none
+zone flash rt_right_hand painful=false
+asked rt_allergies engine=Backend voice=Connected stage=scene team=6 exams=2 turns=30 error=none
+audio clip=rt_allergies MISSING
+audio tts fallback
+STEP 02-rt-treated
+asked rt_explain_transfer engine=Backend voice=Connected stage=scene team=6 exams=2 turns=32 error=none
+audio clip=rt_explain_transfer MISSING
+audio tts fallback
+stage ambulance index=2/3 team=["Lena", "Sam"] investigations=[] engine=Backend
+scene line speaker=Lena shown=true text="He's on the stretcher and strapped in. Sam's driving, about fifteen minutes to the hospital. I'm right here if you need anything."
+stage journey journey=ambulance team=["Lena", "Sam"] noise=0.35 noisePlaying=true
+injury shown dressed=true splinted=true parts=1
+environment set=ambulance parts=35 sound=true
+moved engine=Backend voice=Connected stage=ambulance team=6 exams=2 turns=32 error=none
+STEP 03-rt-ambulance
+team ambulance/observations member=Lena done=true repeat=1 result="HR 104 · BP 120/76 · RR 18 · SpO2 98% on air · GCS 15 · temp 36.5 °C" engine=Backend exams=2 turns=33
+heard "Lena, could you repeat the observations?" team=observations result=success: Lena is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Lena shown=true text="Second set: heart rate 104, blood pressure 120 over 76, breathing 18, sats 98 percent on air, GCS 15."
+team asked observations last=observations:true engine=Backend voice=Connected stage=ambulance team=7 exams=2 turns=34 error=none
+team ambulance/iv_analgesia member=Lena done=false repeat=0 result="none" engine=Backend exams=2 turns=35
+heard "Lena, IV pain relief please." team=iv_analgesia result=blocked: Lena could not do it yet and said: I'll need IV access first. Shall I put a cannula in?
+scene line speaker=Lena shown=true text="I'll need IV access first. Shall I put a cannula in?"
+team asked iv_analgesia last=iv_analgesia:false engine=Backend voice=Connected stage=ambulance team=8 exams=2 turns=36 error=none
+team ambulance/iv_access member=Lena done=true repeat=1 result="IV cannula (18 G) in the left forearm; blood samples taken for the hospital." engine=Backend exams=2 turns=37
+heard "Lena, please put in a cannula." team=iv_access result=success: Lena is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Lena shown=true text="Eighteen gauge in the left forearm, and I've taken bloods for the hospital."
+team asked iv_access last=iv_access:true engine=Backend voice=Connected stage=ambulance team=9 exams=2 turns=38 error=none
+team ambulance/iv_analgesia member=Lena done=true repeat=1 result="IV morphine 5 mg and an antiemetic given." engine=Backend exams=2 turns=40
+heard "Lena, IV pain relief please." team=iv_analgesia result=success: Lena is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Lena shown=true text="Morphine, five milligrams IV, with an anti-sickness drug. Tell me if you feel drowsy, Jordan."
+team asked iv_analgesia last=iv_analgesia:true engine=Backend voice=Connected stage=ambulance team=10 exams=2 turns=41 error=none
+team ambulance/pre_alert member=Sam done=true repeat=1 result="Receiving emergency department pre-alerted; a bay is being prepared." engine=Backend exams=2 turns=43
+heard "Sam, please pre-alert the hospital." team=pre_alert result=success: Sam is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Sam shown=true text="Pre-alert done. The emergency department know we're ten minutes out with an injured cyclist; they'll have a bay ready."
+team asked pre_alert last=pre_alert:true engine=Backend voice=Connected stage=ambulance team=11 exams=2 turns=44 error=none
+asked rt_tetanus engine=Backend voice=Connected stage=ambulance team=11 exams=2 turns=46 error=none
+audio clip=rt_tetanus MISSING
+audio tts fallback
+STEP 04-rt-ambulance-treated
+stage hospital index=3/3 team=["Dr Omar", "Priya"] investigations=["rt_xray_forearm", "rt_ct_head", "rt_bloods"] engine=Backend
+scene line speaker=Dr Omar shown=false text="Hi, I'm Omar, the emergency registrar, and this is Priya. Go ahead with your handover when you're ready."
+stage journey journey=hospital team=["Dr Omar", "Priya"] noise=0.25 noisePlaying=true
+injury shown dressed=true splinted=true parts=1
+environment set=traumaBay parts=56 sound=true
+moved engine=Backend voice=Connected stage=hospital team=11 exams=2 turns=46 error=none
+STEP 05-rt-hospital
+team hospital/iv_antibiotics member=Priya done=true repeat=1 result="IV antibiotics given (penicillin allergy checked, protocol alternative used)." engine=Backend exams=2 turns=49
+heard "Priya, please give IV antibiotics." team=iv_antibiotics result=success: Priya is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Priya shown=true text="IV antibiotics are going in now. I've checked his allergy band and used the alternative on our trauma protocol."
+team asked iv_antibiotics last=iv_antibiotics:true engine=Backend voice=Connected stage=hospital team=12 exams=2 turns=50 error=none
+team hospital/tetanus member=Priya done=true repeat=1 result="Tetanus booster given." engine=Backend exams=2 turns=51
+heard "Priya, he needs a tetanus booster." team=tetanus result=success: Priya is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Priya shown=true text="Tetanus booster given in his left arm."
+team asked tetanus last=tetanus:true engine=Backend voice=Connected stage=hospital team=13 exams=2 turns=52 error=none
+team hospital/orthopaedic_referral member=Dr Omar done=true repeat=1 result="Orthopaedic team informed: review within the hour; nil by mouth." engine=Backend exams=2 turns=53
+heard "Omar, can you refer him to the orthopaedic team?" team=orthopaedic_referral result=success: Dr Omar is doing it and says so out loud. Do not repeat what they say or report results.
+scene line speaker=Dr Omar shown=true text="I've spoken to the orthopaedic registrar. They'll see him within the hour and plan theatre. Keep him nil by mouth."
+team asked orthopaedic_referral last=orthopaedic_referral:true engine=Backend voice=Connected stage=hospital team=14 exams=2 turns=54 error=none
+investigation rt_xray_forearm impression="Displaced distal-third fractures of the radius and ulna; soft-tissue gas consistent with an open injury." image=none imageFound=false engine=Backend results=1 exams=2 turns=54
+viewer open=rt_xray_forearm engine=Backend voice=Connected stage=hospital team=14 exams=2 turns=54 error=none
+STEP 06-rt-xray
+STEP 07-rt-team-log
+STEP 08-rt-notebook
+diagnosed score=100/100 verdict=correct categories=["scene:35", "transfer:30", "hospital:35"] management=20/20 engine=Backend voice=Disconnected stage=hospital team=14 exams=2 turns=54 error=none
+STEP 09-rt-feedback
+STEP 10-rt-stopped
+DONE

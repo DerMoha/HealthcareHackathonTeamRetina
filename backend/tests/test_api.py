@@ -793,3 +793,11 @@ def test_trace_logs_exchanges_and_snapshots_the_session(client, sid, trace_dir, 
     assert snap["session"]["diagnosis"] == "distal radius fracture" and snap["debrief"]["feedback"]
     from app import tracelog
     assert tracelog._redact({"token": "abc", "n": [{"api_key": "k"}]}) == {"token": "***", "n": [{"api_key": "***"}]}
+
+
+def test_trace_cuts_big_bodies_but_keeps_the_metadata(client, trace_dir, monkeypatch):
+    monkeypatch.setenv("MEDSIM_TRACE", "1")
+    client.get("/cases")  # well over the body limit
+    line = json.loads((trace_dir / "events.jsonl").read_text().splitlines()[-1])
+    assert line["path"] == "/cases" and line["status"] == 200 and line["pid"]
+    assert line["response"]["chars"] > len(line["response"]["truncated"])

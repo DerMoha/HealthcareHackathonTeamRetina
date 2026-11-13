@@ -26,11 +26,15 @@ struct ImmersivePatientView: View {
             content.add(avatar.root)
             if let notebook = attachments.entity(for: "notebook") {
                 // Beside the patient (the wearer's right), at chest height, turned to the wearer.
-                us.notebook = panels.add(notebook, to: avatar.root, at: [0.42, 1.3, 0.5], yaw: -0.35)
+                us.notebook = SmokeLog.pitch // pitch: clear of the centred patient, facing the camera
+                    ? panels.add(notebook, to: avatar.root, at: [0.74, 1.32, 0.45], yaw: -0.2, scale: 1.1)
+                    : panels.add(notebook, to: avatar.root, at: [0.42, 1.3, 0.5], yaw: -0.35)
             }
             if let viewer = attachments.entity(for: "viewer") {
                 // Further out than the notebook and nearer the wearer, so both can be read side by side.
-                panels.add(viewer, to: avatar.root, at: [1.0, 1.3, 0.75], yaw: -0.6)
+                // Pitch: left of the patient instead, inside the simulator's fixed view.
+                if SmokeLog.pitch { panels.add(viewer, to: avatar.root, at: [-0.62, 1.38, 0.5], yaw: 0.35, scale: 1.15) }
+                else { panels.add(viewer, to: avatar.root, at: [1.0, 1.3, 0.75], yaw: -0.6) }
             }
             avatar.rebuildZones(model.zones)
             avatar.startIdle()
@@ -46,6 +50,12 @@ struct ImmersivePatientView: View {
             us.build(model.ultrasound)
             us.setEnabled(model.phase == .running)
             if us.arrange(recumbent: avatar.isRecumbent) { model.recenter() }
+            if let caption = attachments.entity(for: "pitchCaption") {
+                // Beside the head on the wearer's right; above the couch for a reclining patient.
+                caption.position = avatar.isRecumbent ? [0.2, 1.75, 0.2] : [0.8, 1.5, 0.3]
+                caption.scale = [1.4, 1.4, 1.4]
+                avatar.root.addChild(caption)
+            }
             if let monitor = attachments.entity(for: "usMonitor") {
                 panels.add(monitor, to: us.monitorMount, scale: 1.3)
             }
@@ -77,6 +87,7 @@ struct ImmersivePatientView: View {
             Attachment(id: "usPanel") { UltrasoundPanel().environment(model) }
             Attachment(id: "fitting") { FittingPanel().environment(model) }
             Attachment(id: "replay") { ReplayPanel().environment(model) }
+            if SmokeLog.pitch { Attachment(id: "pitchCaption") { PitchCaption() } }
         }
         .gesture(
             SpatialTapGesture().targetedToEntity(where: Self.scene).onEnded { value in
@@ -135,7 +146,7 @@ struct ImmersivePatientView: View {
             lab.sync(model.fit) // equipment delivered mid-session: a support already on the arm stays there
         }
         .modifier(StageSync(stage: stage))
-        .modifier(PlaceSync(show: showPlace))
+        .modifier(PlaceSync(show: showPlace, place: place))
         .onChange(of: model.session?.sessionId) { lab.build(model.session?.case.orthotics ?? Orthotics()) }
         .modifier(UltrasoundSync(model: model, us: us))
         .onChange(of: model.activeAvatarModel) { _, variant in
@@ -206,9 +217,12 @@ struct ImmersivePatientView: View {
 private struct PlaceSync: ViewModifier {
     @Environment(AppModel.self) private var model
     let show: () -> Void
+    let place: EnvironmentSet
 
     func body(content: Content) -> some View {
         content.onChange(of: model.environmentKind) { show() }
+            .onChange(of: Pitch.shared.hideRoom) { _, hide in place.root.isEnabled = !hide } // pitch: the wearer's own room
+            .background { if SmokeLog.pitch { PitchDemo() } } // runs in the space: the window closes
     }
 }
 

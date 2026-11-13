@@ -18,6 +18,8 @@ struct NotebookView: View {
             EmptyView()
         } else if model.notebookOpen {
             notebook.modifier(NotebookPage())
+        } else if SmokeLog.pitch {
+            EmptyView() // pitch shots: no closed-notebook button in the picture
         } else {
             Button { model.setNotebookOpen(true) } label: {
                 VStack(spacing: 8) {

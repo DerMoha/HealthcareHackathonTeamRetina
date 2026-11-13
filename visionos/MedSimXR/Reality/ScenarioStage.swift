@@ -72,6 +72,7 @@ final class ScenarioStage {
             let figure = Self.person(shirt: Self.teamShirts[i % Self.teamShirts.count], height: 1.74,
                                      label: "\(member.name) · \(member.role)")
             figure.position = spot
+            figure.isEnabled = !SmokeLog.pitch // pitch shots: the crew speaks in subtitles instead of stand-in bodies
             figure.orientation = simd_quatf(angle: turn, axis: [0, 1, 0])
             journeyRoot.addChild(figure)
             journeySpeakers[member.name] = figure

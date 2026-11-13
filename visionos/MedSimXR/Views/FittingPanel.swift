@@ -7,7 +7,7 @@ struct FittingPanel: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        if model.phase == .running, let orthotics = model.session?.case.orthotics, !orthotics.sizes.isEmpty {
+        if model.phase == .running, !SmokeLog.pitch || Pitch.shared.showFitting, let orthotics = model.session?.case.orthotics, !orthotics.sizes.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 if !model.behavior.canExamine {
                     Label("Equipment: once the patient is seated", systemImage: "ruler").font(.callout)

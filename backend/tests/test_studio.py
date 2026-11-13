@@ -436,3 +436,14 @@ def test_advanced_overrides_are_validated_and_applied(client):
     assert d["difficulty"]["hint_policy"] == "off"
     assert d["companions"]["bystander"]["interject_every_s"] == 45
     assert len(d["environment"]["crowd"]["figures"]) == 5
+
+
+def test_concurrent_first_loads_of_an_empty_library_do_not_fail(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from app import studio
+    from app.sessions import load_scenarios
+    monkeypatch.setenv("MEDSIM_STUDIO_DB", str(tmp_path / "library.json"))
+    lib = studio.Library(load_scenarios())
+    with ThreadPoolExecutor(8) as pool:  # each sees no file, seeds and saves at once
+        list(pool.map(lambda _: lib._load(), range(16)))
+    assert json.loads((tmp_path / "library.json").read_text()) and not list(tmp_path.glob("*.tmp"))

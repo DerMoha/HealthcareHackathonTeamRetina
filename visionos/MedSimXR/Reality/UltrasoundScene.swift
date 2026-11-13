@@ -83,7 +83,7 @@ final class UltrasoundScene {
         root.isEnabled = info != nil
         reset()
         guard let avatar, info != nil else { return }
-        let faint = Self.overlay(.white, 0.07)
+        let faint = Self.overlay(.white, SmokeLog.pitch ? 0 : 0.07) // pitch shots: no visible hit spheres
         for region in regions {
             guard let anchor = avatar.anchors[region.attachTo] else { continue }
             let normal = avatar.anchorNormals[region.attachTo] ?? [0, 1, 0]
@@ -98,7 +98,7 @@ final class UltrasoundScene {
             zoneEntities.append(zone)
 
             let patch = ModelEntity(mesh: .generateCylinder(height: 0.004, radius: 0.045),
-                                    materials: [Self.overlay(UIColor(red: 0.62, green: 0.88, blue: 1, alpha: 1), 0.38, depth: true)])
+                                    materials: [Self.overlay(UIColor(red: 0.62, green: 0.88, blue: 1, alpha: 1), SmokeLog.pitch ? 0.18 : 0.38, depth: true)])
             patch.position = position + normal * 0.004
             patch.orientation = simd_quatf(from: [0, 1, 0], to: normal)
             gelRoot.addChild(patch)
@@ -110,8 +110,13 @@ final class UltrasoundScene {
     /// Returns true when the placement changed (the caller then re-places the patient).
     @discardableResult
     func arrange(recumbent: Bool) -> Bool {
-        notebook?.position = recumbent ? [0.45, 1.2, 0.5] : [0.42, 1.3, 0.5]
-        notebook?.orientation = simd_quatf(angle: recumbent ? -0.45 : -0.35, axis: [0, 1, 0])
+        if SmokeLog.pitch { // pitch shots: clear of the centred patient, turned to the camera
+            notebook?.position = recumbent ? [0.5, 1.25, 0.5] : [0.74, 1.32, 0.45]
+            notebook?.orientation = simd_quatf(angle: recumbent ? -0.3 : -0.2, axis: [0, 1, 0])
+        } else {
+            notebook?.position = recumbent ? [0.45, 1.2, 0.5] : [0.42, 1.3, 0.5]
+            notebook?.orientation = simd_quatf(angle: recumbent ? -0.45 : -0.35, axis: [0, 1, 0])
+        }
         notebook?.scale = recumbent ? [0.95, 0.95, 0.95] : [1, 1, 1]
         let extra: Float = 0, lateral: Float? = recumbent ? 0.3 : nil
         let changed = Placement.extraDistance != extra || Placement.lateralOverride != lateral

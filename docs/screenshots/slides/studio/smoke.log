@@ -1,0 +1,38 @@
+studio window shown tab=overview
+studio opened library=2 market=["LKGLZX", "5344E7"] error=none
+STEP t01-overview
+STEP t02-marketplace
+studio downloaded tab=downloaded copy=scn_9eb66779 state=draft published=false inMine=false error=none
+STEP t03-downloaded
+STEP t04-mine
+placed at SIMD3<Float>(0.45, 0.0, -2.9) tracked=false
+behavior reset state=standing_idle
+scenario code=5344E7 v1 title="Busy walk-in, limited kit (challenging)" review=experimental env=community_clinic difficulty=challenging hints=off noise=0.60 bystander=anxious helper=false crowd=4 sizes=["small", "large"] tape=true investigations=[] engine=Backend
+session config case=wrist_trauma_001 mood=calm avatar=male model=Patient
+studio launch code=5344E7 phase=running scenario=5344E7 error=none
+studio switched to session tab
+stage sign=community_clinic figures=5 bystander=anxious helper=false noise=0.60 noisePlaying=true
+zones rebuilt ["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"]
+catalog cases=["wrist_trauma_001", "obstetric_ultrasound_001", "road_trauma_journey_001"]
+director link connected
+avatar usdz joints=53 size=SIMD3<Float>(0.52524173, 1.37687, 0.78019935) minY=0.0
+avatar variant=Patient loaded=Patient
+pose standing_idle right_wrist moved=0.54
+teaching anatomy=false reference=none parts=0
+environment set=clinic parts=50 sound=true
+immersive scene built zones=3
+pose standing_idle right_wrist moved=0.54
+session id=c069055bfc2b4eceaff4a9b9aa921b7c scenario=5344E7 phase=running immersive=true error=none
+STEP t05-launched
+STEP t06-await-director
+stage sign=community_clinic figures=6 bystander=anxious helper=true noise=0.60 noisePlaying=true
+scene line speaker=Kim shown=true text="Hi, I'm Kim, one of the nurses. Tell me what you need and I'll fetch it."
+director events seen=1 ["A helper arrives"]
+scene line speaker=Sam shown=true text="Shouldn't someone more senior be looking at this?"
+director applied seq=2 kind=helper_arrives event=bd820ae7be814580880f22876a186744 sign=community_clinic figures=6 bystander=anxious helper=true noise=0.60 noisePlaying=true sizes=["small", "large"] hints=off exams=0 turns=1
+STEP t07-after-event
+diagnosed score=6/100
+director link lost
+studio debrief shown code=5344E7 interventions=1 acknowledged=1 score=6/100 resources=7
+STEP t08-debrief
+DONE
