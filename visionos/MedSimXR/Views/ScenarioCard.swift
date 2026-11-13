@@ -262,7 +262,7 @@ struct ScenarioCard: View {
     }
 }
 
-/// "Multi-stage journey · 3 places" and the places in order. Nothing for a single encounter.
+/// "Multi-stage journey · 3 places" and the places in order, or "Single encounter · 1 place".
 struct JourneyTag: View {
     let stages: [String]?
 
@@ -275,6 +275,11 @@ struct JourneyTag: View {
                     .background(.orange.opacity(0.22), in: Capsule())
                 Text(stages.joined(separator: " → ")).font(.caption2).foregroundStyle(.secondary)
             }
+        } else {
+            Label("Single encounter · 1 place", systemImage: "person.fill")
+                .font(.caption2.weight(.semibold))
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(.teal.opacity(0.22), in: Capsule())
         }
     }
 }
