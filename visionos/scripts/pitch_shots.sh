@@ -48,7 +48,7 @@ if [ $BUILD = 1 ]; then
 fi
 APP="$DD/Build/Products/Debug-xrsimulator/MedSimXR.app"
 xcrun simctl bootstatus "$UDID" -b >/dev/null
-[ -n "$HOLD" ] && open -a Simulator --args -CurrentDeviceUDID "$UDID"
+[ -n "$HOLD" ] && { open -a Simulator --args -CurrentDeviceUDID "$UDID" 2>/dev/null || true; }   # optional: screenshots work headless
 
 for c in $CASES; do
   case "$c" in

@@ -14,6 +14,7 @@
 		0C9CC9FE7077F12375CC0D89 /* SmokeDemos.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA089D90E7210A727D9BCBB8 /* SmokeDemos.swift */; };
 		0CAF005D55DB6DA975886630 /* us_head_bpd_2.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 1224880918544ACC0F720371 /* us_head_bpd_2.jpg */; };
 		0E1FF6EB0F0E4636658AF98F /* us_sex_answer.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 012323190AF661850FEF672D /* us_sex_answer.m4a */; };
+		0FC24EA39E72361B4258CC6D /* PitchDressing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93F4B74EB66E48F73BD14750 /* PitchDressing.swift */; };
 		109E81104F19251C7A2D3EB3 /* BackendClinicalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFD268A4A2F88FBD5FFD3A8 /* BackendClinicalEngine.swift */; };
 		11459C786F76FD1FE36A977E /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9C9B36CB6529DAFB8E3273 /* FeedbackView.swift */; };
 		115EE49C7CF6C32769A06E56 /* obstetric_ultrasound_001.json in Resources */ = {isa = PBXBuildFile; fileRef = 460F74ACDD3FA071D8468ADD /* obstetric_ultrasound_001.json */; };
@@ -21,6 +22,7 @@
 		161515A51A5638D1AEAF8A8C /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85B90974265C58FFFAB6E33D /* Mocks.swift */; };
 		17B3006A9C875D454E6473DB /* StudioContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121529BE5185D4060E0FEB12 /* StudioContracts.swift */; };
 		17EF8D4D55CCD059A17F2FD8 /* us_greeting.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 9213C0E2CFD4B465165068E7 /* us_greeting.m4a */; };
+		1876FC6DAE8864D6FBD914F8 /* PitchAmbulance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38124997731140B5D63D778C /* PitchAmbulance.swift */; };
 		198CEBFB19D0BA0C78C72876 /* us_placenta.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 9BB5C8149D315FBE24CA3842 /* us_placenta.jpg */; };
 		1A25FBC26C309092877AF002 /* ReactionPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5A25A3DADF9B4063BE901C /* ReactionPlayer.swift */; };
 		23D05D9AE53E1E394B6078C4 /* ImmersivePatientView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 813A01C10B111313CE1DDF90 /* ImmersivePatientView.swift */; };
@@ -42,9 +44,11 @@
 		45883C3FCB36D3A3F7708CE9 /* OfflineClinicalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E01D899BCF7FED4BE9771CAE /* OfflineClinicalEngine.swift */; };
 		459B23FC441D501F6C5AA983 /* ElevenLabsVoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010C4E1EF27A8CCED80291E9 /* ElevenLabsVoiceService.swift */; };
 		4BF8A57553F765C14F4FC0F3 /* us_sex_question.m4a in Resources */ = {isa = PBXBuildFile; fileRef = B0D0F0403524C82290C6A2C2 /* us_sex_question.m4a */; };
+		4E47E083F6584AE3CF2BFDB1 /* PitchKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7815D8E349D92461FE177B30 /* PitchKit.swift */; };
 		4F17B956E9DD4D46FB2B1626 /* ScenarioDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27893D27C947621E43E88D33 /* ScenarioDashboardView.swift */; };
 		4F2607BE348446FF53F53F84 /* PatientBehavior.swift in Sources */ = {isa = PBXBuildFile; fileRef = F82E1498E3EB5ABC0CF5A628 /* PatientBehavior.swift */; };
 		51A6D41147CF0D65D368C700 /* us_consent.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D74C65E9AD1666609B674A3B /* us_consent.m4a */; };
+		5683C04DE70791A1411A3EFC /* PitchAntenatal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5957BB2A3793A22EB16AFB5 /* PitchAntenatal.swift */; };
 		6268DBB4CE64DF0607242994 /* EnvironmentSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE3A3A303122BD3192E36D65 /* EnvironmentSet.swift */; };
 		638950D355C4B2A3F8152287 /* wrist_trauma_001.json in Resources */ = {isa = PBXBuildFile; fileRef = CB6B263C048F155DE6E6A502 /* wrist_trauma_001.json */; };
 		63DE0AB8670F1755EE1BC359 /* us_view_overview.m4a in Resources */ = {isa = PBXBuildFile; fileRef = F5E323CE67F6809176E0E475 /* us_view_overview.m4a */; };
@@ -60,10 +64,12 @@
 		8B146134406E931335A0A317 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 768CDF0F9495A8A476DC168D /* AppConfig.swift */; };
 		8DFFEDF414BE10A2933DF099 /* us_heart_4ch.jpg in Resources */ = {isa = PBXBuildFile; fileRef = AB32A4DEAAE71D625AAEF190 /* us_heart_4ch.jpg */; };
 		916D2455AD149648AF08F383 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */; };
+		91E758E0F71CBD0CB319369E /* PitchTraumaBay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B3793AECF1C099CC466EAC8 /* PitchTraumaBay.swift */; };
 		940AFBAA74FF8E67E716B048 /* Patient_pregnant.usdz in Resources */ = {isa = PBXBuildFile; fileRef = D9A02DCEC62445D991C58216 /* Patient_pregnant.usdz */; };
 		9481626117F1BF11B3B59018 /* Contracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B46355DA7F1620E7187A59E3 /* Contracts.swift */; };
 		986565E468A45407EDBAFD10 /* left_wrist.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 870FD8DD945440A47FF1F123 /* left_wrist.m4a */; };
 		9CD55BFC1A1E7B144AAB18DE /* Patient_female.json in Resources */ = {isa = PBXBuildFile; fileRef = 893279B4666A4FB74A6D57AE /* Patient_female.json */; };
+		9D05A92099FF7377D0947100 /* PitchRoadside.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF66C9168706A87BBD7E8B2D /* PitchRoadside.swift */; };
 		9F1A74813949268C6173EBD6 /* Patient.json in Resources */ = {isa = PBXBuildFile; fileRef = B09FC5747FBE2B068E740DB5 /* Patient.json */; };
 		9F34C34513E345F55B19D8DB /* right_anatomical_snuffbox.m4a in Resources */ = {isa = PBXBuildFile; fileRef = DFD4D55943B774A35174DC6F /* right_anatomical_snuffbox.m4a */; };
 		9FA01C8AA82E64CB0B2A2453 /* MovablePanels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3F6262479DA79DD6F945912 /* MovablePanels.swift */; };
@@ -101,6 +107,7 @@
 		FA885548A292C8E006EC3CAB /* us_movements.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 9B441F16305B2AADB37035E3 /* us_movements.m4a */; };
 		FB8157F924E90636643326A8 /* ScenarioLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0BB27EC1C3CC5BBAE8B4AD3 /* ScenarioLink.swift */; };
 		FCB51AFA627749EC7F071D6C /* us_umbilical_cord.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 702854C71168DEE3FCC36034 /* us_umbilical_cord.jpg */; };
+		FF335C33901C5A9C38F19B2B /* PitchClinic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 936E40ABCB3538BAA0EC55D7 /* PitchClinic.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -117,6 +124,7 @@
 		20CCE189F5563018573BE022 /* StudioState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioState.swift; sourceTree = "<group>"; };
 		23B025AD1D79D5DCBB33176F /* FittingPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FittingPanel.swift; sourceTree = "<group>"; };
 		27893D27C947621E43E88D33 /* ScenarioDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenarioDashboardView.swift; sourceTree = "<group>"; };
+		38124997731140B5D63D778C /* PitchAmbulance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchAmbulance.swift; sourceTree = "<group>"; };
 		3EF819F0AB56EE7D419E0CF8 /* Patient_pregnant.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Patient_pregnant.json; sourceTree = "<group>"; };
 		40D6BDFA670E7464C7203602 /* us_no_gel.m4a */ = {isa = PBXFileReference; path = us_no_gel.m4a; sourceTree = "<group>"; };
 		411341ADA2F30AA6C2CF194C /* ExamZones.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExamZones.swift; sourceTree = "<group>"; };
@@ -137,6 +145,8 @@
 		768CDF0F9495A8A476DC168D /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		7714E1582CF355B2DAE931C2 /* UltrasoundMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UltrasoundMonitorView.swift; sourceTree = "<group>"; };
 		77F70F9AD13AEC4D287EB3D4 /* right_distal_forearm.m4a */ = {isa = PBXFileReference; path = right_distal_forearm.m4a; sourceTree = "<group>"; };
+		7815D8E349D92461FE177B30 /* PitchKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchKit.swift; sourceTree = "<group>"; };
+		7B3793AECF1C099CC466EAC8 /* PitchTraumaBay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchTraumaBay.swift; sourceTree = "<group>"; };
 		7CA90764AA49279F0AD23A0E /* empathy.m4a */ = {isa = PBXFileReference; path = empathy.m4a; sourceTree = "<group>"; };
 		7EC2998263975F8974F997B7 /* us_spine_2.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = us_spine_2.jpg; sourceTree = "<group>"; };
 		7F3DA9C4F12811CEBDA6A074 /* ScenarioCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenarioCard.swift; sourceTree = "<group>"; };
@@ -152,6 +162,8 @@
 		8DD6071FB9A69FE5CA9A0B74 /* PatientBehaviorController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientBehaviorController.swift; sourceTree = "<group>"; };
 		8FAB4E7C3261A194949DF12A /* numbness.m4a */ = {isa = PBXFileReference; path = numbness.m4a; sourceTree = "<group>"; };
 		9213C0E2CFD4B465165068E7 /* us_greeting.m4a */ = {isa = PBXFileReference; path = us_greeting.m4a; sourceTree = "<group>"; };
+		936E40ABCB3538BAA0EC55D7 /* PitchClinic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchClinic.swift; sourceTree = "<group>"; };
+		93F4B74EB66E48F73BD14750 /* PitchDressing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchDressing.swift; sourceTree = "<group>"; };
 		9586E276D0A8F3ECDF3D2A99 /* NoteDictation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDictation.swift; sourceTree = "<group>"; };
 		9B441F16305B2AADB37035E3 /* us_movements.m4a */ = {isa = PBXFileReference; path = us_movements.m4a; sourceTree = "<group>"; };
 		9BB5C8149D315FBE24CA3842 /* us_placenta.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = us_placenta.jpg; sourceTree = "<group>"; };
@@ -175,6 +187,7 @@
 		CB6B263C048F155DE6E6A502 /* wrist_trauma_001.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = wrist_trauma_001.json; sourceTree = "<group>"; };
 		D3F6262479DA79DD6F945912 /* MovablePanels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovablePanels.swift; sourceTree = "<group>"; };
 		D448EF8CF9B5BBEC2C9EC395 /* StudioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioView.swift; sourceTree = "<group>"; };
+		D5957BB2A3793A22EB16AFB5 /* PitchAntenatal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchAntenatal.swift; sourceTree = "<group>"; };
 		D5FA3ED3B156DCAED6F9F289 /* location.m4a */ = {isa = PBXFileReference; path = location.m4a; sourceTree = "<group>"; };
 		D74C65E9AD1666609B674A3B /* us_consent.m4a */ = {isa = PBXFileReference; path = us_consent.m4a; sourceTree = "<group>"; };
 		D9A02DCEC62445D991C58216 /* Patient_pregnant.usdz */ = {isa = PBXFileReference; lastKnownFileType = file.usdz; path = Patient_pregnant.usdz; sourceTree = "<group>"; };
@@ -200,6 +213,7 @@
 		FEC6F610EBDD69348BA15524 /* UltrasoundScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UltrasoundScene.swift; sourceTree = "<group>"; };
 		FEF53ACB82D050988FA827F7 /* mechanism.m4a */ = {isa = PBXFileReference; path = mechanism.m4a; sourceTree = "<group>"; };
 		FEFF639990A0E6A3C69BDF18 /* us_symptoms.m4a */ = {isa = PBXFileReference; path = us_symptoms.m4a; sourceTree = "<group>"; };
+		FF66C9168706A87BBD7E8B2D /* PitchRoadside.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchRoadside.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -291,6 +305,20 @@
 				B7A64385B1EA1F80EF2545A2 /* wrist_xray_pa.jpg */,
 			);
 			path = Radiology;
+			sourceTree = "<group>";
+		};
+		6C208ED9513693A1E5D2DE1E /* Pitch */ = {
+			isa = PBXGroup;
+			children = (
+				38124997731140B5D63D778C /* PitchAmbulance.swift */,
+				D5957BB2A3793A22EB16AFB5 /* PitchAntenatal.swift */,
+				936E40ABCB3538BAA0EC55D7 /* PitchClinic.swift */,
+				93F4B74EB66E48F73BD14750 /* PitchDressing.swift */,
+				7815D8E349D92461FE177B30 /* PitchKit.swift */,
+				FF66C9168706A87BBD7E8B2D /* PitchRoadside.swift */,
+				7B3793AECF1C099CC466EAC8 /* PitchTraumaBay.swift */,
+			);
+			path = Pitch;
 			sourceTree = "<group>";
 		};
 		8813455D2E813E752B7C5574 /* Networking */ = {
@@ -449,6 +477,7 @@
 				7FD9746D302F808880800653 /* ScenarioStage.swift */,
 				B8A8BCDD3EDFA3EF4E05848F /* SpatialMeasurementTool.swift */,
 				FEC6F610EBDD69348BA15524 /* UltrasoundScene.swift */,
+				6C208ED9513693A1E5D2DE1E /* Pitch */,
 			);
 			path = Reality;
 			sourceTree = "<group>";
@@ -603,7 +632,14 @@
 				2B18EB1CC30A4B01DF40F97C /* PatientAvatar.swift in Sources */,
 				4F2607BE348446FF53F53F84 /* PatientBehavior.swift in Sources */,
 				CAA2E484EF14CE8B6C028B36 /* PatientBehaviorController.swift in Sources */,
+				1876FC6DAE8864D6FBD914F8 /* PitchAmbulance.swift in Sources */,
+				5683C04DE70791A1411A3EFC /* PitchAntenatal.swift in Sources */,
+				FF335C33901C5A9C38F19B2B /* PitchClinic.swift in Sources */,
+				0FC24EA39E72361B4258CC6D /* PitchDressing.swift in Sources */,
+				4E47E083F6584AE3CF2BFDB1 /* PitchKit.swift in Sources */,
+				9D05A92099FF7377D0947100 /* PitchRoadside.swift in Sources */,
 				CDC48E931811085E542C9BD2 /* PitchScenes.swift in Sources */,
+				91E758E0F71CBD0CB319369E /* PitchTraumaBay.swift in Sources */,
 				A7E433B84AC1FC6322978380 /* Placement.swift in Sources */,
 				A01564A7A74FA5EE6C68CEA8 /* RadiologyViewer.swift in Sources */,
 				1A25FBC26C309092877AF002 /* ReactionPlayer.swift in Sources */,

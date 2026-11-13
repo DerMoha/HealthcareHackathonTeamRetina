@@ -49,15 +49,18 @@ final class EnvironmentSet {
         blinkers.forEach { $0.cancel() }; blinkers = []
         Array(root.children).forEach { $0.removeFromParent() }
         let set = Entity()
-        switch kind {
-        case .clinic: buildClinic(set, antenatal: false)
-        case .antenatal: buildClinic(set, antenatal: true)
-        case .roadside: buildRoadside(set, night: false)
-        case .roadsideNight: buildRoadside(set, night: true)
-        case .ambulance: buildAmbulance(set)
-        case .traumaBay: buildTraumaBay(set)
+        // Pitch shots: a dressed place (Reality/Pitch) replaces the procedural one when it exists.
+        if !(SmokeLog.pitch && PitchDressing.build(kind, into: set, seat: seat, avatarRoot: root.parent ?? root)) {
+            switch kind {
+            case .clinic: buildClinic(set, antenatal: false)
+            case .antenatal: buildClinic(set, antenatal: true)
+            case .roadside: buildRoadside(set, night: false)
+            case .roadsideNight: buildRoadside(set, night: true)
+            case .ambulance: buildAmbulance(set)
+            case .traumaBay: buildTraumaBay(set)
+            }
+            if kind.bringsSeat { buildSeat(set, kind) }
         }
-        if kind.bringsSeat { buildSeat(set, kind) }
         root.addChild(set)
         if sound { playAmbience(kind) }
         SmokeLog.mark("environment set=\(kind.rawValue) parts=\(set.children.count) sound=\(ambience?.isPlaying ?? false)")
