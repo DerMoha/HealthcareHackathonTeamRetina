@@ -14,6 +14,18 @@ export default function DefinitionView({ def }: { def: ScenarioDefinition }) {
         <dt>Hint policy</dt><dd><code>{def.difficulty.hint_policy}</code>, {def.difficulty.hints.length} hint{def.difficulty.hints.length === 1 ? '' : 's'}</dd>
       </dl>
 
+      {def.journey && <>
+        <h4>Journey ({def.journey.stages.length} places, in this order)</h4>
+        <table className="table compact">
+          <thead><tr><th>Place</th><th>Team</th><th>Team actions</th><th>Noise</th></tr></thead>
+          <tbody>
+            {def.journey.stages.map(s => (
+              <tr key={s.id}><td>{s.label}</td><td>{s.team.join(', ')}</td><td>{s.actions}</td><td>{Math.round(s.noise * 100)}%</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </>}
+
       <h4>Resources</h4>
       <table className="table compact">
         <thead><tr><th>Item</th><th>Kind</th><th>Available</th><th>Deliverable later</th><th>Reason</th></tr></thead>

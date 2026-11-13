@@ -48,6 +48,7 @@ struct ScenarioCard: View {
                 Button { code = s.code } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(s.title).font(.subheadline)
+                        JourneyTag(stages: s.stages)
                         Text("\(s.code) · \(s.environment) · \(s.difficulty) · \(s.reviewState.replacingOccurrences(of: "_", with: " "))")
                             .font(.caption).foregroundStyle(.secondary)
                     }
@@ -258,5 +259,22 @@ struct ScenarioCard: View {
         SmokeLog.mark("STEP t08-debrief")
         await pause(2)
         SmokeLog.mark("DONE")
+    }
+}
+
+/// "Multi-stage journey · 3 places" and the places in order. Nothing for a single encounter.
+struct JourneyTag: View {
+    let stages: [String]?
+
+    var body: some View {
+        if let stages, !stages.isEmpty {
+            VStack(alignment: .leading, spacing: 3) {
+                Label("Multi-stage journey · \(stages.count) places", systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill")
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(.orange.opacity(0.22), in: Capsule())
+                Text(stages.joined(separator: " → ")).font(.caption2).foregroundStyle(.secondary)
+            }
+        }
     }
 }

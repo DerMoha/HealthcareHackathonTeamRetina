@@ -326,6 +326,8 @@ struct ScenarioSummary: Codable, Hashable, Identifiable, Sendable {
     var environment: String
     var difficulty: String
     var crowdedness: String
+    /// Journey scenarios: place labels in order (absent from older servers and single encounters).
+    var stages: [String]?
     var id: String { code }
 }
 

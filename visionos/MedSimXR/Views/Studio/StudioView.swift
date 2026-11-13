@@ -215,6 +215,7 @@ struct StudioLibrary: View {
                         Text("v\(r.version) · \(r.isPublished ? r.code : "not published")").font(.caption).foregroundStyle(.secondary)
                     }
                     Text("\(r.environment) · \(r.difficulty)").font(.caption).foregroundStyle(.secondary)
+                    JourneyTag(stages: r.stages)
                 }
                 .padding(.vertical, 4)
                 .tag(r.scenarioId)
@@ -395,6 +396,7 @@ struct StudioMarketplace: View {
                 Spacer()
                 ReviewBadge(state: s.reviewState)
             }
+            JourneyTag(stages: s.stages)
             Text(s.description).font(.callout).lineLimit(4)
             Text("\(s.environment) · \(s.crowdedness) · \(s.difficulty) · v\(s.version)").font(.caption).foregroundStyle(.secondary)
             HStack {
