@@ -57,6 +57,9 @@ final class OfflineClinicalEngine: ClinicalEngine {
                 // fitting checks
                 var measurements: [String]?
                 var check: String?
+                // ultrasound checks
+                var views: [String]?
+                var requiresViewed: [String]?
             }
             var id: String
             var label: String
@@ -70,6 +73,8 @@ final class OfflineClinicalEngine: ClinicalEngine {
         struct Category: Decodable {
             var id: String
             var title: String
+            /// "examination": notes about something never done are flagged with the examination wording.
+            var noteKind: String?
             var maxScore: Int
             var criteria: [Criterion]
         }
@@ -96,8 +101,57 @@ final class OfflineClinicalEngine: ClinicalEngine {
             var diagnosis: Diagnosis
             var nextSteps: [String]
             var rubric: Rubric
-            var management: Management
-            var fitting: Fitting
+            var management: Management?
+            var fitting: Fitting?
+            var scanReview: [ScanReviewSpec]?
+        }
+        struct ScanReviewSpec: Decodable {
+            var id: String
+            var label: String
+            var expected: Bool
+            var views: [String]
+            var image: String
+            var metText: String
+            var missedText: String
+        }
+        struct Ultrasound: Decodable {
+            struct Gel: Decodable {
+                var patientResponse: String
+                var voiceContext: String
+                var repeatResponse: String
+                var repeatVoiceContext: String
+            }
+            struct NoGel: Decodable {
+                var title: String
+                var caption: String
+                var patientResponse: String
+                var voiceContext: String
+                var depthCm: Double
+                var gain: Int
+            }
+            struct Region: Decodable {
+                var id: String
+                var label: String
+                var attachTo: String
+                var radius: Float
+                var views: [String]
+            }
+            struct View: Decodable {
+                var id: String
+                var image: String
+                var title: String
+                var caption: String
+                var measurements: [ScanMeasurement]
+                var imageCredit: String
+                var depthCm: Double
+                var gain: Int
+                var patientResponse: String
+                var voiceContext: String
+            }
+            var gel: Gel
+            var noGel: NoGel
+            var regions: [Region]
+            var views: [View]
         }
         struct Fitting: Decodable {
             struct Outcome: Decodable {
@@ -115,22 +169,46 @@ final class OfflineClinicalEngine: ClinicalEngine {
             var rubric: Management
         }
 
+        /// Scripted line with optional mood-specific wording for the patient.
+        struct Line: Decodable {
+            var id: String
+            var learner: String
+            var patient: String
+            var patientByMood: [String: String]?
+        }
+        /// How the patient comes across; never part of the public case.
+        struct Persona: Decodable {
+            var moods: [String: String]?
+            var avatars: [String: String]?
+        }
+
         var caseId: String
         var title: String
         var learnerBrief: String
         var patient: PatientInfo
+        var catalog: CaseCatalog?
+        var persona: Persona?
         var voiceContext: String
         var examinationZones: [Zone]
-        var scriptedDialogue: [ScriptedLine]
+        var scriptedDialogue: [Line]
         var investigations: [Investigation]
         var orthotics: Orthotics
+        var ultrasound: Ultrasound?
         var hidden: Hidden
     }
 
+    /// Enough to tell a case file from the other JSON files in the bundle (avatar sidecars).
+    private struct CaseHeader: Decodable { var caseId: String }
+
     private struct Exam { var seq: Int; var zoneId: String; var pain: Int }
     private struct Turn { var seq: Int; var role: SpeakerRole; var text: String }
+    private struct Scan { var seq: Int; var regionId: String; var viewId: String?; var good: Bool }
 
-    private let scenario: Scenario
+    /// Every bundled case by id; `scenario` is the one the current session runs.
+    private let scenarios: [String: Scenario]
+    private let order: [String]
+    private var scenario: Scenario
+    private var config = SessionConfig(mood: "calm", avatar: "male")
     private var sessionId: String?
     private var seq = 0
     private var exams: [Exam] = []
@@ -140,26 +218,46 @@ final class OfflineClinicalEngine: ClinicalEngine {
     private var measured: [(seq: Int, id: String)] = []
     private var fittings: [(seq: Int, fit: OrthosisFit?)] = []
     private var checks: [(seq: Int, kind: String)] = []
+    private var gels: [Int] = []
+    private var scans: [Scan] = []
     private var diagnosis: String?
     private var notes = ClinicalNotes()
 
-    init(scenarioData: Data) throws {
-        scenario = try JSONDecoder.medsim.decode(Scenario.self, from: scenarioData)
+    /// One or more cases, in the order given.
+    init(scenarios data: [Data]) throws {
+        let decoded = try data.map { try JSONDecoder.medsim.decode(Scenario.self, from: $0) }
+        guard let first = decoded.first else { throw OfflineEngineError(errorDescription: "No scenarios.") }
+        scenarios = Dictionary(decoded.map { ($0.caseId, $0) }, uniquingKeysWith: { $1 })
+        order = decoded.map(\.caseId)
+        scenario = first
     }
 
-    convenience init(caseId: String, bundle: Bundle = .main) throws {
-        guard let url = bundle.url(forResource: caseId, withExtension: "json") else {
-            throw OfflineEngineError(errorDescription: "Scenario \(caseId).json is not bundled.")
+    convenience init(scenarioData: Data) throws { try self.init(scenarios: [scenarioData]) }
+
+    /// Every case bundled in the app: any JSON file with a `case_id` (avatar sidecars have none).
+    convenience init(bundle: Bundle = .main) throws {
+        let urls = (bundle.urls(forResourcesWithExtension: "json", subdirectory: nil) ?? [])
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let cases = try urls.compactMap { url -> Data? in
+            let data = try Data(contentsOf: url)
+            return (try? JSONDecoder.medsim.decode(CaseHeader.self, from: data)) == nil ? nil : data
         }
-        try self.init(scenarioData: Data(contentsOf: url))
+        guard !cases.isEmpty else { throw OfflineEngineError(errorDescription: "No scenarios are bundled.") }
+        try self.init(scenarios: cases)
     }
 
     // MARK: ClinicalEngine
 
-    func startSession(caseId: String) async throws -> SessionInfo {
-        guard caseId == scenario.caseId else {
+    var bundledCases: [CaseInfo] { order.compactMap { scenarios[$0] }.map { publicCase($0, config: nil) } }
+
+    func caseCatalog() async throws -> [CaseInfo] { bundledCases }
+
+    func startSession(caseId: String, config requested: SessionConfig?) async throws -> SessionInfo {
+        guard let chosen = scenarios[caseId] else {
             throw OfflineEngineError(errorDescription: "Unknown case \(caseId).")
         }
+        config = try (chosen.catalog ?? CaseCatalog()).resolve(requested)
+        scenario = chosen
         sessionId = UUID().uuidString.lowercased()
         return clear()
     }
@@ -199,6 +297,51 @@ final class OfflineClinicalEngine: ClinicalEngine {
         )
     }
 
+    // MARK: Ultrasound (mirrors backend/app/ultrasound.py)
+
+    func applyGel() async throws -> GelResult {
+        guard sessionId != nil else { throw noSession }
+        guard let us = scenario.ultrasound else { throw OfflineEngineError(errorDescription: "This case has no ultrasound.") }
+        seq += 1
+        gels.append(seq)
+        let first = gels.count == 1
+        return GelResult(applied: true, patientResponse: first ? us.gel.patientResponse : us.gel.repeatResponse,
+                         voiceContext: first ? us.gel.voiceContext : us.gel.repeatVoiceContext, repeatCount: gels.count)
+    }
+
+    func scan(regionId: String, gelApplied: Bool?) async throws -> ScanResult {
+        guard sessionId != nil else { throw noSession }
+        guard let us = scenario.ultrasound, let region = us.regions.first(where: { $0.id == regionId }) else {
+            throw OfflineEngineError(errorDescription: "Unknown scan region '\(regionId)'.")
+        }
+        seq += 1
+        guard !gels.isEmpty, gelApplied != false else {
+            scans.append(Scan(seq: seq, regionId: regionId, viewId: nil, good: false))
+            let bad = us.noGel
+            return ScanResult(regionId: regionId, viewId: nil, image: nil, title: bad.title, caption: bad.caption,
+                              measurements: [], imageCredit: "", depthCm: bad.depthCm, gain: bad.gain, quality: "poor",
+                              gelApplied: false, patientResponse: bad.patientResponse, voiceContext: bad.voiceContext,
+                              repeatCount: scans.filter { $0.regionId == regionId && !$0.good }.count)
+        }
+        let done = scans.filter { $0.regionId == regionId && $0.good }.count
+        let viewId = region.views[done % region.views.count]
+        guard let view = us.views.first(where: { $0.id == viewId }) else {
+            throw OfflineEngineError(errorDescription: "Unknown view '\(viewId)'.")
+        }
+        scans.append(Scan(seq: seq, regionId: regionId, viewId: viewId, good: true))
+        return ScanResult(regionId: regionId, viewId: viewId, image: view.image, title: view.title, caption: view.caption,
+                          measurements: view.measurements, imageCredit: view.imageCredit, depthCm: view.depthCm,
+                          gain: view.gain, quality: "good", gelApplied: true, patientResponse: view.patientResponse,
+                          voiceContext: view.voiceContext,
+                          repeatCount: scans.filter { $0.regionId == regionId && $0.viewId == viewId }.count)
+    }
+
+    /// Distinct views obtained by good scans, in order of first appearance.
+    private var obtainedViews: [String] {
+        var seen = Set<String>()
+        return scans.sorted { $0.seq < $1.seq }.compactMap { $0.good ? $0.viewId : nil }.filter { seen.insert($0).inserted }
+    }
+
     func recordInteraction(_ turn: TranscriptTurn) async {
         guard sessionId != nil else { return }
         seq += 1
@@ -222,21 +365,44 @@ final class OfflineClinicalEngine: ClinicalEngine {
     private var noSession: OfflineEngineError { OfflineEngineError(errorDescription: "No active session.") }
 
     private func clear() -> SessionInfo {
-        seq = 0; exams = []; turns = []; orders = []; measured = []; fittings = []; checks = []; diagnosis = nil; notes = ClinicalNotes()
-        let s = scenario
+        seq = 0; exams = []; turns = []; orders = []; measured = []; fittings = []; checks = []; gels = []; scans = []; diagnosis = nil; notes = ClinicalNotes()
         return SessionInfo(
             sessionId: sessionId ?? "", startedAt: ISO8601DateFormatter().string(from: Date()),
-            case: CaseInfo(
-                caseId: s.caseId, title: s.title, learnerBrief: s.learnerBrief, patient: s.patient,
-                voiceContext: s.voiceContext,
-                zones: s.examinationZones.map {
-                    ZoneInfo(id: $0.id, label: $0.label, attachTo: $0.attachTo, offset: $0.offset, radius: $0.radius)
-                },
-                scriptedDialogue: s.scriptedDialogue,
-                investigations: s.investigations.map { InvestigationInfo(id: $0.id, label: $0.label) },
-                orthotics: s.orthotics
-            )
+            case: publicCase(scenario, config: config), config: config
         )
+    }
+
+    /// Whitelist of visible fields: no zone `result`, no `hidden`, no `persona`. With a session
+    /// `config` the voice context and scripted lines carry the patient's mood.
+    private func publicCase(_ s: Scenario, config: SessionConfig?) -> CaseInfo {
+        CaseInfo(
+            caseId: s.caseId, title: s.title, learnerBrief: s.learnerBrief, patient: s.patient,
+            voiceContext: config.map { voiceContext(s, $0) } ?? s.voiceContext,
+            zones: s.examinationZones.map {
+                ZoneInfo(id: $0.id, label: $0.label, attachTo: $0.attachTo, offset: $0.offset, radius: $0.radius)
+            },
+            scriptedDialogue: s.scriptedDialogue.map { line in
+                ScriptedLine(id: line.id, learner: line.learner,
+                             patient: config.flatMap { line.patientByMood?[$0.mood] } ?? line.patient)
+            },
+            investigations: s.investigations.map { InvestigationInfo(id: $0.id, label: $0.label) },
+            orthotics: s.orthotics,
+            catalog: s.catalog,
+            ultrasound: s.ultrasound.map { us in
+                UltrasoundInfo(regions: us.regions.map {
+                    UltrasoundRegion(id: $0.id, label: $0.label, attachTo: $0.attachTo, radius: $0.radius)
+                })
+            }
+        )
+    }
+
+    /// Case facts plus how the patient comes across. Must stay identical to `voice_context_for`
+    /// in backend/app/sessions.py (backend/tests/fixtures/session_config_expected.json).
+    private func voiceContext(_ s: Scenario, _ config: SessionConfig) -> String {
+        let lines = [s.persona?.avatars?[config.avatar], s.persona?.moods?[config.mood]].compactMap { $0 }
+        guard !lines.isEmpty else { return s.voiceContext }
+        return s.voiceContext + "\n\nHOW YOU COME ACROSS (manner only; it never changes the facts above):\n"
+            + lines.map { "- \($0)" }.joined(separator: "\n")
     }
 
     // MARK: Rubric engine
@@ -285,6 +451,36 @@ final class OfflineClinicalEngine: ClinicalEngine {
         case "learner_avoided":
             let ok = !learnerTurns.isEmpty && firstLearnerQuote(kw) == nil
             return Outcome(met: ok, points: ok ? full : 0, method: "keyword", evidence: nil)
+        case "learner_said_before_scan", "learner_said_before_gel", "learner_said_after_scan":
+            let ordered = scans.sorted { $0.seq < $1.seq }
+            let firstScan = ordered.first?.seq ?? Int.max
+            switch c.check.type {
+            case "learner_said_before_scan":
+                return keyword(firstLearnerQuote(kw) { $0.seq < firstScan })
+            case "learner_said_before_gel":
+                let limit = gels.min() ?? firstScan
+                return keyword(firstLearnerQuote(kw) { $0.seq < limit })
+            default:
+                guard let good = ordered.first(where: { $0.good })?.seq else { return keyword(nil) }
+                return keyword(firstLearnerQuote(kw) { $0.seq > good })
+            }
+        case "gel_before_scan":
+            let ok = !gels.isEmpty && (gels.min() ?? Int.max) < (scans.map(\.seq).min() ?? Int.max)
+            return Outcome(met: ok, points: ok ? full : 0, method: "rule", evidence: nil)
+        case "viewed_any":
+            let view = obtainedViews.first { (c.check.views ?? []).contains($0) }
+            let title = view.flatMap { id in scenario.ultrasound?.views.first { $0.id == id }?.title }
+            return Outcome(met: view != nil, points: view != nil ? full : 0, method: "rule", evidence: title)
+        case "documented_in_notes":
+            let obtained = obtainedViews
+            var quote: String?
+            if (c.check.requiresViewed ?? []).contains(where: { obtained.contains($0) }) {
+                let texts = ["diagnosis": dx ?? "", "history": notes.history, "examination": notes.examination,
+                             "assessment": notes.assessment, "interpretation": notes.interpretation,
+                             "management": notes.management, "follow_up": notes.followUp]
+                quote = (c.check.fields ?? []).compactMap { texts[$0] }.first { !$0.isEmpty && hits($0, kw) }
+            }
+            return keyword(quote)
         case "examined_any":
             let zones = c.check.zones ?? []
             let hit = exams.first { zones.contains($0.zoneId) }
@@ -317,7 +513,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
         guard let spec = scenario.orthotics.measurements.first(where: { $0.id == id }) else {
             throw OfflineEngineError(errorDescription: "Unknown measurement '\(id)'.")
         }
-        let predefined = scenario.hidden.fitting.measurements[id] ?? scenario.hidden.fitting.measurements[camel(id)]
+        let predefined = scenario.hidden.fitting?.measurements[id] ?? scenario.hidden.fitting?.measurements[camel(id)]
         guard let raw = predefined ?? valueCm else {
             throw OfflineEngineError(errorDescription: "Measurement '\(id)' needs a value from the avatar.")
         }
@@ -329,7 +525,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
 
     private func outcome(_ fit: OrthosisFit?) -> String {
         guard let fit else { return "none" }
-        let ref = scenario.hidden.fitting.reference
+        guard let ref = scenario.hidden.fitting?.reference else { return "none" }
         let sizes = scenario.orthotics.sizes.map(\.id), levels = scenario.orthotics.tightness
         func index(_ list: [String], _ value: String) -> Int { list.firstIndex(of: value) ?? -1 }
         if fit.offsetCm < ref.offsetCm[0] || fit.offsetCm > ref.offsetCm[1] { return "wrong_position" }
@@ -342,13 +538,14 @@ final class OfflineClinicalEngine: ClinicalEngine {
     }
 
     private func outcomeSpec(_ fit: OrthosisFit?) -> Scenario.Fitting.Outcome {
-        { let key = outcome(fit); let all = scenario.hidden.fitting.outcomes; return all[key] ?? all[camel(key)]! }()
+        { let key = outcome(fit); let all = scenario.hidden.fitting!.outcomes; return all[key] ?? all[camel(key)]! }()
     }
 
     private var currentFit: OrthosisFit? { fittings.last?.fit }
 
     func recordFit(_ fit: OrthosisFit?) async throws -> FitAck {
         guard sessionId != nil else { throw noSession }
+        guard scenario.hidden.fitting != nil else { throw OfflineEngineError(errorDescription: "This case has no wrist support.") }
         if let fit, !scenario.orthotics.sizes.contains(where: { $0.id == fit.size })
             || !scenario.orthotics.tightness.contains(fit.tightness) {
             throw OfflineEngineError(errorDescription: "Unknown orthosis size or tightness.")
@@ -369,6 +566,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
 
     func fittingCheck(_ kind: String) async throws -> FittingCheckResult {
         guard sessionId != nil else { throw noSession }
+        guard scenario.hidden.fitting != nil else { throw OfflineEngineError(errorDescription: "This case has no wrist support.") }
         guard kind == "comfort" || kind == "neurovascular" else {
             throw OfflineEngineError(errorDescription: "Unknown check '\(kind)'.")
         }
@@ -386,7 +584,10 @@ final class OfflineClinicalEngine: ClinicalEngine {
     }
 
     private func buildFitting(redact: Bool) -> FittingAssessment {
-        let spec = scenario.hidden.fitting, ref = spec.reference, fit = currentFit
+        guard let spec = scenario.hidden.fitting else { // cases without orthosis fitting
+            return FittingAssessment(title: "", score: 0, maxScore: 0, criteria: [], finalFit: nil, reference: nil, explanation: nil)
+        }
+        let ref = spec.reference, fit = currentFit
         let firstFit = fittings.first { $0.fit != nil }?.seq ?? Int.max
         let lastChange = fittings.last?.seq ?? Int.max
         func met(_ c: Scenario.Criterion.Check) -> Bool {
@@ -463,7 +664,9 @@ final class OfflineClinicalEngine: ClinicalEngine {
     }
 
     private func buildManagement(diagnosis dx: String?, redact: Bool) -> (ManagementAssessment, [String]) {
-        let spec = scenario.hidden.management
+        guard let spec = scenario.hidden.management else { // cases without investigations or management scoring
+            return (ManagementAssessment(title: "", score: 0, maxScore: 0, criteria: []), [])
+        }
         var seen = Set<String>()
         let ordered = orders.filter { seen.insert($0).inserted }
         let texts = ["diagnosis": dx ?? "", "assessment": notes.assessment, "interpretation": notes.interpretation,
@@ -479,6 +682,18 @@ final class OfflineClinicalEngine: ClinicalEngine {
         }
         return (ManagementAssessment(title: spec.title, score: criteria.reduce(0) { $0 + $1.points },
                                      maxScore: spec.maxScore, criteria: redact ? [] : criteria), lines)
+    }
+
+    /// Views obtained versus expected; empty before a diagnosis and for cases without ultrasound.
+    private func buildScanReview(redact: Bool) -> [ScanReviewItem] {
+        guard !redact, let items = scenario.hidden.scanReview, let us = scenario.ultrasound else { return [] }
+        let obtained = obtainedViews
+        return items.map { item in
+            let hit = obtained.first { item.views.contains($0) }
+            let image = hit.flatMap { id in us.views.first { $0.id == id }?.image } ?? item.image
+            return ScanReviewItem(id: item.id, label: item.label, expected: item.expected, obtained: hit != nil,
+                                  viewId: hit, image: image, explanation: hit != nil ? item.metText : item.missedText)
+        }
     }
 
     private func buildFeedback(sessionId: String) -> Feedback {
@@ -507,7 +722,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
                         case "undocumented": comment = "You did this, but did not write it down."
                         default:
                             comment = "Your notes mention this, but no matching "
-                                + (cat.id == "examination" ? "examination" : "question")
+                                + ((cat.noteKind ?? cat.id) == "examination" ? "examination" : "question")
                                 + " was recorded. Notes alone earn no points."
                         }
                         documentation.append(DocumentationItem(criterionId: c.id, label: c.label, status: status, comment: comment))
@@ -531,12 +746,29 @@ final class OfflineClinicalEngine: ClinicalEngine {
         }
 
         var seen = Set<String>()
-        let findings = exams.compactMap { e -> String? in
+        var findings = exams.compactMap { e -> String? in
             guard seen.insert(e.zoneId).inserted,
                   let z = scenario.examinationZones.first(where: { $0.id == e.zoneId }) else { return nil }
             return "\(dx == nil ? z.label : label(z.id)): \(z.result.finding.replacingOccurrences(of: "_", with: " ")) (pain \(z.result.painLevel)/10)"
         }
 
+        if let us = scenario.ultrasound {
+            if dx == nil {
+                var seenRegion = Set<String>()
+                findings = scans.sorted { $0.seq < $1.seq }.compactMap { s -> String? in
+                    guard seenRegion.insert(s.regionId).inserted else { return nil }
+                    let good = scans.contains { $0.regionId == s.regionId && $0.good }
+                    return "\(us.regions.first { $0.id == s.regionId }?.label ?? s.regionId): "
+                        + (good ? "image obtained" : "no usable image (no gel)")
+                }
+            } else {
+                findings = obtainedViews.compactMap { id in
+                    us.views.first { $0.id == id }.map { v in
+                        v.title + ": " + (v.measurements.isEmpty ? v.caption : v.measurements.map(\.text).joined(separator: ", "))
+                    }
+                }
+            }
+        }
         let transcript = !learnerTurns.isEmpty
         var summary = Self.composeSummary(transcriptAvailable: transcript, strengths: strengths, missed: missed, explanation: explanation)
         if dx == nil { // redact: rubric wording reveals the diagnosis
@@ -563,6 +795,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
             categories: categories, strengths: strengths, missed: missed, relevantFindings: findings,
             nextSteps: dx == nil ? [] : h.nextSteps, documentation: documentation,
             management: management, investigations: investigations, fitting: buildFitting(redact: dx == nil), replay: replay,
+            scanReview: buildScanReview(redact: dx == nil),
             disclaimer: "Educational simulation only. Not a clinical diagnostic tool. Transcript-based criteria use simple keyword heuristics."
         )
     }

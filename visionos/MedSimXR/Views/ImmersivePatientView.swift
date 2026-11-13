@@ -8,6 +8,7 @@ struct ImmersivePatientView: View {
     @State private var placement = Placement()
     @State private var player = ReactionPlayer()
     @State private var lab = OrthoticsLab()
+    @State private var us = UltrasoundScene()
 
     var body: some View {
         RealityView { content, attachments in
@@ -18,13 +19,27 @@ struct ImmersivePatientView: View {
                 notebook.position = [0.42, 1.3, 0.5]
                 notebook.orientation = simd_quatf(angle: -0.35, axis: [0, 1, 0])
                 avatar.root.addChild(notebook)
+                us.notebook = notebook
             }
             avatar.rebuildZones(model.zones)
             avatar.startIdle()
-            await avatar.loadOptionalVisuals()
-            model.behavior.attach(animated: avatar.isAnimated) { await avatar.apply($0) }
+            await avatar.loadOptionalVisuals(variant: model.activeAvatarModel)
+            model.behavior.attach(animated: avatar.isAnimated, recumbent: avatar.isRecumbent) { await avatar.apply($0) }
             await avatar.apply(model.behavior.machine, snap: true)
             lab.install(on: avatar)
+            us.install(on: avatar)
+            us.onContact = { region in
+                if let region { Task { await model.scan(regionId: region) } } else { model.probeLeftBelly() }
+            }
+            us.onGel = { Task { await model.applyGel() } }
+            us.build(model.ultrasound)
+            us.setEnabled(model.phase == .running)
+            if us.arrange(recumbent: avatar.isRecumbent) { model.recenter() }
+            if let monitor = attachments.entity(for: "usMonitor") {
+                monitor.scale = [1.3, 1.3, 1.3]
+                us.monitorMount.addChild(monitor)
+            }
+            if let panel = attachments.entity(for: "usPanel") { us.panelMount.addChild(panel) }
             lab.onMeasure = { id, value in Task { await model.measure(id, valueCm: value) } }
             lab.onPlace = { size, offset in Task { await model.placeOrthosis(size: size, offsetCm: offset) } }
             lab.build(model.session?.case.orthotics ?? Orthotics())
@@ -37,6 +52,8 @@ struct ImmersivePatientView: View {
             SmokeLog.mark("immersive scene built zones=\(avatar.zoneEntities.count)")
         } attachments: {
             Attachment(id: "notebook") { NotebookView().environment(model) }
+            Attachment(id: "usMonitor") { UltrasoundMonitorView().environment(model) }
+            Attachment(id: "usPanel") { UltrasoundPanel().environment(model) }
             Attachment(id: "fitting") {
                 VStack { FittingPanel(); ReplayPanel() }.environment(model)
             }
@@ -45,6 +62,17 @@ struct ImmersivePatientView: View {
             SpatialTapGesture().targetedToAnyEntity().onEnded { value in
                 let id = value.entity.name
                 let world = value.convert(value.location3D, from: .local, to: .scene)
+                if us.item(value.entity) != nil { // probe or gel bottle: pick up (on the belly: lift off)
+                    if id == UltrasoundScene.probeName, model.probeRegion != nil { model.liftProbe(); return }
+                    model.selectedTool = model.selectedTool == id ? nil : id
+                    SmokeLog.mark("tap tool=\(id) selected=\(model.selectedTool ?? "none")")
+                    return
+                }
+                if let region = us.region(value.entity) {
+                    SmokeLog.mark("tap region=\(region)")
+                    Task { await model.tapRegion(region) }
+                    return
+                }
                 if lab.item(value.entity) != nil { // first pinch: select (again: deselect)
                     model.selectedTool = model.selectedTool == id ? nil : id
                     SmokeLog.mark("tap tool=\(id) selected=\(model.selectedTool ?? "none")")
@@ -67,17 +95,37 @@ struct ImmersivePatientView: View {
             // Move a tray item through the room; letting go over the forearm snaps it on.
             DragGesture().targetedToAnyEntity()
                 .onChanged { value in
+                    if let item = us.item(value.entity) { // probe or gel bottle follows the hand
+                        guard model.phase == .running else { return }
+                        if model.selectedTool != item.name { model.selectedTool = item.name }
+                        us.drag(item, to: value.convert(value.location3D, from: .local, to: avatar.root))
+                        return
+                    }
                     guard let item = lab.item(value.entity), model.behavior.canExamine else { return }
                     if model.selectedTool != item.name { model.selectedTool = item.name }
                     lab.drag(item, to: value.convert(value.location3D, from: .local, to: avatar.root))
                 }
                 .onEnded { value in
+                    if let item = us.item(value.entity) { us.dropped(item); model.selectedTool = nil; return }
                     if let item = lab.item(value.entity) { lab.dropped(item); model.selectedTool = nil }
                 }
         )
         .onChange(of: model.session?.case.orthotics) { _, orthotics in lab.build(orthotics ?? Orthotics()) }
         .onChange(of: model.session?.sessionId) { lab.build(model.session?.case.orthotics ?? Orthotics()) }
-        .onChange(of: model.selectedTool) { _, tool in lab.select(tool) }
+        .modifier(UltrasoundSync(model: model, us: us))
+        .onChange(of: model.activeAvatarModel) { _, variant in
+            // Stop -> change -> Start, or a reset into another case: swap the body, keep the scene.
+            Task {
+                await avatar.loadOptionalVisuals(variant: variant)
+                model.behavior.attach(animated: avatar.isAnimated, recumbent: avatar.isRecumbent) { await avatar.apply($0) }
+                await avatar.apply(model.behavior.machine, snap: true)
+                avatar.rebuildZones(model.zones)
+                us.build(model.ultrasound)
+                us.setEnabled(model.phase == .running)
+                lab.avatarChanged(fit: model.fit)
+            }
+        }
+        .onChange(of: model.selectedTool) { _, tool in lab.select(tool); us.select(tool) }
         .onChange(of: model.labCommand) { _, command in
             if let command { lab.run(command); model.selectedTool = nil }
         }
@@ -116,5 +164,24 @@ struct ImmersivePatientView: View {
             await FingertipExaminer().run(avatar: avatar, model: model)
         }
         .onDisappear { avatar.stopIdle() }
+    }
+}
+
+
+/// Keeps the ultrasound corner in step with the model: case, session, phase, probe contact, gel.
+private struct UltrasoundSync: ViewModifier {
+    let model: AppModel
+    let us: UltrasoundScene
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: model.session?.sessionId) {
+                us.build(model.ultrasound)
+                us.setEnabled(model.phase == .running)
+            }
+            .onChange(of: model.phase) { us.setEnabled(model.phase == .running) }
+            .onChange(of: model.probeRegion) { us.sync(region: model.probeRegion, scans: model.scanSerial) }
+            .onChange(of: model.scanSerial) { us.sync(region: model.probeRegion, scans: model.scanSerial) }
+            .onChange(of: model.gelApplied) { _, applied in us.showGel(applied) }
     }
 }

@@ -91,6 +91,10 @@ final class PatientAvatar {
         leftArm.name = "left_arm"
         upper.addChild(leftArm)
         buildArm(side: 1, name: "left", parent: leftArm)
+
+        // What a model swap must be able to go back to (the primitive body).
+        proceduralAnchors = anchors.mapValues { $0.transform }
+        proceduralForearmLength = forearmLength
     }
 
     /// Forearm rests on the thigh; wrist is out front and reachable.
@@ -170,6 +174,22 @@ final class PatientAvatar {
     private struct Sidecar: Decodable {
         var seatHeight: Float
         var anchors: [String: [Float]]
+        /// Outward surface normals of the anchors that lie on the skin (avatar space).
+        var normals: [String: [Float]]?
+        /// Only for a patient lying on an examination couch (Patient_pregnant).
+        var couch: Couch?
+    }
+
+    /// Examination couch the recumbent patient lies on, in avatar space. The seat slab runs from the
+    /// pivot towards +Z; the back-rest rises from the pivot towards -Z at `backRestAngleDeg`.
+    struct Couch: Decodable {
+        var seatHeight: Float
+        var width: Float
+        var thickness: Float
+        var backRestAngleDeg: Float
+        var backRestPivot: [Float]
+        var backRestLength: Float
+        var seatLength: Float
     }
 
     /// Skinned mesh of Patient.usdz; nil while the procedural body is in use.
@@ -190,31 +210,80 @@ final class PatientAvatar {
                                        "right_forearm_frame": "lowerarm_r"]
     private var anchorRest: [String: simd_float4x4] = [:]
 
+    /// Anchors created from the sidecar (belly points); removed again when the model is unloaded.
+    private var extraAnchors: [String] = []
+    /// Outward skin normals by anchor name, avatar space.
+    private(set) var anchorNormals: [String: SIMD3<Float>] = [:]
+    /// True while a patient lying on a couch is shown (not the seated models).
+    private(set) var isRecumbent = false
+
     /// True when the skinned model is in use and can be posed.
     var isAnimated: Bool { skinned != nil }
 
+    /// Procedural anchor transforms and forearm length, restored when a model is unloaded.
+    private var proceduralAnchors: [String: Transform] = [:]
+    private var proceduralForearmLength: Float = 0.25
+    /// Components taken from the primitive body while a model is shown.
+    private var hiddenVisuals: [(ModelEntity, ModelComponent)] = []
+    private var stoolParts: [Entity] = []
+    /// Bundled model currently shown ("Patient", "Patient_female", ...); nil = primitive body.
+    private(set) var loadedModel: String?
+    /// Bumped by every load so a slower, older load cannot overwrite a newer one.
+    private var loadGeneration = 0
+
     /// Swaps the primitive body for the bundled seated human (assets/patient). The model was
-    /// exported from Blender: Z up, facing -Y. Anchors come from Patient.json, in avatar space.
-    /// Launch argument `-proceduralAvatar` keeps the primitive body.
-    func loadOptionalVisuals() async {
-        guard !ProcessInfo.processInfo.arguments.contains("-proceduralAvatar"),
-              let json = Bundle.main.url(forResource: "Patient", withExtension: "json"),
-              let data = try? Data(contentsOf: json),
-              let sidecar = try? JSONDecoder.medsim.decode(Sidecar.self, from: data),
-              let model = try? await Entity(named: "Patient") else {
+    /// exported from Blender: Z up, facing -Y. Anchors come from the sidecar `<name>.json`, in avatar space.
+    /// `variant` names the model (`Patient`, `Patient_female`, ...); a missing one falls back to
+    /// `Patient`. May be called again to swap the model: the previous one is removed first, the
+    /// anchors, zones and orthotics lab stay in place. Launch argument `-proceduralAvatar`
+    /// keeps the primitive body.
+    func loadOptionalVisuals(variant: String = "Patient") async {
+        loadGeneration += 1
+        let generation = loadGeneration
+        unloadModel()
+        guard !ProcessInfo.processInfo.arguments.contains("-proceduralAvatar") else {
             SmokeLog.mark("avatar procedural")
+            SmokeLog.mark("avatar variant=\(variant) loaded=procedural")
             return
         }
+        for name in variant == "Patient" ? ["Patient"] : [variant, "Patient"] {
+            guard Bundle.main.url(forResource: name, withExtension: "usdz") != nil,
+                  let json = Bundle.main.url(forResource: name, withExtension: "json"),
+                  let data = try? Data(contentsOf: json),
+                  let sidecar = try? JSONDecoder.medsim.decode(Sidecar.self, from: data) else { continue }
+            guard let model = try? await Entity(named: name) else { continue }
+            guard generation == loadGeneration else { return } // a newer load took over
+            show(model, sidecar: sidecar, name: name)
+            SmokeLog.mark("avatar variant=\(variant) loaded=\(name)")
+            return
+        }
+        guard generation == loadGeneration else { return }
+        SmokeLog.mark("avatar procedural")
+        SmokeLog.mark("avatar variant=\(variant) loaded=procedural")
+    }
+
+    private func show(_ model: Entity, sidecar: Sidecar, name: String) {
+        hiddenVisuals = visuals.compactMap { v in v.components[ModelComponent.self].map { (v, $0) } }
         for v in visuals { v.components.remove(ModelComponent.self) }
         model.name = "patient_usdz"
         root.addChild(model)
+        loadedModel = name
         // Stand the model up if the loader did not honour the stage's Z-up axis.
         let size = model.visualBounds(relativeTo: root).extents
         if size.z > size.y { model.orientation = simd_quatf(angle: -.pi / 2, axis: [1, 0, 0]) }
-        buildStool(seatHeight: sidecar.seatHeight)
+        if let couch = sidecar.couch { buildCouch(couch) } else { buildStool(seatHeight: sidecar.seatHeight) }
+        isRecumbent = sidecar.couch != nil
         for (name, p) in sidecar.anchors where p.count == 3 {
+            if anchors[name] == nil { // belly points and the like: plain markers on the root
+                let marker = Entity()
+                marker.name = name
+                root.addChild(marker)
+                anchors[name] = marker
+                extraAnchors.append(name)
+            }
             anchors[name]?.setPosition([p[0], p[1], p[2]], relativeTo: root)
         }
+        anchorNormals = (sidecar.normals ?? [:]).compactMapValues { $0.count == 3 ? SIMD3($0[0], $0[1], $0[2]) : nil }
         if let mesh = Self.findSkinned(model) {
             skinned = mesh
             restJoints = mesh.jointTransforms
@@ -244,10 +313,64 @@ final class PatientAvatar {
         SmokeLog.mark("avatar usdz joints=\(restJoints.count) size=\(b.extents) minY=\(b.min.y)")
     }
 
+    /// Removes the shown model and its stool and puts the primitive body, its anchors and the
+    /// forearm frame back, ready for the next model or as the fallback.
+    private func unloadModel() {
+        guard loadedModel != nil else { return }
+        model?.removeFromParent()
+        root.children.first { $0.name == "patient_usdz" }?.removeFromParent()
+        stoolParts.forEach { $0.removeFromParent() }
+        stoolParts = []
+        for name in extraAnchors { anchors[name]?.removeFromParent(); anchors[name] = nil }
+        extraAnchors = []; anchorNormals = [:]; isRecumbent = false
+        for (visual, component) in hiddenVisuals { visual.components.set(component) }
+        hiddenVisuals = []
+        for (name, transform) in proceduralAnchors { anchors[name]?.transform = transform }
+        forearmLength = proceduralForearmLength
+        skinned = nil
+        model = nil
+        restJoints = []; parentRotation = []; parentIndex = []; restWorld = []
+        jointIndex = [:]; jointDelta = [:]; anchorRest = [:]
+        meshToRoot = matrix_identity_float4x4
+        loadedModel = nil
+    }
+
     private static func findSkinned(_ e: Entity) -> ModelEntity? {
         if let m = e as? ModelEntity, !m.jointNames.isEmpty { return m }
         for child in e.children { if let found = findSkinned(child) { return found } }
         return nil
+    }
+
+    /// Examination couch drawn from the sidecar: a seat/leg-rest slab, an inclined back-rest slab and a
+    /// pedestal. Pale blue upholstery on a white frame.
+    private func buildCouch(_ c: Couch) {
+        let upholstery = SimpleMaterial(color: UIColor(red: 0.74, green: 0.85, blue: 0.93, alpha: 1), roughness: 0.55, isMetallic: false)
+        let frame = SimpleMaterial(color: UIColor(white: 0.93, alpha: 1), roughness: 0.4, isMetallic: false)
+        let steel = SimpleMaterial(color: UIColor(white: 0.78, alpha: 1), roughness: 0.3, isMetallic: true)
+        let pivot = SIMD3<Float>(c.backRestPivot[0], c.backRestPivot[1], c.backRestPivot[2])
+        let theta = c.backRestAngleDeg * .pi / 180
+        func add(_ mesh: MeshResource, _ material: SimpleMaterial, _ position: SIMD3<Float>, _ rotation: simd_quatf = .init(angle: 0, axis: [1, 0, 0])) {
+            let e = ModelEntity(mesh: mesh, materials: [material])
+            e.name = "couch"
+            e.position = position
+            e.orientation = rotation
+            root.addChild(e)
+            stoolParts.append(e)
+        }
+        let t = c.thickness
+        // seat and leg rest: top face at seatHeight, from the pivot forwards
+        add(.generateBox(size: [c.width, t, c.seatLength], cornerRadius: 0.02), upholstery,
+            [0, c.seatHeight - t / 2, pivot.z + c.seatLength / 2])
+        // back-rest: top face on the plane through the pivot, rising towards -Z
+        let along = SIMD3<Float>(0, sin(theta), -cos(theta)), normal = SIMD3<Float>(0, cos(theta), sin(theta))
+        add(.generateBox(size: [c.width, t, c.backRestLength], cornerRadius: 0.02), upholstery,
+            pivot + along * (c.backRestLength / 2) - normal * (t / 2), simd_quatf(angle: theta, axis: [1, 0, 0]))
+        // pedestal and base under the seat, hinge cover where the two slabs meet
+        let under = c.seatHeight - t
+        add(.generateBox(size: [0.5, 0.05, 0.9], cornerRadius: 0.02), frame, [0, 0.025, pivot.z + c.seatLength * 0.45])
+        add(.generateCylinder(height: under - 0.05, radius: 0.055), steel, [0, 0.05 + (under - 0.05) / 2, pivot.z + c.seatLength * 0.45])
+        add(.generateBox(size: [c.width * 0.9, 0.04, 0.5], cornerRadius: 0.015), frame, [0, under - 0.02, pivot.z + c.seatLength * 0.45])
+        add(.generateCylinder(height: c.width, radius: 0.03), frame, pivot + [0, -t / 2, 0], simd_quatf(angle: .pi / 2, axis: [0, 0, 1]))
     }
 
     /// Examination stool matched to the model's seat height.
@@ -264,6 +387,7 @@ final class PatientAvatar {
             e.name = "stool"
             e.position = position
             root.addChild(e)
+            stoolParts.append(e)
         }
     }
 

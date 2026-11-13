@@ -13,6 +13,10 @@ Agent > Variables (or just the prompt using `{{case_context}}`): define `case_co
 `CASE FACTS: You are Alex, 28. You fell off your bicycle yesterday onto your outstretched right hand. Your right wrist hurts near the base of the thumb. No numbness. You do not know what is wrong.`
 so dashboard "Test AI agent" works. The app overrides it at start with the scenario's `voice_context`.
 
+Mood and appearance need no prompt change. The app folds them into `case_context`: after the case facts it appends a "HOW YOU COME ACROSS" block (for example "Mood: nervous ..." and the pronoun line for the chosen appearance). The prompt's "Personality" section is the default manner; the block takes precedence for tone, never for facts.
+
+Optional, one voice per appearance: Agent > Security > Overrides > enable **Voice**. Then paste a voice ID for the male and the female patient into the app's Settings (control panel > Settings). The app sends it as the TTS `voice_id` override at conversation start (ElevenLabs Swift SDK 3.4.0 `TTSOverrides`). Without an override the agent's own voice is used for both. NOT verified against a live agent.
+
 ## 3. LLM
 - Preferred: **GPT-6 Luna** (shown in ElevenLabs' LLM list as "GPT-6 Luna", the slug `gpt-6-luna` is my guess, pick it from the dropdown).
 - Verified from the ElevenLabs LLM docs page (fetched during development): the list includes GPT-6 family (6.1 Sol, 6.1 Terra, 6 Astra, 6 Sol, 6 Luna), GPT-5.x, GPT-4.1, GPT-4o, Gemini 3.x Flash variants, Claude Sonnet 5.5 / Haiku 4.5 and others. NOT verified: actual latency/quality of Luna, whether your account/plan can select it, and any per-model pricing.

@@ -22,7 +22,7 @@ final class BackendClinicalEngine: ClinicalEngine {
         session = URLSession(configuration: cfg)
     }
 
-    private struct StartBody: Encodable { var caseId: String }
+    private struct StartBody: Encodable { var caseId: String; var config: SessionConfig? }
     private struct ExamineBody: Encodable { var bodyPart: String; var action: String }
     private struct InteractionBody: Encodable { var role: String; var text: String; var timestamp: String }
     private struct DiagnoseBody: Encodable { var diagnosis: String; var notes: ClinicalNotes }
@@ -30,12 +30,18 @@ final class BackendClinicalEngine: ClinicalEngine {
     private struct MeasurementBody: Encodable { var measurementId: String; var valueCm: Double? }
     private struct FitBody: Encodable { var fit: OrthosisFit? }
     private struct CheckBody: Encodable { var check: String }
+    private struct ScanBody: Encodable { var regionId: String; var gelApplied: Bool? }
     private struct Detail: Decodable { var detail: String }
 
-    func startSession(caseId: String) async throws -> SessionInfo {
+    func caseCatalog() async throws -> [CaseInfo] {
+        baseURL = AppConfig.backendURL
+        return try await send("GET", "/cases", Optional<StartBody>.none)
+    }
+
+    func startSession(caseId: String, config: SessionConfig?) async throws -> SessionInfo {
         baseURL = AppConfig.backendURL // re-read so in-app settings changes apply
         sessionId = nil
-        let info: SessionInfo = try await send("POST", "/sessions", StartBody(caseId: caseId))
+        let info: SessionInfo = try await send("POST", "/sessions", StartBody(caseId: caseId, config: config))
         sessionId = info.sessionId
         return info
     }
@@ -62,6 +68,14 @@ final class BackendClinicalEngine: ClinicalEngine {
 
     func fittingCheck(_ kind: String) async throws -> FittingCheckResult {
         try await send("POST", "\(try path())/checks", CheckBody(check: kind))
+    }
+
+    func applyGel() async throws -> GelResult {
+        try await send("POST", "\(try path())/gel", Optional<StartBody>.none)
+    }
+
+    func scan(regionId: String, gelApplied: Bool?) async throws -> ScanResult {
+        try await send("POST", "\(try path())/scans", ScanBody(regionId: regionId, gelApplied: gelApplied))
     }
 
     func recordInteraction(_ turn: TranscriptTurn) async {

@@ -50,8 +50,10 @@
 ## Adding a case
 
 Add `scenarios/<case_id>.json` (same schema, see [api-contract.md](api-contract.md)). The backend
-loads every file in the folder; the app bundles the folder. The app currently starts
-`AppConfig.defaultCaseId`; zone `attach_to` names must exist on the avatar
+loads every file in the folder; the app bundles the folder and lists every bundled case on the
+dashboard (`OfflineClinicalEngine(bundle:)`; the backend's `GET /cases` is merged in when reachable).
+Add a `catalog` (card text, allowed moods and avatars, optional `avatar_model`) and a `persona`
+(copy it from an existing case) so the dashboard and the voice agent can use it. Zone `attach_to` names must exist on the avatar
 (`right_wrist`, `right_forearm`, `left_wrist`, …). The agent prompt needs no change — case
 facts arrive through `{{case_context}}`.
 

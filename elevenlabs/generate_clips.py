@@ -3,7 +3,9 @@
 
 Env: ELEVENLABS_API_KEY (required), ELEVENLABS_VOICE_ID (required),
      ELEVENLABS_MODEL_ID (optional, default eleven_multilingual_v2).
-Output: visionos/MedSimXR/Resources/Audio/<id>.mp3 (ouch, zone ids, scripted dialogue ids).
+Output: visionos/MedSimXR/Resources/Audio/<id>.mp3 for every scenario in scenarios/: "ouch", zone ids,
+scripted dialogue ids and, for ultrasound cases, us_gel, us_no_gel and us_view_<view id> (views with a
+patient line). The app looks clips up by exactly these names, so ids must be unique across cases.
 """
 import json
 import os
@@ -13,7 +15,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SCENARIO = ROOT / "scenarios" / "wrist_trauma_001.json"
+SCENARIOS = sorted((ROOT / "scenarios").glob("*.json"))
 OUT = ROOT / "visionos" / "MedSimXR" / "Resources" / "Audio"
 
 
@@ -23,6 +25,13 @@ def clips(scenario):
         yield zone["id"], zone["result"]["patient_response"]
     for line in scenario.get("scripted_dialogue", []):
         yield line["id"], line["patient"]
+    us = scenario.get("ultrasound")
+    if us:
+        yield "us_gel", us["gel"]["patient_response"]
+        yield "us_no_gel", us["no_gel"]["patient_response"]
+        for view in us["views"]:
+            if view["patient_response"]:
+                yield f"us_view_{view['id']}", view["patient_response"]
 
 
 def synthesize(key, voice, model, text):
@@ -42,9 +51,9 @@ def main():
     model = os.environ.get("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")
     if not key or not voice:
         sys.exit("error: set ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID in the environment")
-    scenario = json.loads(SCENARIO.read_text(encoding="utf-8"))
     OUT.mkdir(parents=True, exist_ok=True)
-    for name, text in clips(scenario):
+    every = [c for path in SCENARIOS for c in clips(json.loads(path.read_text(encoding="utf-8")))]
+    for name, text in dict(every).items():
         try:
             audio = synthesize(key, voice, model, text)
         except urllib.error.HTTPError as e:

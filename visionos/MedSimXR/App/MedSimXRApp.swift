@@ -7,7 +7,7 @@ struct MedSimXRApp: App {
     @State private var model: AppModel = {
         let args = ProcessInfo.processInfo.arguments
         if !args.contains("-useMocks"),
-           let offline = try? OfflineClinicalEngine(caseId: AppConfig.defaultCaseId) {
+           let offline = try? OfflineClinicalEngine() {
             return AppModel(
                 engine: FallbackClinicalEngine(primary: BackendClinicalEngine(), offline: offline),
                 voice: args.contains("-mockVoice") ? MockVoiceService(scripted: true) : ElevenLabsVoiceService()
@@ -21,8 +21,11 @@ struct MedSimXRApp: App {
             ControlPanelView()
                 .environment(model)
         }
-        .defaultSize(width: 400, height: 460)
-        // Small and low, like a tool palette: the patient keeps the centre of the view.
+        .defaultSize(width: ControlPanelView.idleSize.width, height: ControlPanelView.idleSize.height)
+        // The dashboard is large; a running session shrinks the panel to a small palette
+        // (the content decides the size).
+        .windowResizability(.contentSize)
+        // Low, like a tool palette: the patient keeps the centre of the view.
         .defaultWindowPlacement { _, _ in WindowPlacement(.utilityPanel) }
 
         ImmersiveSpace(id: "patient") {

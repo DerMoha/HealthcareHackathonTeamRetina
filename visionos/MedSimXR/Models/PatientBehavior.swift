@@ -63,16 +63,24 @@ struct PatientBehavior: Equatable, Sendable {
     private(set) var withdrawArm = false
     /// False when only the primitive fallback body is available: the patient stays seated.
     let animated: Bool
+    /// Lying on an examination couch (the ultrasound patient): examinable from the start, always in
+    /// the model's rest pose. Stand, sit and arm movements do not apply to her.
+    let recumbent: Bool
 
-    init(animated: Bool = true) {
+    init(animated: Bool = true, recumbent: Bool = false) {
         self.animated = animated
-        state = animated ? .standingIdle : .seatedIdle
+        self.recumbent = recumbent
+        state = animated && !recumbent ? .standingIdle : .seatedIdle
     }
 
     /// Examination zones are reachable only once the patient is seated.
     var canExamine: Bool { state != .standingIdle && state != .sittingDown }
 
     mutating func request(_ action: PatientAction) -> ActionResult {
+        if recumbent {
+            return action == .relaxArms ? .success("The patient is already resting on the couch.")
+                                        : .failure("This movement is not available: the patient is lying on the examination couch.")
+        }
         switch (state, action) {
         case (.standingIdle, .sitDown):
             state = .sittingDown
@@ -116,7 +124,7 @@ struct PatientBehavior: Equatable, Sendable {
 
     /// A real examination hurt. Returns true when a recoil starts (never twice at once).
     mutating func pain(withdrawArm: Bool) -> Bool {
-        guard animated, canExamine, state != .painRecoil else { return false }
+        guard animated, !recumbent, canExamine, state != .painRecoil else { return false }
         self.withdrawArm = withdrawArm
         state = .painRecoil
         return true

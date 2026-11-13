@@ -51,6 +51,7 @@ If voice cannot be fixed in time: demo with Debug mode scripted questions; every
 
 - [ ] Pinch the **Notebook** beside the patient → it opens; Microphone shows **Muted**. Close → **Live** again.
 - [ ] Type a note with the virtual keyboard, then use the keyboard's dictation key. Check Alex does **not** answer while you dictate.
+- [ ] Tap **Dictate** next to a note, speak, tap **Stop dictating**. The words appear in that note (ElevenLabs with `ELEVENLABS_API_KEY` set on the backend, Apple speech recognition without it). Check Alex does **not** answer, and that the patient's voice still works after closing the notebook.
 - [ ] Notebook is readable and reachable where it floats; if not, tune its position in `Views/ImmersivePatientView.swift`.
 - [ ] Assessment → enter your own diagnosis → **Submit diagnosis** → feedback appears inside the notebook.
 - [ ] Complete `docs/demo-script.md` once, timed.

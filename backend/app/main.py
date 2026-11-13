@@ -4,14 +4,15 @@ import re
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 
-from . import evaluation, examination, fitting
+from . import evaluation, examination, fitting, ultrasound
 from .models import (ConversationSummary, DiagnoseRequest, ExamineRequest, ExamineResult, Feedback, Health,
                      InteractionCount, InteractionRequest, FitAck, FitRequest, FittingCheckRequest,
-                     FittingCheckResult, MeasurementRequest, MeasurementResult, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
-                     TokenResponse, CasePublic)
-from .sessions import SESSIONS, Session, create_session, load_scenarios, now_iso, public_case
+                     FittingCheckResult, GelResult, MeasurementRequest, ScanRequest, ScanResult, MeasurementResult, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
+                     TokenResponse, TranscriptionResponse, CasePublic)
+from .sessions import SESSIONS, Session, create_session, load_scenarios, now_iso, public_case, resolve_config
 
 VERSION = "0.1.0"
 
@@ -41,7 +42,8 @@ def _session(session_id: str) -> Session:
 
 
 def _info(s: Session) -> SessionInfo:
-    return SessionInfo(session_id=s.id, started_at=s.started_at, case=public_case(SCENARIOS[s.case_id]))
+    return SessionInfo(session_id=s.id, started_at=s.started_at, case=public_case(SCENARIOS[s.case_id], s.config),
+                       config=s.config)
 
 
 @app.get("/health", response_model=Health)
@@ -58,7 +60,12 @@ def cases():
 def new_session(req: SessionCreate):
     if req.case_id not in SCENARIOS:
         raise HTTPException(404, f"Unknown case '{req.case_id}'")
-    return _info(create_session(req.case_id))
+    asked = req.config
+    try:
+        config = resolve_config(SCENARIOS[req.case_id], asked.mood if asked else None, asked.avatar if asked else None)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return _info(create_session(req.case_id, config))
 
 
 @app.post("/sessions/{session_id}/reset", response_model=SessionInfo)
@@ -110,6 +117,24 @@ def fit(session_id: str, req: FitRequest):
 def checks(session_id: str, req: FittingCheckRequest):
     s = _session(session_id)
     return fitting.check(SCENARIOS[s.case_id], s, req.check)
+
+
+@app.post("/sessions/{session_id}/gel", response_model=GelResult)
+def gel(session_id: str):
+    s = _session(session_id)
+    result = ultrasound.apply_gel(SCENARIOS[s.case_id], s)
+    if result is None:
+        raise HTTPException(404, "This case has no ultrasound")
+    return result
+
+
+@app.post("/sessions/{session_id}/scans", response_model=ScanResult)
+def scans(session_id: str, req: ScanRequest):
+    s = _session(session_id)
+    result = ultrasound.scan(SCENARIOS[s.case_id], s, req.region_id, req.gel_applied)
+    if result is None:
+        raise HTTPException(404, f"Unknown scan region '{req.region_id}'")
+    return result
 
 
 @app.post("/sessions/{session_id}/interactions", response_model=InteractionCount)
@@ -184,3 +209,31 @@ def conversation_summary(conversation_id: str):
     status = _SUMMARY_STATUS.get(body.get("status"), "pending")
     summary = (body.get("transcript_summary") or "").strip() or None
     return ConversationSummary(status=status, summary=summary if status == "done" else None)
+
+
+MAX_DICTATION_BYTES = 25 * 1024 * 1024
+
+
+@app.post("/elevenlabs/transcribe", response_model=TranscriptionResponse)
+async def transcribe(request: Request):
+    """Notebook dictation: the raw audio body (e.g. audio/mp4) goes to ElevenLabs Scribe.
+    Needs only ELEVENLABS_API_KEY. 503 tells the app to use Apple speech recognition instead."""
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        raise HTTPException(503, "ElevenLabs is not configured: set ELEVENLABS_API_KEY.")
+    audio = await request.body()
+    if not audio:
+        raise HTTPException(400, "No audio received.")
+    if len(audio) > MAX_DICTATION_BYTES:
+        raise HTTPException(413, "Dictation too long.")
+    content_type = request.headers.get("content-type") or "application/octet-stream"
+    try:
+        r = await run_in_threadpool(
+            httpx.post, "https://api.elevenlabs.io/v1/speech-to-text",
+            headers={"xi-api-key": key}, data={"model_id": "scribe_v2", "tag_audio_events": "false"},
+            files={"file": ("dictation.m4a", audio, content_type)}, timeout=60)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Could not reach ElevenLabs ({type(e).__name__}).")
+    if r.status_code != 200:
+        raise HTTPException(502, f"ElevenLabs rejected the transcription request (HTTP {r.status_code}).")
+    return TranscriptionResponse(text=(r.json().get("text") or "").strip())

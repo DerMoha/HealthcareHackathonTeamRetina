@@ -28,6 +28,7 @@ final class ElevenLabsVoiceService: VoiceService {
     @ObservationIgnored private var conversation: Conversation?
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
     @ObservationIgnored private var caseContext = ""
+    @ObservationIgnored private var voiceId: String?
     /// Bumped on every start/stop/reconnect so late callbacks from old connections are ignored.
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var wantActive = false
@@ -48,10 +49,11 @@ final class ElevenLabsVoiceService: VoiceService {
 
     // MARK: VoiceService
 
-    func start(caseContext: String) async {
+    func start(caseContext: String, voiceId: String?) async {
         await stop()
         self.caseContext = caseContext
         conversationIds = []
+        self.voiceId = voiceId
         wantActive = true
         reconnectUsed = false
         status = .connecting
@@ -144,7 +146,9 @@ final class ElevenLabsVoiceService: VoiceService {
     }
 
     private func makeConfig(gen: Int) -> ConversationConfig {
-        var config = ConversationConfig(dynamicVariables: ["case_context": caseContext])
+        // A per-avatar voice from Settings; the agent must allow voice overrides (elevenlabs/setup.md).
+        var config = ConversationConfig(ttsOverrides: voiceId.map { TTSOverrides(voiceId: $0) },
+                                        dynamicVariables: ["case_context": caseContext])
         config.onUserTranscript = { [weak self] text, eventId in
             Task { @MainActor in self?.emit(.learner, text, key: "u\(eventId)", gen: gen) }
         }

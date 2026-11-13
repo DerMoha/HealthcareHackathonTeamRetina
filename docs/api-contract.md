@@ -23,12 +23,32 @@ See `scenarios/wrist_trauma_001.json`. Top-level keys:
 | Key | Visible to learner/app | Purpose |
 |---|---|---|
 | `case_id`, `title`, `learner_brief`, `patient` | yes | metadata |
+| `catalog` | yes | optional dashboard metadata, see below; never names the diagnosis |
+| `persona` | no (engine only) | text appended to `voice_context` per mood / avatar, see below |
 | `voice_context` | app only (sent to voice agent) | facts the *patient* knows; contains no diagnosis |
 | `examination_zones[]` → `id,label,attach_to,offset,radius` | yes | spatial zone definition; `label` is neutral ("Right wrist, thumb side") |
 | `examination_zones[].clinical_label` | only in feedback after a diagnosis | anatomical name ("Right anatomical snuffbox") |
 | `examination_zones[].result` | only via `/examine` | finding for that zone |
 | `scripted_dialogue[]` → `id,learner,patient` | yes | offline fallback dialogue |
+| `scripted_dialogue[].patient_by_mood` | resolved by the engine | optional `{mood: line}`; replaces `patient` for that mood. Same clinical content, different manner |
 | `hidden.diagnosis`, `hidden.next_steps`, `hidden.rubric` | **no** | scoring |
+
+### `catalog` (optional) and `persona`
+
+```json
+"catalog": {
+  "summary": "Spoiler-free text for the dashboard card.",
+  "icon": "hand.raised.fill",                 // SF Symbol
+  "setting": "Outpatient clinic",
+  "skills": ["History taking", "Physical examination"],
+  "allowed_moods": ["calm", "nervous", "angry"],
+  "allowed_avatars": ["male", "female"],
+  "default_mood": "calm", "default_avatar": "male",
+  "avatar_model": null                        // e.g. "Patient_pregnant": bundled model that wins over the avatar choice
+}
+```
+Every key is optional. Without `catalog` a case allows only `calm` / `male`. A default that is not in its allowed list becomes the first allowed value.
+`persona` = `{ "moods": {"calm": "...", ...}, "avatars": {"male": "...", "female": "..."} }`: one sentence each, appended to `voice_context` for the chosen values (format under `POST /sessions`). A missing entry adds nothing.
 
 Zone placement: `attach_to` is the name of an avatar entity (`right_wrist`,
 `right_forearm`, `left_wrist`, …); `offset` is `[x,y,z]` metres in that
@@ -74,19 +94,31 @@ or reasoning; the feedback must label them with `method: "keyword"`.
     { "id": "right_anatomical_snuffbox", "label": "Right anatomical snuffbox",
       "attach_to": "right_wrist", "offset": [0.0, 0.0, 0.0], "radius": 0.05 }
   ],
-  "scripted_dialogue": [ { "id": "greeting", "learner": "...", "patient": "..." } ]
+  "scripted_dialogue": [ { "id": "greeting", "learner": "...", "patient": "..." } ],
+  "catalog": { "summary": "...", "icon": "hand.raised.fill", "setting": "Outpatient clinic", "skills": ["..."],
+               "allowed_moods": ["calm", "nervous", "angry"], "allowed_avatars": ["male", "female"],
+               "default_mood": "calm", "default_avatar": "male", "avatar_model": null }
 }]
 ```
-Never contains `result` or anything from `hidden`.
+Never contains `result`, `persona` or anything from `hidden`. `catalog` is `null` for a case without one. Here `voice_context` and `scripted_dialogue` are the neutral wording; a session returns them personalised.
 
 ### `POST /sessions`
-Request `{ "case_id": "wrist_trauma_001" }` → `201`
+Request → `201`
 ```json
-{ "session_id": "b1f6…", "started_at": "2026-11-12T10:00:00Z", "case": { …CasePublic… } }
+{ "case_id": "wrist_trauma_001", "config": { "mood": "nervous", "avatar": "female" } }
 ```
+`config` and both of its fields are optional; omitted values come from the case's `catalog` defaults. A mood or avatar the case does not allow gives `422` with a readable `detail`. The configuration changes what the patient is like, never findings, pain levels or scoring.
+```json
+{ "session_id": "b1f6…", "started_at": "2026-11-12T10:00:00Z",
+  "case": { …CasePublic, with voice_context and scripted_dialogue personalised… },
+  "config": { "mood": "nervous", "avatar": "female" } }
+```
+`case.voice_context` = the case's `voice_context` + `"\n\nHOW YOU COME ACROSS (manner only; it never changes the facts above):\n- <persona.avatars[avatar]>\n- <persona.moods[mood]>"` (lines without text are left out). `case.scripted_dialogue[].patient` = `patient_by_mood[mood]` when present. The Swift offline engine produces the same text (`backend/tests/fixtures/session_config_expected.json`).
+
+The app picks the avatar model from `config.avatar`: `male` → `Patient`, otherwise `Patient_<avatar>`, unless `case.catalog.avatar_model` is set. A missing model falls back to `Patient`.
 
 ### `POST /sessions/{session_id}/reset`
-Clears examinations, interactions, diagnosis. Keeps `session_id`. Returns the same shape as `POST /sessions` (`200`, new `started_at`).
+Clears examinations, interactions, diagnosis. Keeps `session_id`. Returns the same shape as `POST /sessions` (`200`, new `started_at`, same `config`).
 
 ## 3. Examination
 
@@ -117,7 +149,7 @@ Response (examination result):
 
 ## 4. Voice context protocol
 
-1. **Conversation start** — the app passes `case.voice_context` to the agent as dynamic variable `case_context` (the agent prompt contains `{{case_context}}`).
+1. **Conversation start** — the app passes `case.voice_context` to the agent as dynamic variable `case_context` (the agent prompt contains `{{case_context}}`). It already carries the mood and avatar lines. Optionally the app also overrides the TTS voice with the id saved in Settings for the avatar (`ELEVENLABS_VOICE_ID_MALE` / `_FEMALE`).
 2. **Examination** — after `/examine` returns, the app forwards `result.voice_context` verbatim to the agent through `VoiceService.sendExaminationEvent(_:)`. The text is a bracketed stage direction `[...]`; the agent prompt explains that bracketed text is a physical event, not learner speech. The mechanism must make the agent **speak** a reaction (in the ElevenLabs SDK a plain contextual update does not trigger a reply; a text user message does).
 3. Bracketed stage directions must **not** be recorded as learner transcript turns.
 4. The immediate pain sound and animation are local and never wait for the agent.

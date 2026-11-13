@@ -36,6 +36,9 @@ Copy `../.env.example` to `../.env` (repo root). Real environment variables win 
 
 - `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`: needed only for `GET /elevenlabs/conversation-token`
   (503 if missing, 502 if ElevenLabs rejects the call). The key is never returned or logged.
+  `ELEVENLABS_API_KEY` alone also enables `POST /elevenlabs/transcribe` (notebook dictation: raw
+  audio body in, `{"text": ...}` out, via ElevenLabs Scribe `scribe_v2`). The app falls back to
+  Apple speech recognition on 503 or any other failure.
 - `MEDSIM_SCENARIOS_DIR`: override the scenarios folder (default `../scenarios`).
 
 ## Reaching the backend from the Vision Pro

@@ -49,6 +49,42 @@ class Orthotics(BaseModel):
     tightness: list[str] = []
 
 
+class CaseCatalog(BaseModel):
+    """Dashboard metadata. Spoiler-free: never names the diagnosis."""
+    summary: str = ""
+    icon: str | None = None          # SF Symbol name
+    setting: str | None = None
+    skills: list[str] = []
+    allowed_moods: list[str] = ["calm"]
+    allowed_avatars: list[str] = ["male"]
+    default_mood: str = "calm"
+    default_avatar: str = "male"
+    avatar_model: str | None = None  # bundled model name that overrides the avatar choice
+
+
+class UltrasoundRegion(BaseModel):
+    """A scan area on the patient's belly. Which views it yields stays with the engine."""
+    id: str
+    label: str
+    attach_to: str   # anchor name in the avatar's sidecar (abdomen_fundus, ...)
+    radius: float
+
+
+class UltrasoundInfo(BaseModel):
+    regions: list[UltrasoundRegion]
+
+
+class SessionConfig(BaseModel):
+    """What the patient is like in this encounter. Never changes findings or scoring."""
+    mood: str
+    avatar: str
+
+
+class SessionConfigRequest(BaseModel):
+    mood: str | None = None      # default: the case's default_mood
+    avatar: str | None = None    # default: the case's default_avatar
+
+
 class CasePublic(BaseModel):
     case_id: str
     title: str
@@ -59,6 +95,8 @@ class CasePublic(BaseModel):
     scripted_dialogue: list[DialogueLine]
     investigations: list[InvestigationInfo] = []
     orthotics: Orthotics = Orthotics()
+    catalog: CaseCatalog | None = None
+    ultrasound: UltrasoundInfo | None = None  # only cases with a probe and a machine
 
 
 class Health(BaseModel):
@@ -69,12 +107,14 @@ class Health(BaseModel):
 
 class SessionCreate(BaseModel):
     case_id: str
+    config: SessionConfigRequest | None = None
 
 
 class SessionInfo(BaseModel):
     session_id: str
     started_at: str
     case: CasePublic
+    config: SessionConfig | None = None
 
 
 class ExamineRequest(BaseModel):
@@ -157,6 +197,43 @@ class FittingCheckResult(BaseModel):
     voice_context: str
     comfortable: bool
     animation: Literal["arm_withdrawal", "flinch", "none"]
+
+
+class GelResult(BaseModel):
+    applied: bool
+    patient_response: str
+    voice_context: str
+    repeat_count: int
+
+
+class ScanRequest(BaseModel):
+    region_id: str
+    # What the scene shows (gel on the skin). The engine's own record of gel events decides;
+    # an explicit false can only make the scan worse, never better.
+    gel_applied: bool | None = None
+
+
+class ScanMeasurement(BaseModel):
+    label: str
+    value: float
+    unit: str
+
+
+class ScanResult(BaseModel):
+    region_id: str
+    view_id: str | None        # null: no usable image
+    image: str | None          # id in ultrasound_manifest.json, or null
+    title: str
+    caption: str
+    measurements: list[ScanMeasurement]
+    image_credit: str
+    depth_cm: float            # display decoration of the simulated machine
+    gain: int
+    quality: Literal["good", "poor"]
+    gel_applied: bool
+    patient_response: str      # may be empty: the patient says nothing
+    voice_context: str
+    repeat_count: int
 
 
 class InteractionRequest(BaseModel):
@@ -247,6 +324,17 @@ class ReplayZone(BaseModel):
     explanation: str         # what examining it contributed, or what was missed
 
 
+class ScanReviewItem(BaseModel):
+    """One expected (or optional) ultrasound view versus what the learner obtained. Only after a diagnosis."""
+    id: str
+    label: str
+    expected: bool
+    obtained: bool
+    view_id: str | None      # the view that counted, if obtained
+    image: str | None        # manifest id: the learner's own view, or an example when missed
+    explanation: str
+
+
 class Feedback(BaseModel):
     session_id: str
     case_id: str
@@ -266,6 +354,7 @@ class Feedback(BaseModel):
     investigations: list[str]
     fitting: FittingAssessment
     replay: list[ReplayZone]
+    scan_review: list[ScanReviewItem] = []
     disclaimer: str
 
 
@@ -277,3 +366,7 @@ class ConversationSummary(BaseModel):
     """ElevenLabs' post-call summary of one voice conversation. A draft for the learner, never scored."""
     status: Literal["pending", "done", "failed"]
     summary: str | None = None
+
+
+class TranscriptionResponse(BaseModel):
+    text: str

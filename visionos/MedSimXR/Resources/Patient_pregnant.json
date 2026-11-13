@@ -1,0 +1,97 @@
+{
+  "_doc": "Avatar space: metres, Y up, patient faces +Z, origin on the floor, patient's right is -X. Semi-recumbent on an examination couch: `seat_height` is the couch top (seat and leg rest). `couch.back_rest_pivot` is where the back-rest plane meets the couch top; the back-rest rises from it towards -Z at `back_rest_angle_deg` above horizontal, the leg rest extends towards +Z. `anchors` lie on the skin surface; `normals` are the outward surface normals. Written by build_patient.py.",
+  "seat_height": 0.62,
+  "couch": {
+    "seat_height": 0.62,
+    "leg_rest_height": 0.62,
+    "width": 0.66,
+    "thickness": 0.12,
+    "back_rest_angle_deg": 40.0,
+    "back_rest_pivot": [
+      0.0,
+      0.62,
+      -0.045
+    ],
+    "back_rest_length": 1.17,
+    "seat_length": 1.04
+  },
+  "anchors": {
+    "abdomen_fundus": [
+      0.0,
+      1.011,
+      -0.023
+    ],
+    "abdomen_upper": [
+      0.0,
+      1.003,
+      0.045
+    ],
+    "abdomen_center": [
+      0.0,
+      0.972,
+      0.094
+    ],
+    "abdomen_lower": [
+      0.0,
+      0.905,
+      0.136
+    ],
+    "abdomen_left": [
+      0.09,
+      0.943,
+      0.07
+    ],
+    "abdomen_right": [
+      -0.09,
+      0.943,
+      0.07
+    ],
+    "head": [
+      0.0,
+      1.227,
+      -0.479
+    ],
+    "right_wrist": [
+      -0.247,
+      0.759,
+      0.031
+    ],
+    "left_wrist": [
+      0.247,
+      0.759,
+      0.031
+    ]
+  },
+  "normals": {
+    "abdomen_fundus": [
+      0.0,
+      0.998,
+      0.063
+    ],
+    "abdomen_upper": [
+      0.0,
+      0.948,
+      0.318
+    ],
+    "abdomen_center": [
+      0.0,
+      0.792,
+      0.611
+    ],
+    "abdomen_lower": [
+      0.002,
+      0.187,
+      0.982
+    ],
+    "abdomen_left": [
+      0.771,
+      0.418,
+      0.481
+    ],
+    "abdomen_right": [
+      -0.771,
+      0.418,
+      0.481
+    ]
+  }
+}

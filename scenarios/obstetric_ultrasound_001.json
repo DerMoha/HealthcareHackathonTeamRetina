@@ -1,0 +1,1125 @@
+{
+  "schema_version": 3,
+  "case_id": "obstetric_ultrasound_001",
+  "title": "Antenatal clinic: Sarah, 31",
+  "learner_brief": "Sarah, 31, is 20 weeks pregnant and has come to the antenatal clinic for her routine mid-pregnancy scan. Introduce yourself, confirm who she is and ask for her consent, explain what you are going to do, put gel on and scan the standard views with the probe, tell her in plain words what you can see, and record your measurements and your overall impression in the notebook. The ultrasound machine, probe and gel are on the trolley beside the couch.",
+  "patient": {
+    "name": "Sarah",
+    "age": 31,
+    "appearance": "Pregnant woman lying semi-reclined on an examination couch with her abdomen uncovered.",
+    "personality": "Friendly, hopeful and a little excited."
+  },
+  "catalog": {
+    "summary": "A woman attends the antenatal clinic for her routine mid-pregnancy scan. Get consent, explain the scan, handle the probe, obtain the standard views and talk to her about what you see.",
+    "icon": "waveform.path.ecg",
+    "setting": "Antenatal clinic",
+    "skills": [
+      "Consent & communication",
+      "Ultrasound probe handling",
+      "Fetal biometry",
+      "Documentation"
+    ],
+    "allowed_moods": [
+      "calm",
+      "nervous",
+      "angry"
+    ],
+    "allowed_avatars": [
+      "female"
+    ],
+    "default_mood": "calm",
+    "default_avatar": "female",
+    "avatar_model": "Patient_pregnant"
+  },
+  "persona": {
+    "moods": {
+      "calm": "Mood: calm. You are relaxed and happy to be here. You answer naturally in short sentences and are curious about the pictures.",
+      "nervous": "Mood: nervous. You are an anxious first-time mother. You speak a little hesitantly, with an occasional \"um\", and at natural moments you ask whether the baby is okay. Kind, clear explanations from the student visibly calm you; if they stay silent while scanning, rush you or sound worried, you become more anxious. This changes only how you talk, never the facts.",
+      "angry": "Mood: angry. You have been kept waiting for over an hour and you are irritated. Your answers are short and a little curt, and you may sigh or mention the wait. If the student acknowledges the wait, apologises and explains what they are doing, you calm down and become more cooperative. This changes only how you talk, never the facts."
+    },
+    "avatars": {
+      "female": "You are a woman: if pronouns come up, they are she/her. Your name stays Sarah."
+    }
+  },
+  "voice_context": "CASE FACTS (all you know as the patient):\n- You are Sarah, 31, a primary school teacher, right-handed. You are 20 weeks pregnant today.\n- This is your first pregnancy (gravida 1, para 0). Your last period started about 20 weeks ago; the due date you were given is in about 20 weeks.\n- You are at the antenatal clinic for your routine mid-pregnancy scan. You came on your own: your partner, Tom, is at work and wants photos.\n- Your scan at 12 weeks and the booking blood tests were fine, and you were told everything looked as expected.\n- You feel well. No vaginal bleeding, no abdominal pain or tightening, no fluid leaking, no headaches or visual disturbance, no swelling of your face or hands, no burning when you pass urine, no fever.\n- You first felt flutters about two weeks ago and now feel the baby move most days, mostly in the evening.\n- You had some nausea until about 14 weeks. Now you only get mild heartburn after big meals and you tire easily.\n- Your blood pressure has been normal at every check. You have no diabetes and no history of high blood pressure.\n- Medication: pregnancy vitamins with folic acid and vitamin D only. No allergies, including latex. You do not smoke and have not drunk alcohol since you found out.\n- No previous operations or hospital stays. No family history of babies born with problems.\n- You were asked to come with a comfortably full bladder and you did. You are lying semi-reclined on an examination couch with your bump uncovered.\n- You would love to know whether it is a boy or a girl but you are also happy to be surprised. You have not decided. Ask once, at a natural moment, whether the student can tell. If they ask what you prefer, say you would like to know if it can be seen.\n- You cannot read ultrasound pictures. You do not know what the scan shows and you never say what it shows or invent findings. If the student shows you the screen you react as a lay person, for example \"Is that its head?\" or \"Is that the heart?\".\n- Ultrasound gel is cold when it first goes on. If the student scans without gel you notice the probe feels dry and scratchy.\n- The ultrasound machine is on a trolley beside the couch. You can see the screen if you turn your head.",
+  "examination_zones": [],
+  "scripted_dialogue": [
+    {
+      "id": "us_greeting",
+      "learner": "Hello, I'm a medical student. Are you Sarah? Could you confirm your full name and date of birth?",
+      "patient": "Yes, that's me, Sarah. I'm thirty-one. It's lovely to meet you.",
+      "patient_by_mood": {
+        "nervous": "Um, yes, I'm Sarah. I'm thirty-one. I really hope the baby is okay.",
+        "angry": "Yes, I'm Sarah. I've been waiting over an hour, you know."
+      }
+    },
+    {
+      "id": "us_consent",
+      "learner": "I'd like to do your scan today. Is that all right with you?",
+      "patient": "Yes, of course, go ahead.",
+      "patient_by_mood": {
+        "nervous": "Yes... yes, please. I just really want to know the baby is okay.",
+        "angry": "Fine, as long as it's quick. Go on."
+      }
+    },
+    {
+      "id": "us_procedure",
+      "learner": "I'll put some gel on your tummy and move a small probe over it to look at the baby. It doesn't hurt, but the gel may be a bit cold.",
+      "patient": "Okay, thanks for telling me. I'll try not to jump!",
+      "patient_by_mood": {
+        "nervous": "Okay... thank you for explaining. Will it hurt the baby at all?",
+        "angry": "Right. Just get on with it, please."
+      }
+    },
+    {
+      "id": "us_symptoms",
+      "learner": "Have you had any pain, bleeding or fluid leaking?",
+      "patient": "No, nothing like that. I feel well."
+    },
+    {
+      "id": "us_movements",
+      "learner": "Have you felt the baby moving?",
+      "patient": "Yes, little flutters since about two weeks ago, and proper kicks in the evenings."
+    },
+    {
+      "id": "us_previous_scan",
+      "learner": "Did you have a scan at twelve weeks?",
+      "patient": "Yes, at twelve weeks. They said everything looked fine and gave me my due date."
+    },
+    {
+      "id": "us_worries",
+      "learner": "Is anything worrying you about the pregnancy?",
+      "patient": "Not really. I just want to know that the baby is okay.",
+      "patient_by_mood": {
+        "nervous": "I keep worrying that something might be wrong. I just want to hear that the baby is okay.",
+        "angry": "Mostly I'm worried about how long all of this is taking."
+      }
+    },
+    {
+      "id": "us_comfort",
+      "learner": "Are you comfortable lying like that? Tell me if you need to move.",
+      "patient": "Yes, I'm comfortable, thank you for asking."
+    },
+    {
+      "id": "us_sex_question",
+      "learner": "Do you have any questions for me?",
+      "patient": "Yes. Can you tell if it's a boy or a girl?",
+      "patient_by_mood": {
+        "nervous": "Um, yes. Can you tell if it's a boy or a girl? Only if it's okay to ask.",
+        "angry": "Yes. Can you tell whether it's a boy or a girl?"
+      }
+    },
+    {
+      "id": "us_sex_answer",
+      "learner": "Would you like to know the sex if it can be seen? I can only tell you what the pictures show today.",
+      "patient": "We'd like to know, if you can see it. If not, that's okay."
+    },
+    {
+      "id": "us_reassure",
+      "learner": "I can see the heartbeat and the measurements look in keeping with twenty weeks. The full report will come from the senior sonographer.",
+      "patient": "Oh, thank you, that's such a relief.",
+      "patient_by_mood": {
+        "nervous": "Oh... thank you. That's such a relief. I was so scared.",
+        "angry": "Okay. Thank you. That's all I wanted to know."
+      }
+    }
+  ],
+  "investigations": [],
+  "orthotics": {
+    "measurements": [],
+    "sizes": [],
+    "tightness": []
+  },
+  "ultrasound": {
+    "_doc": "Educational ultrasound simulation. `regions` are scan areas on the patient's belly (attach_to = anchor in the avatar's sidecar). Each region cycles through its `views` in order, one per scan with gel. The mapping assumes a cephalic fetus, back to the maternal left, posterior placenta: head low (lower abdomen), heart and abdomen above it (upper), overview, spine and cord near the navel, limbs on the flanks, placenta and fluid at the top. Images are real CC-licensed sonograms from different pregnancies (visionos/MedSimXR/Resources/Ultrasound/ultrasound_manifest.json). Public: region id, label, attach_to, radius. Everything else stays with the engine.",
+    "gel": {
+      "patient_response": "Ooh, that's a bit cold!",
+      "voice_context": "[The student has just squeezed cold ultrasound gel onto your belly. Say out loud right now, in one short sentence, something with this meaning: \"Ooh, that's a bit cold!\"]",
+      "repeat_response": "Mm, that's fine.",
+      "repeat_voice_context": "[The student has put a little more gel on your belly. Say out loud right now, in one short sentence, something with this meaning: \"Mm, that's fine.\"]"
+    },
+    "no_gel": {
+      "title": "No usable image",
+      "caption": "No gel: air between the probe and the skin blocks the sound. Apply ultrasound gel, then scan again.",
+      "patient_response": "Isn't there meant to be gel first? That feels scratchy.",
+      "voice_context": "[The student pressed the dry probe on your belly without any gel. Say out loud right now, in one short sentence, something with this meaning: \"Isn't there meant to be gel first? That feels scratchy.\"]",
+      "depth_cm": 12.0,
+      "gain": 50
+    },
+    "regions": [
+      {
+        "id": "abdomen_fundus",
+        "label": "Top of the bump",
+        "clinical_label": "Fundal region",
+        "attach_to": "abdomen_fundus",
+        "radius": 0.045,
+        "views": [
+          "placenta",
+          "amniotic_fluid"
+        ]
+      },
+      {
+        "id": "abdomen_upper",
+        "label": "Upper abdomen, midline",
+        "clinical_label": "Upper abdomen",
+        "attach_to": "abdomen_upper",
+        "radius": 0.045,
+        "views": [
+          "heart_4ch",
+          "abdomen_ac"
+        ]
+      },
+      {
+        "id": "abdomen_center",
+        "label": "Navel level, midline",
+        "clinical_label": "Mid abdomen",
+        "attach_to": "abdomen_center",
+        "radius": 0.045,
+        "views": [
+          "overview",
+          "spine",
+          "umbilical_cord"
+        ]
+      },
+      {
+        "id": "abdomen_lower",
+        "label": "Lower abdomen, above the pubic bone",
+        "clinical_label": "Lower abdomen",
+        "attach_to": "abdomen_lower",
+        "radius": 0.045,
+        "views": [
+          "head_bpd",
+          "head_hc",
+          "head_cerebellum",
+          "profile"
+        ]
+      },
+      {
+        "id": "abdomen_left",
+        "label": "Left side of the bump",
+        "clinical_label": "Left flank",
+        "attach_to": "abdomen_left",
+        "radius": 0.045,
+        "views": [
+          "spine",
+          "femur"
+        ]
+      },
+      {
+        "id": "abdomen_right",
+        "label": "Right side of the bump",
+        "clinical_label": "Right flank",
+        "attach_to": "abdomen_right",
+        "radius": 0.045,
+        "views": [
+          "femur",
+          "amniotic_fluid"
+        ]
+      }
+    ],
+    "views": [
+      {
+        "id": "overview",
+        "image": "us_overview",
+        "title": "Longitudinal overview of the fetus in the uterus",
+        "caption": "Fetus lying in clear fluid. Head, face and trunk are in view.",
+        "measurements": [],
+        "depth_cm": 14.0,
+        "gain": 52,
+        "patient_response": "Oh! Is that the baby? I can see the face!",
+        "voice_context": "[The student has just put this picture on the screen. Say out loud right now, in one short sentence, something with this meaning: \"Oh! Is that the baby? I can see the face!\"]",
+        "image_credit": "Example sonogram by Goleisureintl (CC BY 4.0). Illustrative image only, not this patient."
+      },
+      {
+        "id": "head_bpd",
+        "image": "us_head_bpd",
+        "title": "Transthalamic view of the fetal head (BPD)",
+        "caption": "Symmetric oval skull with the midline echo. Calipers on the image: BPD 4.61 cm.",
+        "measurements": [
+          {
+            "label": "BPD",
+            "value": 4.61,
+            "unit": "cm"
+          }
+        ],
+        "depth_cm": 10.0,
+        "gain": 50,
+        "patient_response": "",
+        "voice_context": "",
+        "image_credit": "Example sonogram from Verma et al., Cureus 2025 (CC BY 4.0). Illustrative image only, not this patient."
+      },
+      {
+        "id": "head_hc",
+        "image": "us_head_bpd_2",
+        "title": "Head circumference plane of the fetal head",
+        "caption": "Same axial plane with the head ellipse drawn: HC 16.73 cm, OFD 5.78 cm.",
+        "measurements": [
+          {
+            "label": "HC",
+            "value": 16.73,
+            "unit": "cm"
+          },
+          {
+            "label": "OFD",
+            "value": 5.78,
+            "unit": "cm"
+          }
+        ],
+        "depth_cm": 10.0,
+        "gain": 50,
+        "patient_response": "",
+        "voice_context": "",
+        "image_credit": "Example sonogram from Verma et al., Cureus 2025 (CC BY 4.0). Illustrative image only, not this patient."
+      },
+      {
+        "id": "head_cerebellum",
+        "image": "us_head_cerebellum",
+        "title": "Transcerebellar view of the fetal head",
+        "caption": "Cerebellum and cisterna magna in the posterior fossa.",
+        "measurements": [
+          {
+            "label": "Cerebellum",
+            "value": 2.01,
+            "unit": "cm"
+          },
+          {
+            "label": "Cisterna magna",
+            "value": 6.55,
+            "unit": "mm"
+          }
+        ],
+        "depth_cm": 9.0,
+        "gain": 54,
+        "patient_response": "",
+        "voice_context": "",
+        "image_credit": "Example sonogram by Wolfgang Moroder (CC BY-SA 3.0). Illustrative image only, not this patient."
+      },
+      {
+        "id": "profile",
+        "image": "us_profile",
+        "title": "Mid-sagittal view of the fetal face and profile",
+        "caption": "Profile with nose, lips and chin. Nasal bone length on the image: 0.51 cm.",
+        "measurements": [
+          {
+            "label": "Nasal bone",
+            "value": 0.51,
+            "unit": "cm"
+          }
+        ],
+        "depth_cm": 9.0,
+        "gain": 50,
+        "patient_response": "Oh, that's its little nose!",
+        "voice_context": "[The student has just put this picture on the screen. Say out loud right now, in one short sentence, something with this meaning: \"Oh, that's its little nose!\"]",
+        "image_credit": "Example sonogram from Verma et al., Cureus 2025 (CC BY 4.0). Illustrative image only, not this patient."
+      },
+      {
+        "id": "heart_4ch",
+        "image": "us_heart_4ch",
+        "title": "Four-chamber view of the fetal heart",
+        "caption": "Four chambers (RV, LV, RA, LA labelled on the image), similar in size, with an intact septum.",
+        "measurements": [],
+        "depth_cm": 10.0,
+        "gain": 56,
+        "patient_response": "Is that the heart? Is the baby okay?",
+        "voice_context": "[The student has just put this picture on the screen. Say out loud right now, in one short sentence, something with this meaning: \"Is that the heart? Is the baby okay?\"]",
+        "image_credit": "Example sonogram by Nevit Dilmen (CC BY-SA 3.0). Illustrative image only, not this patient."
+      },
+      {
+        "id": "spine",
+        "image": "us_spine",
+        "title": "Sagittal view of the fetal spine",
+        "caption": "Two parallel rows of bright vertebral echoes along the curve of the back.",
+        "measurements": [],
+        "depth_cm": 12.0,
+        "gain": 50,
+        "patient_response": "",
+        "voice_context": "",
+        "image_credit": "Example sonogram by Guimi (CC BY-SA 2.5). Illustrative image only, not this patient."
+      },
+      {
+        "id": "abdomen_ac",
+        "image": "us_abdomen_ac",
+        "title": "Abdominal circumference view with stomach bubble",
+        "caption": "Transverse fetal abdomen with stomach and umbilical vein. AC 13.82 cm, estimated weight 289 g.",
+        "measurements": [
+          {
+            "label": "AC",
+            "value": 13.82,
+            "unit": "cm"
+          },
+          {
+            "label": "EFW",
+            "value": 289,
+            "unit": "g"
+          }
+        ],
+        "depth_cm": 10.0,
+        "gain": 50,
+        "patient_response": "",
+        "voice_context": "",
+        "image_credit": "Example sonogram from Verma et al., Cureus 2025 (CC BY 4.0). Illustrative image only, not this patient."
+      },
+      {
+        "id": "femur",
+        "image": "us_femur",
+        "title": "Femur length measurement",
+        "caption": "Straight bright femoral shaft with calipers at each end: FL 3.17 cm.",
+        "measurements": [
+          {
+            "label": "FL",
+            "value": 3.17,
+            "unit": "cm"
+          }
+        ],
+        "depth_cm": 8.0,
+        "gain": 48,
+        "patient_response": "",
+        "voice_context": "",
+        "image_credit": "Example sonogram from Verma et al., Cureus 2025 (CC BY 4.0). Illustrative image only, not this patient."
+      },
+      {
+        "id": "placenta",
+        "image": "us_placenta",
+        "title": "Placenta on the posterior uterine wall",
+        "caption": "Uniform placental tissue on the far wall of the uterus, clear fluid in front of it.",
+        "measurements": [],
+        "depth_cm": 12.0,
+        "gain": 50,
+        "patient_response": "",
+        "voice_context": "",
+        "image_credit": "Example sonogram by Wolfgang Moroder (CC BY-SA 3.0). Illustrative image only, not this patient."
+      },
+      {
+        "id": "umbilical_cord",
+        "image": "us_umbilical_cord",
+        "title": "Umbilical cord at the placental surface (colour Doppler)",
+        "caption": "Colour Doppler over the placental surface: central cord insertion, three vessels.",
+        "measurements": [],
+        "depth_cm": 11.0,
+        "gain": 50,
+        "patient_response": "",
+        "voice_context": "",
+        "image_credit": "Example sonogram by Wolfgang Moroder (CC BY-SA 3.0). Illustrative image only, not this patient."
+      },
+      {
+        "id": "amniotic_fluid",
+        "image": "us_amniotic_fluid",
+        "title": "Amniotic fluid pocket",
+        "caption": "Deep, clear fluid pocket with no cord or fetal parts in it.",
+        "measurements": [],
+        "depth_cm": 11.0,
+        "gain": 50,
+        "patient_response": "",
+        "voice_context": "",
+        "image_credit": "Example sonogram by Wolfgang Moroder (CC BY-SA 3.0). Illustrative image only, not this patient."
+      }
+    ]
+  },
+  "hidden": {
+    "diagnosis": {
+      "name": "Normal singleton intrauterine pregnancy, about 20 weeks, posterior placenta, normal liquor",
+      "accepted_keywords": [
+        "normal",
+        "unremarkable",
+        "no abnormalit*",
+        "no anomal*",
+        "no structural abnormalit*",
+        "reassuring",
+        "low risk",
+        "uncomplicated"
+      ],
+      "partial_keywords": [
+        "singleton",
+        "single",
+        "intrauterine",
+        "viable",
+        "live",
+        "cephalic",
+        "20 weeks",
+        "20w*",
+        "20/40",
+        "second trimester",
+        "mid-trimester",
+        "anomaly scan",
+        "pregnancy"
+      ],
+      "correct_text": "Correct. The views you obtained and their measurements are in keeping with a normal singleton pregnancy at about 20 weeks, with a posterior placenta and a normal amount of liquor.",
+      "partial_text": "Partly correct. State the overall impression clearly: a normal singleton intrauterine pregnancy of about 20 weeks, with the placental site and the amount of liquor.",
+      "incorrect_text": "Not quite. The images are consistent with a normal singleton pregnancy at about 20 weeks with a posterior placenta and normal liquor. Only report an abnormality that an image actually shows.",
+      "not_submitted_text": "No impression submitted yet."
+    },
+    "next_steps": [
+      "Complete the routine anomaly checklist; report any structure you could not see well and offer a rescan.",
+      "Write the report with the biometry (BPD, HC, AC, FL), the placental site and the amount of liquor.",
+      "Ask what the patient wants to know about the baby's sex before saying anything, and follow the department's policy.",
+      "Tell the patient what happens next and who will give the final report."
+    ],
+    "rubric": {
+      "categories": [
+        {
+          "id": "communication",
+          "title": "Consent and communication",
+          "max_score": 40,
+          "criteria": [
+            {
+              "id": "introduction",
+              "label": "Introduced themselves",
+              "points": 5,
+              "check": {
+                "type": "learner_said",
+                "keywords": [
+                  "my name is",
+                  "medical student",
+                  "student doctor",
+                  "i'm a doctor",
+                  "i am a doctor",
+                  "i'm the doctor",
+                  "i am the doctor",
+                  "i'm your doctor",
+                  "i am your doctor",
+                  "i'm dr",
+                  "i am dr",
+                  "i'm doctor",
+                  "i am doctor",
+                  "i'm one of the doctors",
+                  "i'm a nurse",
+                  "i am a nurse",
+                  "i'll be examining you",
+                  "i will be examining you",
+                  "i'll be looking after you"
+                ]
+              },
+              "met_text": "You introduced yourself.",
+              "missed_text": "You did not introduce yourself or your role."
+            },
+            {
+              "id": "identity_check",
+              "label": "Confirmed the patient's identity",
+              "points": 5,
+              "check": {
+                "type": "learner_said",
+                "keywords": [
+                  "your name",
+                  "full name",
+                  "date of birth",
+                  "dob",
+                  "are you sarah",
+                  "you're sarah",
+                  "you are sarah",
+                  "is that sarah",
+                  "confirm who you are",
+                  "confirm your identity",
+                  "what's your name",
+                  "what is your name"
+                ]
+              },
+              "met_text": "You confirmed who the patient is.",
+              "missed_text": "You did not confirm the patient's name or date of birth."
+            },
+            {
+              "id": "consent",
+              "label": "Asked for consent before scanning",
+              "points": 5,
+              "check": {
+                "type": "learner_said_before_scan",
+                "keywords": [
+                  "consent",
+                  "can i scan",
+                  "may i scan",
+                  "could i scan",
+                  "is it ok",
+                  "is it okay",
+                  "is that ok",
+                  "is that okay",
+                  "are you ok with",
+                  "are you okay with",
+                  "are you happy",
+                  "happy for me",
+                  "happy with that",
+                  "all right with you",
+                  "alright with you",
+                  "ok with you",
+                  "okay with you",
+                  "would it be ok",
+                  "would it be okay",
+                  "would that be ok",
+                  "would that be okay",
+                  "do you mind",
+                  "do you agree",
+                  "permission",
+                  "ok if i",
+                  "okay if i",
+                  "all right if i",
+                  "alright if i",
+                  "like to scan",
+                  "like to do your scan",
+                  "like to do the scan",
+                  "like to start"
+                ]
+              },
+              "met_text": "You asked for consent before scanning.",
+              "missed_text": "You did not ask for consent before the scan."
+            },
+            {
+              "id": "procedure_explained",
+              "label": "Explained the procedure",
+              "points": 5,
+              "check": {
+                "type": "learner_said_before_scan",
+                "keywords": [
+                  "scan",
+                  "ultrasound",
+                  "sonogram",
+                  "probe",
+                  "transducer",
+                  "look at the baby",
+                  "check the baby",
+                  "look at your baby",
+                  "check on the baby",
+                  "pictures of",
+                  "measure*"
+                ]
+              },
+              "met_text": "You explained what the scan involves before starting.",
+              "missed_text": "You did not explain the scan before starting."
+            },
+            {
+              "id": "gel_warning",
+              "label": "Warned about the cold gel and probe",
+              "points": 5,
+              "check": {
+                "type": "learner_said_before_gel",
+                "keywords": [
+                  "gel",
+                  "cold",
+                  "chilly",
+                  "bit cool",
+                  "probe",
+                  "pressure"
+                ]
+              },
+              "met_text": "You told the patient about the gel before putting it on.",
+              "missed_text": "You did not warn the patient about the gel before applying it."
+            },
+            {
+              "id": "findings_explained",
+              "label": "Explained what you can see",
+              "points": 5,
+              "check": {
+                "type": "learner_said_after_scan",
+                "keywords": [
+                  "everything looks",
+                  "looks normal",
+                  "look normal",
+                  "looks fine",
+                  "looks good",
+                  "looking good",
+                  "looks healthy",
+                  "looking healthy",
+                  "baby is growing",
+                  "baby looks",
+                  "heartbeat",
+                  "heart is",
+                  "measuring",
+                  "measurements",
+                  "on track",
+                  "can see the",
+                  "this is the",
+                  "that is the",
+                  "here is the",
+                  "here's the",
+                  "that's the",
+                  "that's your baby",
+                  "this is your baby"
+                ]
+              },
+              "met_text": "You told the patient what you could see.",
+              "missed_text": "You did not explain what you saw during or after the scan."
+            },
+            {
+              "id": "sex_handled",
+              "label": "Handled the question about the baby's sex sensibly",
+              "points": 5,
+              "check": {
+                "type": "learner_said_after_scan",
+                "keywords": [
+                  "do you want to know",
+                  "would you like to know",
+                  "if you want to know",
+                  "if you'd like to know",
+                  "if you would like to know",
+                  "prefer to know",
+                  "prefer not",
+                  "surprise",
+                  "policy",
+                  "can't say",
+                  "cannot say",
+                  "can't tell",
+                  "cannot tell",
+                  "can't be sure",
+                  "cannot be sure",
+                  "not able to say",
+                  "not able to tell",
+                  "not possible to say",
+                  "not sure yet",
+                  "not visible",
+                  "can't see",
+                  "cannot see",
+                  "couldn't see",
+                  "didn't look",
+                  "haven't looked",
+                  "not looked",
+                  "only tell you what"
+                ]
+              },
+              "met_text": "You answered the question about the baby's sex honestly without overclaiming.",
+              "missed_text": "You did not deal with the question about the baby's sex (ask what she wants to know, say what you can and cannot tell)."
+            },
+            {
+              "id": "respectful",
+              "label": "Communicated respectfully",
+              "points": 5,
+              "check": {
+                "type": "learner_avoided",
+                "keywords": [
+                  "shut up",
+                  "stop whining",
+                  "stop complaining",
+                  "don't be a baby",
+                  "hurry up",
+                  "stupid",
+                  "idiot",
+                  "nonsense",
+                  "man up"
+                ]
+              },
+              "met_text": "No disrespectful language was detected.",
+              "missed_text": "Respectful communication could not be confirmed (no conversation recorded, or dismissive wording detected)."
+            }
+          ]
+        },
+        {
+          "id": "scanning",
+          "title": "Probe handling and views",
+          "max_score": 40,
+          "note_kind": "examination",
+          "criteria": [
+            {
+              "id": "gel_applied",
+              "label": "Applied gel before scanning",
+              "points": 5,
+              "check": {
+                "type": "gel_before_scan"
+              },
+              "met_text": "You applied gel before the first scan.",
+              "missed_text": "You scanned before applying gel, or never applied gel. Without gel the image is poor."
+            },
+            {
+              "id": "view_head",
+              "label": "Fetal head plane (BPD / HC)",
+              "points": 5,
+              "check": {
+                "type": "viewed_any",
+                "views": [
+                  "head_bpd",
+                  "head_hc"
+                ]
+              },
+              "met_text": "You obtained the fetal head plane for BPD and HC.",
+              "missed_text": "You did not obtain the fetal head plane (BPD / HC).",
+              "note_keywords": [
+                "bpd",
+                "biparietal*",
+                "head circumference",
+                "hc",
+                "4.61*",
+                "16.73*"
+              ]
+            },
+            {
+              "id": "view_heart",
+              "label": "Four-chamber view of the heart",
+              "points": 5,
+              "check": {
+                "type": "viewed_any",
+                "views": [
+                  "heart_4ch"
+                ]
+              },
+              "met_text": "You obtained the four-chamber view of the fetal heart.",
+              "missed_text": "You did not obtain the four-chamber view of the heart.",
+              "note_keywords": [
+                "heart",
+                "cardiac",
+                "four chamber*",
+                "four-chamber",
+                "4 chamber*",
+                "4-chamber",
+                "4ch",
+                "ventricle*",
+                "atri*"
+              ]
+            },
+            {
+              "id": "view_spine",
+              "label": "Fetal spine",
+              "points": 5,
+              "check": {
+                "type": "viewed_any",
+                "views": [
+                  "spine"
+                ]
+              },
+              "met_text": "You obtained a view of the fetal spine.",
+              "missed_text": "You did not obtain a view of the fetal spine.",
+              "note_keywords": [
+                "spine",
+                "spinal",
+                "vertebra*"
+              ]
+            },
+            {
+              "id": "view_abdomen",
+              "label": "Abdominal circumference plane",
+              "points": 5,
+              "check": {
+                "type": "viewed_any",
+                "views": [
+                  "abdomen_ac"
+                ]
+              },
+              "met_text": "You obtained the abdominal circumference plane.",
+              "missed_text": "You did not obtain the abdominal circumference plane.",
+              "note_keywords": [
+                "abdominal circumference",
+                "stomach bubble",
+                "ac",
+                "efw",
+                "estimated fetal weight",
+                "estimated weight",
+                "13.82*",
+                "289*"
+              ]
+            },
+            {
+              "id": "view_femur",
+              "label": "Femur length",
+              "points": 5,
+              "check": {
+                "type": "viewed_any",
+                "views": [
+                  "femur"
+                ]
+              },
+              "met_text": "You obtained the femur for length measurement.",
+              "missed_text": "You did not obtain the femur.",
+              "note_keywords": [
+                "femur",
+                "femoral",
+                "fl",
+                "3.17*",
+                "31.7*"
+              ]
+            },
+            {
+              "id": "view_placenta",
+              "label": "Placental site",
+              "points": 5,
+              "check": {
+                "type": "viewed_any",
+                "views": [
+                  "placenta"
+                ]
+              },
+              "met_text": "You located the placenta.",
+              "missed_text": "You did not obtain a view that shows the placenta.",
+              "note_keywords": [
+                "placenta*",
+                "anterior",
+                "posterior",
+                "fundal"
+              ]
+            },
+            {
+              "id": "view_liquor",
+              "label": "Amniotic fluid (liquor)",
+              "points": 5,
+              "check": {
+                "type": "viewed_any",
+                "views": [
+                  "amniotic_fluid"
+                ]
+              },
+              "met_text": "You assessed the amniotic fluid.",
+              "missed_text": "You did not obtain a view that shows the amniotic fluid.",
+              "note_keywords": [
+                "liquor",
+                "amniotic fluid",
+                "afi",
+                "afv",
+                "deepest pocket",
+                "fluid"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "documentation",
+          "title": "Findings and documentation",
+          "max_score": 20,
+          "criteria": [
+            {
+              "id": "doc_head",
+              "label": "Recorded the head measurement",
+              "points": 3,
+              "check": {
+                "type": "documented_in_notes",
+                "requires_viewed": [
+                  "head_bpd",
+                  "head_hc"
+                ],
+                "fields": [
+                  "examination",
+                  "assessment"
+                ],
+                "keywords": [
+                  "4.6*",
+                  "46.1*",
+                  "46 mm",
+                  "16.7*",
+                  "167*"
+                ]
+              },
+              "met_text": "You wrote down a head measurement from the image you obtained.",
+              "missed_text": "No head measurement (BPD or HC) was written down for a head view you obtained."
+            },
+            {
+              "id": "doc_abdomen",
+              "label": "Recorded the abdominal measurement",
+              "points": 3,
+              "check": {
+                "type": "documented_in_notes",
+                "requires_viewed": [
+                  "abdomen_ac"
+                ],
+                "fields": [
+                  "examination",
+                  "assessment"
+                ],
+                "keywords": [
+                  "13.8*",
+                  "138*",
+                  "289*",
+                  "0.29 kg"
+                ]
+              },
+              "met_text": "You wrote down an abdominal measurement from the image you obtained.",
+              "missed_text": "No abdominal circumference or estimated weight was written down for an abdominal view you obtained."
+            },
+            {
+              "id": "doc_femur",
+              "label": "Recorded the femur length",
+              "points": 3,
+              "check": {
+                "type": "documented_in_notes",
+                "requires_viewed": [
+                  "femur"
+                ],
+                "fields": [
+                  "examination",
+                  "assessment"
+                ],
+                "keywords": [
+                  "3.1*",
+                  "3.2*",
+                  "31.7*",
+                  "32 mm"
+                ]
+              },
+              "met_text": "You wrote down the femur length from the image you obtained.",
+              "missed_text": "No femur length was written down for a femur view you obtained."
+            },
+            {
+              "id": "doc_placenta",
+              "label": "Documented the placental site",
+              "points": 3,
+              "check": {
+                "type": "documented_in_notes",
+                "requires_viewed": [
+                  "placenta"
+                ],
+                "fields": [
+                  "examination",
+                  "assessment"
+                ],
+                "keywords": [
+                  "posterior"
+                ]
+              },
+              "met_text": "You documented the placental site.",
+              "missed_text": "The placental site was not documented for a placenta view you obtained."
+            },
+            {
+              "id": "doc_liquor",
+              "label": "Documented the amniotic fluid",
+              "points": 3,
+              "check": {
+                "type": "documented_in_notes",
+                "requires_viewed": [
+                  "amniotic_fluid"
+                ],
+                "fields": [
+                  "examination",
+                  "assessment"
+                ],
+                "keywords": [
+                  "liquor",
+                  "amniotic fluid",
+                  "afi",
+                  "afv",
+                  "fluid"
+                ]
+              },
+              "met_text": "You documented the amount of amniotic fluid.",
+              "missed_text": "The amniotic fluid was not documented for a fluid view you obtained."
+            },
+            {
+              "id": "impression",
+              "label": "Overall impression",
+              "points": 5,
+              "check": {
+                "type": "diagnosis_matches"
+              },
+              "met_text": "Your overall impression matches what the images show.",
+              "missed_text": "Your overall impression did not state that the scan is normal for about 20 weeks."
+            }
+          ]
+        }
+      ]
+    },
+    "scan_review": [
+      {
+        "id": "head",
+        "label": "Fetal head (BPD / HC)",
+        "expected": true,
+        "views": [
+          "head_bpd",
+          "head_hc"
+        ],
+        "image": "us_head_bpd",
+        "met_text": "Head plane obtained: BPD 4.61 cm and HC 16.73 cm, in keeping with about 20 weeks.",
+        "missed_text": "Not obtained. The axial head plane gives the BPD and HC, the core of dating and growth."
+      },
+      {
+        "id": "heart",
+        "label": "Four-chamber view of the heart",
+        "expected": true,
+        "views": [
+          "heart_4ch"
+        ],
+        "image": "us_heart_4ch",
+        "met_text": "Four chambers of similar size with an intact septum: a normal four-chamber view.",
+        "missed_text": "Not obtained. The four-chamber view is the first step of screening the fetal heart."
+      },
+      {
+        "id": "spine",
+        "label": "Fetal spine",
+        "expected": true,
+        "views": [
+          "spine"
+        ],
+        "image": "us_spine",
+        "met_text": "Regular vertebral echoes along the back, with no break in the line.",
+        "missed_text": "Not obtained. The spine is checked in a sagittal and a transverse section."
+      },
+      {
+        "id": "abdomen",
+        "label": "Abdominal circumference",
+        "expected": true,
+        "views": [
+          "abdomen_ac"
+        ],
+        "image": "us_abdomen_ac",
+        "met_text": "AC 13.82 cm with the stomach bubble and umbilical vein: in keeping with about 20 weeks.",
+        "missed_text": "Not obtained. The abdominal plane gives the AC, needed for the estimated fetal weight."
+      },
+      {
+        "id": "femur",
+        "label": "Femur length",
+        "expected": true,
+        "views": [
+          "femur"
+        ],
+        "image": "us_femur",
+        "met_text": "FL 3.17 cm, in keeping with about 20 weeks.",
+        "missed_text": "Not obtained. Femur length completes the biometry (BPD, HC, AC, FL)."
+      },
+      {
+        "id": "placenta",
+        "label": "Placental site",
+        "expected": true,
+        "views": [
+          "placenta"
+        ],
+        "image": "us_placenta",
+        "met_text": "Posterior placenta, clear of the cervix.",
+        "missed_text": "Not obtained. The placental site must be reported (anterior, posterior, low-lying or not)."
+      },
+      {
+        "id": "liquor",
+        "label": "Amniotic fluid (liquor)",
+        "expected": true,
+        "views": [
+          "amniotic_fluid"
+        ],
+        "image": "us_amniotic_fluid",
+        "met_text": "A deep, clear pocket: normal amount of liquor.",
+        "missed_text": "Not obtained. The amount of liquor is part of every anomaly scan."
+      },
+      {
+        "id": "cerebellum",
+        "label": "Transcerebellar view (extra)",
+        "expected": false,
+        "views": [
+          "head_cerebellum"
+        ],
+        "image": "us_head_cerebellum",
+        "met_text": "Cerebellum 2.01 cm and cisterna magna 6.55 mm, both normal.",
+        "missed_text": "Optional: not obtained."
+      },
+      {
+        "id": "profile",
+        "label": "Face in profile (extra)",
+        "expected": false,
+        "views": [
+          "profile"
+        ],
+        "image": "us_profile",
+        "met_text": "Profile with a nasal bone present (0.51 cm).",
+        "missed_text": "Optional: not obtained."
+      },
+      {
+        "id": "cord",
+        "label": "Umbilical cord (extra)",
+        "expected": false,
+        "views": [
+          "umbilical_cord"
+        ],
+        "image": "us_umbilical_cord",
+        "met_text": "Central cord insertion with three vessels.",
+        "missed_text": "Optional: not obtained."
+      },
+      {
+        "id": "overview",
+        "label": "Overview of the fetus (extra)",
+        "expected": false,
+        "views": [
+          "overview"
+        ],
+        "image": "us_overview",
+        "met_text": "Overview obtained.",
+        "missed_text": "Optional: not obtained."
+      }
+    ]
+  }
+}

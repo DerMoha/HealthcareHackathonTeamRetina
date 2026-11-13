@@ -14,15 +14,17 @@ final class PatientBehaviorController {
     var state: PatientState { machine.state }
     var canExamine: Bool { machine.canExamine }
 
-    func attach(animated: Bool, animate: @escaping (PatientBehavior) async -> Void) {
+    func attach(animated: Bool, recumbent: Bool = false, animate: @escaping (PatientBehavior) async -> Void) {
         self.animate = animate
-        if animated != machine.animated { machine = PatientBehavior(animated: animated) }
+        if animated != machine.animated || recumbent != machine.recumbent {
+            machine = PatientBehavior(animated: animated, recumbent: recumbent)
+        }
         run()
     }
 
     /// New encounter: the patient is standing again.
     func reset() {
-        machine = PatientBehavior(animated: machine.animated)
+        machine = PatientBehavior(animated: machine.animated, recumbent: machine.recumbent)
         SmokeLog.mark("behavior reset state=\(state.rawValue)")
         run()
     }

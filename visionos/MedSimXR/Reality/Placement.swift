@@ -14,12 +14,17 @@ final class Placement {
     static let lateral: Float = 0.45
 
     /// Fallback when tracking is unavailable (simulator, denied, not yet tracking).
-    static let fallback = place(head: .zero, forward: [0, 0, -1])
+    static var fallback: Transform { place(head: .zero, forward: [0, 0, -1]) }
+
+    /// Extra metres between wearer and patient (0 unless a scene needs room). Set by the scene.
+    nonisolated(unsafe) static var extraDistance: Float = 0
+    /// Sideways offset of the patient to the wearer's right; the couch scene uses a different one.
+    nonisolated(unsafe) static var lateralOverride: Float?
 
     /// Patient on the floor, `distance` ahead and `lateral` to the right of the head, turned to face it.
     static func place(head: SIMD3<Float>, forward: SIMD3<Float>) -> Transform {
         let right = simd_cross(forward, [0, 1, 0])
-        var position = head + forward * distance + right * lateral
+        var position = head + forward * (distance + extraDistance) + right * (lateralOverride ?? lateral)
         let toWearer = simd_normalize(head - position)
         let yaw = atan2(toWearer.x, toWearer.z) // patient +Z faces the wearer
         position += debugOffset

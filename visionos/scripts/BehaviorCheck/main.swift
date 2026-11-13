@@ -1,3 +1,4 @@
+import Foundation
 // Self-check for the patient behaviour state machine. Run: scripts/check_patient_behavior.sh
 var failures = 0
 func check(_ ok: Bool, _ what: String) {
@@ -66,5 +67,20 @@ check(ok(f.request(.sitDown)), "fallback sit is a no-op success")
 if case .failure = f.request(.extendBothArms) {} else { check(false, "fallback extend reports failure") }
 check(!f.pain(withdrawArm: true) && f.state == .seatedIdle, "fallback has no joint recoil")
 
-print(failures == 0 ? "patient behavior: all assertions passed" : "patient behavior: \(failures) FAILED")
 if failures > 0 { fatalError() }
+
+// recumbent patient (ultrasound couch): examinable at once, stand/sit/arm movements do not apply
+var r = PatientBehavior(animated: true, recumbent: true)
+check(r.state == .seatedIdle && r.canExamine, "recumbent patient is examinable from the start")
+for action in PatientAction.allCases where action != .relaxArms {
+    let before = r
+    let result = r.request(action)
+    check({ if case .failure = result { return true }; return false }() && r == before, "\(action.rawValue) does not run on a recumbent patient")
+}
+check(ok(r.request(.relaxArms)) && r.state == .seatedIdle, "relax is a harmless no-op")
+check(!r.pain(withdrawArm: true) && r.state == .seatedIdle, "no recoil animation for the recumbent pose")
+check(r.pose.values.allSatisfy { $0 == 0 }, "recumbent pose is the model's rest pose")
+check(PatientBehavior(animated: true).recumbent == false, "default is not recumbent")
+
+print(failures == 0 ? "patient behavior: all assertions passed" : "patient behavior: \(failures) FAILED")
+exit(failures == 0 ? 0 : 1)
