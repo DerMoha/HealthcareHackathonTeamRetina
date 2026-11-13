@@ -79,8 +79,23 @@ class InteractionCount(BaseModel):
     count: int
 
 
+class Notes(BaseModel):
+    """The learner's notebook. Compared with the session record; never a source of points."""
+    history: str = ""
+    examination: str = ""
+    assessment: str = ""
+
+
 class DiagnoseRequest(BaseModel):
     diagnosis: str = Field(min_length=1)
+    notes: Notes | None = None
+
+
+class DocumentationItem(BaseModel):
+    criterion_id: str
+    label: str
+    status: Literal["documented", "undocumented", "unsupported"]
+    comment: str
 
 
 class DiagnosticAssessment(BaseModel):
@@ -122,6 +137,7 @@ class Feedback(BaseModel):
     missed: list[str]
     relevant_findings: list[str]
     next_steps: list[str]
+    documentation: list[DocumentationItem]
     disclaimer: str
 
 

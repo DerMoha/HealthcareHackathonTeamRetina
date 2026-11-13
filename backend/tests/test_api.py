@@ -58,7 +58,7 @@ def test_duplicate_examination_repeat_count(client, sid):
     assert (a["repeat_count"], b["repeat_count"]) == (1, 2)
     assert {k: v for k, v in a.items() if k != "repeat_count"} == {k: v for k, v in b.items() if k != "repeat_count"}
     fb = client.get(f"/sessions/{sid}/feedback").json()
-    assert fb["relevant_findings"] == ["Left wrist (comparison): normal (pain 0/10)"]
+    assert fb["relevant_findings"] == ["Left wrist: normal (pain 0/10)"]  # neutral label before a diagnosis
 
 
 def test_reset_clears_state(client, sid):
@@ -237,7 +237,8 @@ def run_parity(client):
         elif s["op"] == "examine":
             client.post(f"/sessions/{sid}/examine", json={"body_part": s["body_part"], "action": s["action"]})
         else:
-            out = client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": s["diagnosis"]}).json()
+            out = client.post(f"/sessions/{sid}/diagnose",
+                              json={"diagnosis": s["diagnosis"], "notes": s.get("notes")}).json()
     out["session_id"] = "SESSION"
     return out
 
@@ -271,3 +272,69 @@ def test_keyword_stems_and_typographic_apostrophe(client, sid):
     for cid in ["introduction", "associated_symptoms", "permission", "responded_to_pain",
                 "scaphoid_considered", "further_assessment"]:
         assert crit(fb, cid)["met"], cid
+
+
+def doc(fb, cid):
+    return next((d for d in fb["documentation"] if d["criterion_id"] == cid), None)
+
+
+def test_notes_never_earn_examination_points(client, sid):
+    # The learner writes up an examination that never happened.
+    notes = {"history": "Fell off bike yesterday.",
+             "examination": "Marked snuffbox tenderness on the right, left wrist normal.",
+             "assessment": ""}
+    fb = client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": "scaphoid fracture", "notes": notes}).json()
+    exam = next(c for c in fb["categories"] if c["id"] == "examination")
+    assert exam["score"] == 0
+    assert crit(fb, "examined_snuffbox")["met"] is False and crit(fb, "significance")["met"] is False
+    assert doc(fb, "examined_snuffbox")["status"] == "unsupported"
+    assert "no matching examination" in doc(fb, "examined_snuffbox")["comment"]
+    assert doc(fb, "mechanism")["status"] == "unsupported"  # written down, never asked
+    assert "not supported" in fb["summary"]
+
+
+def test_notes_documented_undocumented_and_written_plan(client, sid):
+    say(client, sid, "What happened?")
+    examine(client, sid, "right_anatomical_snuffbox")
+    examine(client, sid, "left_wrist")
+    notes = {"history": "", "examination": "Tender at the base of the thumb.",
+             "assessment": "Plan: X-ray, splint."}
+    fb = client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": "wrist injury", "notes": notes}).json()
+    assert doc(fb, "examined_snuffbox")["status"] == "documented"
+    assert doc(fb, "comparison")["status"] == "undocumented"   # examined, not written down
+    assert doc(fb, "mechanism")["status"] == "undocumented"    # asked, not written down
+    assert doc(fb, "severity") is None                          # neither asked nor noted
+    assert crit(fb, "further_assessment")["met"]                # the written plan counts as reasoning
+    assert crit(fb, "scaphoid_considered")["points"] == 0       # but the diagnosis itself must be in the diagnosis
+
+
+def test_no_notes_means_no_documentation_and_nothing_before_diagnosis(client, sid):
+    examine(client, sid, "right_anatomical_snuffbox")
+    pre = client.get(f"/sessions/{sid}/feedback").json()
+    assert pre["documentation"] == []
+    assert pre["relevant_findings"] == ["Right wrist, thumb side: marked tenderness (pain 8/10)"]
+    post = client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": "sprain"}).json()
+    assert post["documentation"] == []
+    assert post["relevant_findings"] == ["Right anatomical snuffbox: marked tenderness (pain 8/10)"]
+
+
+def test_public_case_text_is_spoiler_free(client):
+    case = client.get("/cases").json()[0]
+    # zone ids are internal contract ids and never displayed; labels are
+    shown = json.dumps([case["title"], case["learner_brief"], case["patient"],
+                        [z["label"] for z in case["zones"]]]).lower()
+    for word in ["bicycle", "bike", "fall", "fell", "scaphoid", "snuffbox", "fracture", "tender"]:
+        assert word not in shown, word
+
+
+def test_diagnosis_synonyms(client):
+    def verdict(text):
+        sid = client.post("/sessions", json={"case_id": "wrist_trauma_001"}).json()["session_id"]
+        return client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": text}).json()["diagnostic_assessment"]["verdict"]
+    for text in ["Scaphoid fracture", "suspected scaphoid #", "Kahnbeinfraktur", "fractured carpal navicular",
+                 "Skaphoidfraktur", "scafoid fracture"]:
+        assert verdict(text) == "correct", text
+    for text in ["distal radius fracture", "broken wrist", "Handgelenk gebrochen"]:
+        assert verdict(text) == "partial", text
+    for text in ["sprain", "tendinitis", "arthritis"]:
+        assert verdict(text) == "incorrect", text

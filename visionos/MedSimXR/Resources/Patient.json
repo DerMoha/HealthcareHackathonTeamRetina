@@ -1,0 +1,21 @@
+{
+  "_doc": "Avatar space: metres, Y up, patient faces +Z, origin on the floor. Written by build_patient.py.",
+  "seat_height": 0.452,
+  "anchors": {
+    "right_wrist": [
+      -0.17,
+      0.644,
+      0.301
+    ],
+    "right_forearm": [
+      -0.194,
+      0.702,
+      0.173
+    ],
+    "left_wrist": [
+      0.17,
+      0.644,
+      0.301
+    ]
+  }
+}

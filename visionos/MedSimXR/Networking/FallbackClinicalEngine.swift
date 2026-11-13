@@ -43,9 +43,9 @@ final class FallbackClinicalEngine: ClinicalEngine {
         if usingPrimary { await primary.recordInteraction(turn) }
     }
 
-    func diagnose(_ diagnosis: String) async throws -> Feedback {
-        let shadow = try await offline.diagnose(diagnosis)
-        return try await route({ try await primary.diagnose(diagnosis) }, shadow: { shadow })
+    func diagnose(_ diagnosis: String, notes: ClinicalNotes) async throws -> Feedback {
+        let shadow = try await offline.diagnose(diagnosis, notes: notes)
+        return try await route({ try await primary.diagnose(diagnosis, notes: notes) }, shadow: { shadow })
     }
 
     func feedback() async throws -> Feedback {

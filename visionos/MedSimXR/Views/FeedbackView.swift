@@ -2,18 +2,11 @@ import SwiftUI
 
 struct FeedbackView: View {
     @Environment(AppModel.self) private var model
-    var onBack: () -> Void = {}
 
     var body: some View {
         if let f = model.feedback {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    HStack {
-                        Button { onBack() } label: { Label("Back", systemImage: "chevron.left") }
-                        Spacer()
-                        Button("Try Again") { Task { await model.reset() } }
-                            .buttonStyle(.borderedProminent).tint(.teal).disabled(model.isBusy)
-                    }
                     hero(f)
                     Text(f.summary).font(.callout)
 
@@ -23,11 +16,40 @@ struct FeedbackView: View {
                     list("Strengths", f.strengths, "checkmark.circle.fill", .green)
                     list("Missed", f.missed, "exclamationmark.circle.fill", .orange)
                     list("Relevant findings", f.relevantFindings, "stethoscope", .teal)
+                    documentation(f.documentation)
                     list("Next steps", f.nextSteps, "arrow.right.circle.fill", .blue)
+
+                    Button { Task { await model.reset() } } label: {
+                        Label("Try Again", systemImage: "arrow.counterclockwise").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent).tint(.teal).disabled(model.isBusy)
 
                     Text(f.disclaimer).font(.caption).foregroundStyle(.secondary)
                 }
-                .padding(24)
+                .padding(4)
+            }
+        }
+    }
+
+    /// Notebook versus session record: written and done, done but not written, written but never done.
+    @ViewBuilder
+    private func documentation(_ items: [DocumentationItem]) -> some View {
+        if !items.isEmpty {
+            section("Your notes vs. what happened") {
+                ForEach(items) { item in
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.label).font(.callout.weight(.medium))
+                            Text(item.comment).font(.caption).foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        switch item.status {
+                        case "documented": Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                        case "unsupported": Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                        default: Image(systemName: "pencil.slash").foregroundStyle(.orange)
+                        }
+                    }
+                }
             }
         }
     }

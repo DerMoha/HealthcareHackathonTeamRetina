@@ -1,5 +1,7 @@
 import SwiftUI
 
+/// Session controls only. Notes, conversation, diagnosis and feedback live in the notebook
+/// next to the patient (NotebookView); everything diagnostic is behind the Debug toggle.
 struct ControlPanelView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
@@ -9,20 +11,32 @@ struct ControlPanelView: View {
     @AppStorage(AppConfig.agentIdKey) private var agentId = ""
     @AppStorage("fingertipExam") private var fingertip = false
 
-    @State private var diagnosis = ""
     @State private var immersed = false
-    @State private var hideFeedback = false
 
     var body: some View {
         @Bindable var model = model
-        Group {
-            if model.feedback != nil && !hideFeedback {
-                FeedbackView(onBack: { hideFeedback = true })
-            } else {
-                panel(model: model)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Image(systemName: "cross.case.fill").foregroundStyle(.teal).font(.title2)
+                    Text("MedSim XR").font(.title2.bold())
+                    Spacer()
+                    if model.isBusy { ProgressView() }
+                }
+                Text(model.session?.case.learnerBrief
+                     ?? "Start a session to meet your patient. Talk to them, examine them, and write your findings in the notebook beside them.")
+                    .font(.callout).foregroundStyle(.secondary)
+                sessionButtons
+                statusCard
+                if let err = model.lastError, !model.notebookOpen {
+                    Label(err, systemImage: "exclamationmark.triangle.fill").font(.footnote).foregroundStyle(.red)
+                }
+                Toggle("Debug", isOn: $model.debugMode)
+                if model.debugMode { debugCard }
+                settingsCard
             }
+            .padding(20)
         }
-        .onChange(of: model.feedback) { hideFeedback = false }
         .task { await autoDemo() }
     }
 
@@ -54,7 +68,6 @@ struct ControlPanelView: View {
         SmokeLog.mark("STEP 02-session")
         await pause(3)
 
-        model.debugMode = true
         for line in model.scriptedDialogue.prefix(2) {
             model.askScripted(line)
             SmokeLog.mark("asked \(line.id) \(state())")
@@ -81,95 +94,47 @@ struct ControlPanelView: View {
         await model.loadFeedback()
         SmokeLog.mark("pre-diagnosis feedback verdict=\(model.feedback?.diagnosticAssessment.verdict ?? "?") "
             + "criteria=\(model.feedback?.categories.map(\.criteria.count) ?? [])")
-        await pause(1.5)
-        SmokeLog.mark("STEP 06-feedback-locked")
+        // The learner documents the case and formulates the diagnosis in the notebook.
+        model.setNotebookOpen(true)
+        model.notes.history = "Fell off bicycle yesterday, landed on outstretched right hand. Pain worse on gripping."
+        await pause(2)
+        SmokeLog.mark("notebook open=\(model.notebookOpen) \(state())")
+        SmokeLog.mark("STEP 06-notebook-history")
         await pause(3)
-        hideFeedback = true
-
-        diagnosis = "Suspected scaphoid fracture"
+        model.notebookTab = .examination
+        // "Sensation normal" was never asked: the feedback must flag it as unsupported.
+        model.notes.examination = "Tender at the base of the right thumb. Right forearm and left wrist not tender. Sensation normal."
         await pause(1.5)
-        SmokeLog.mark("STEP 07-diagnosis-entered")
+        SmokeLog.mark("STEP 07-notebook-examination")
         await pause(3)
-        await model.submitDiagnosis(diagnosis)
+        model.notebookTab = .assessment
+        model.notes.assessment = "Plan: X-ray of the wrist, splint until reviewed."
+        model.diagnosis = "Suspected scaphoid fracture"
+        await pause(1.5)
+        SmokeLog.mark("STEP 08-notebook-assessment")
+        await pause(3)
+        await model.submitDiagnosis()
         let f = model.feedback
         SmokeLog.mark("diagnosed score=\(f?.totalScore ?? -1)/\(f?.maxScore ?? -1) verdict=\(f?.diagnosticAssessment.verdict ?? "?") "
-            + "categories=\(f?.categories.map { "\($0.id):\($0.score)" } ?? []) \(state())")
+            + "categories=\(f?.categories.map { "\($0.id):\($0.score)" } ?? []) "
+            + "notes=\(f?.documentation.map { "\($0.criterionId):\($0.status)" } ?? []) \(state())")
         await pause(1.5)
-        SmokeLog.mark("STEP 08-feedback")
+        SmokeLog.mark("STEP 09-feedback")
         await pause(4)
 
         await model.reset()
         await pause(2)
-        SmokeLog.mark("reset feedback=\(model.feedback == nil ? "cleared" : "STILL SET") \(state())")
-        SmokeLog.mark("STEP 09-reset")
+        SmokeLog.mark("reset feedback=\(model.feedback == nil ? "cleared" : "STILL SET") notes=\(model.notes == ClinicalNotes() ? "blank" : "KEPT") \(state())")
+        SmokeLog.mark("STEP 10-reset")
         await pause(3)
 
         await model.stopSession()
         if immersed { await dismissImmersiveSpace(); immersed = false }
-        SmokeLog.mark("STEP 10-stopped")
+        SmokeLog.mark("STEP 11-stopped")
         SmokeLog.mark("DONE")
     }
 
-    private func panel(model: AppModel) -> some View {
-        @Bindable var model = model
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                header
-                statusCard
-                sessionButtons
-
-                if model.phase == .running {
-                    if !model.examinations.isEmpty { lastExamCard }
-                    diagnosisCard
-                }
-
-                if model.feedback != nil || model.phase == .running {
-                    HStack {
-                        Button("Show Feedback") {
-                            hideFeedback = false
-                            Task { await model.loadFeedback() }
-                        }
-                        Button("Reset Scenario") { Task { await model.reset() } }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(model.isBusy)
-                }
-
-                if let err = model.lastError {
-                    Label(err, systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote).foregroundStyle(.red)
-                }
-
-                if !model.transcript.isEmpty { transcriptCard }
-
-                Toggle("Debug mode", isOn: $model.debugMode)
-                if model.debugMode { debugCard }
-
-                settingsCard
-            }
-            .padding(24)
-        }
-    }
-
     // MARK: Sections
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: "cross.case.fill").foregroundStyle(.teal).font(.title2)
-                Text("MedSim XR").font(.title.bold())
-                Spacer()
-                if model.isBusy { ProgressView() }
-            }
-            if let c = model.session?.case {
-                Text(c.title).font(.headline)
-                Text(c.learnerBrief).font(.callout).foregroundStyle(.secondary)
-            } else {
-                Text("Start a session to meet your virtual patient. Talk to them, then examine the wrist.")
-                    .font(.callout).foregroundStyle(.secondary)
-            }
-        }
-    }
 
     private var statusCard: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -253,43 +218,10 @@ struct ControlPanelView: View {
         .disabled(model.isBusy)
     }
 
-    private var diagnosisCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Your diagnosis").font(.headline)
-            TextField("Suspected diagnosis", text: $diagnosis)
-            HStack {
-                Button("Suspected scaphoid fracture") { diagnosis = "Suspected scaphoid fracture" }
-                    .buttonStyle(.bordered)
-                Spacer()
-                Button("Submit Diagnosis") { Task { await model.submitDiagnosis(diagnosis) } }
-                    .buttonStyle(.borderedProminent).tint(.teal)
-                    .disabled(diagnosis.trimmingCharacters(in: .whitespaces).isEmpty || model.isBusy)
-            }
-        }
-        .padding(14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-    }
-
-    private var transcriptCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Conversation").font(.headline)
-            ForEach(model.transcript.suffix(4)) { turn in
-                HStack(alignment: .top, spacing: 6) {
-                    Text(turn.role == .learner ? "You" : "Patient")
-                        .font(.caption.bold())
-                        .foregroundStyle(turn.role == .learner ? .teal : .orange)
-                        .frame(width: 52, alignment: .leading)
-                    Text(turn.text).font(.callout)
-                }
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-    }
-
+    /// Demo safety net: trigger examinations and scripted questions without touching the avatar.
     private var debugCard: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if !model.examinations.isEmpty { lastExamCard }
             Text("Examine").font(.subheadline.bold())
             ForEach(model.zones) { z in
                 Button(z.label) { Task { await model.examine(zoneId: z.id) } }

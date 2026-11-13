@@ -9,13 +9,21 @@ struct ImmersivePatientView: View {
     @State private var player = ReactionPlayer()
 
     var body: some View {
-        RealityView { content in
+        RealityView { content, attachments in
             avatar.root.transform = Placement.fallback
             content.add(avatar.root)
+            if let notebook = attachments.entity(for: "notebook") {
+                // Beside the patient (the wearer's right), at chest height, turned to the wearer.
+                notebook.position = [0.5, 1.3, 0.3]
+                notebook.orientation = simd_quatf(angle: -0.35, axis: [0, 1, 0])
+                avatar.root.addChild(notebook)
+            }
             avatar.rebuildZones(model.zones)
             avatar.startIdle()
             await avatar.loadOptionalVisuals()
             SmokeLog.mark("immersive scene built zones=\(avatar.zoneEntities.count)")
+        } attachments: {
+            Attachment(id: "notebook") { NotebookView().environment(model) }
         }
         .gesture(
             SpatialTapGesture().targetedToAnyEntity().onEnded { value in

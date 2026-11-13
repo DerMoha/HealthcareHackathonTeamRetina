@@ -8,6 +8,7 @@
 #   --kill-backend  kill the backend mid-session; the run must finish on the offline engine
 #   --no-backend    never start a backend (pure offline run)
 #   --mock-voice    use the deterministic scripted voice instead of ElevenLabs
+#   --procedural    force the primitive fallback avatar instead of Patient.usdz
 #   --out DIR       screenshot/log directory (default docs/screenshots)
 #   --patient-offset X,Y,Z  shift the patient in metres (the simulator camera is fixed;
 #                   e.g. 0,0,-1.2 pushes the patient back so the whole body is in frame)
@@ -18,12 +19,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-KILL=0; BACKEND=1; MOCK_VOICE=0; OFFSET=""; OUT="$ROOT/docs/screenshots"
+KILL=0; BACKEND=1; MOCK_VOICE=0; PROCEDURAL=0; OFFSET=""; OUT="$ROOT/docs/screenshots"
 while [ $# -gt 0 ]; do
   case "$1" in
     --kill-backend) KILL=1 ;;
     --no-backend) BACKEND=0 ;;
     --mock-voice) MOCK_VOICE=1 ;;
+    --procedural) PROCEDURAL=1 ;;
     --out) OUT="$2"; shift ;;
     --patient-offset) OFFSET="$2"; shift ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
@@ -72,6 +74,7 @@ xcrun simctl privacy "$UDID" grant microphone $BUNDLE 2>/dev/null || true
 
 ARGS=(-autoDemo)
 [ $MOCK_VOICE = 1 ] && ARGS+=(-mockVoice)
+[ $PROCEDURAL = 1 ] && ARGS+=(-proceduralAvatar)
 [ -n "$OFFSET" ] && ARGS+=(-patientOffset "@$OFFSET")
 echo "== launch ${ARGS[*]}"
 xcrun simctl launch "$UDID" $BUNDLE "${ARGS[@]}"
@@ -121,13 +124,18 @@ expect "an audio clip actually started"    "audio clip=.* started=true"
 expect "examined zone flashed red"         "zone flash right_anatomical_snuffbox painful=true"
 reject "no missing audio clips"            "audio clip=.* MISSING"
 expect "feedback locked before diagnosis"  "pre-diagnosis feedback verdict=not_submitted criteria=\[0, 0, 0, 0\]"
+if [ $PROCEDURAL = 1 ]; then expect "primitive fallback avatar used" "^avatar procedural"; else expect "realistic patient model loaded" "^avatar usdz joints=[1-9]"; fi
+expect "notebook opened"                   "^notebook open=true"
+expect "notes checked against the record"  "notes=\[.*examined_snuffbox:documented.*\]"
+expect "unsupported note flagged"          "notes=\[.*associated_symptoms:unsupported.*\]"
 expect "diagnosis scored as correct"       "diagnosed score=[0-9]+/100 verdict=correct"
-expect "reset cleared the session"         "reset feedback=cleared .*exams=0 turns=0"
+expect "reset cleared session and notes"    "reset feedback=cleared notes=blank .*exams=0 turns=0"
 reject "no engine errors"                  "error=[^n]"
 if [ $MOCK_VOICE = 1 ]; then
   expect "scripted voice connected, mic live" "^session .*voice=Connected mic=Live"
   expect "exam reaction left to the agent"    "examined right_anatomical_snuffbox .*speakLocally=false"
   expect "pain clip played instantly"         "audio clip=ouch started=true"
+  expect "notebook mutes the microphone"      "^notebook open=true .*mic=Muted"
 fi
 if [ $KILL = 1 ]; then
   expect "fell back to offline after kill" "examined right_distal_forearm .*engine=Offline .*exams=3 "

@@ -87,6 +87,7 @@ def interactions(session_id: str, req: InteractionRequest):
 def diagnose(session_id: str, req: DiagnoseRequest):
     s = _session(session_id)
     s.diagnosis = req.diagnosis
+    s.notes = req.notes.model_dump() if req.notes else None
     return evaluation.evaluate(SCENARIOS[s.case_id], s)
 
 

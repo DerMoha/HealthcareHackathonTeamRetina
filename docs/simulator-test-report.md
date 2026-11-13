@@ -103,3 +103,38 @@ None of this has run against ElevenLabs. To run it: follow `elevenlabs/setup.md`
 agent ID in the app's Settings (public agent) or `ELEVENLABS_API_KEY` + `ELEVENLABS_AGENT_ID` in
 `.env` (private agent). Until then use `-mockVoice`: a deterministic stand-in that "connects",
 shows a live microphone and answers each examination with the scenario's example line.
+
+## UX and patient-realism pass (2026-11-13)
+
+Same method: scripted demo in the simulator, nobody clicked or typed. Screenshots in
+[screenshots/demo](screenshots/demo) (default placement, backend killed mid-session) and
+[screenshots/full-body](screenshots/full-body) (patient pushed back to fit the fixed camera,
+scripted mock voice).
+
+Regression after the last change: backend `31 passed`; Swift offline check `all assertions
+passed`, `parity: 0 field difference(s)`; smoke test passed in three variants
+(`--kill-backend`, `--mock-voice`, `--procedural --no-backend`).
+
+| Change | Status | Evidence / caveat |
+|---|---|---|
+| Spoiler-free introduction ("Alex, 28, is waiting to be seen…") | **Tested in simulator** + automated | `demo/01-launch.jpg`, `demo/02-session.jpg`; test asserts title, brief, patient text and zone labels contain no mechanism, anatomy or diagnosis words |
+| No prefilled diagnosis | **Tested in simulator** | button removed; `demo/08-notebook-assessment.jpg` |
+| Neutral zone labels during the session, anatomical names only in feedback | **Automated tests only** | pytest + Swift check |
+| Rubric detail and expected diagnosis withheld until submission | **Tested in simulator** + automated | log `criteria=[0, 0, 0, 0]` before submission |
+| Diagnosis synonyms (scaphoid / navicular / Kahnbein / misspellings; fracture → partial) | **Automated tests only** | `test_diagnosis_synonyms` |
+| Realistic seated patient (`Patient.usdz`, 53 joints, 1.38 m) on a stool | **Tested in simulator** | `full-body/02-session.jpg`; log `avatar usdz joints=53 size=(0.53, 1.38, 0.78) minY=0.0` |
+| Examination zones on the new model's wrists/forearm | **Tested in simulator** (positions are measured from the posed skeleton) | faint spheres in `full-body/05-killwindow.jpg`; whether they are easy to hit by gaze needs a person |
+| Pain reaction on the new model (lean back, right arm pulled back, red flash) | **Tested in simulator** | `full-body/04-pain-*.jpg` vs `05-killwindow.jpg` |
+| Primitive avatar still works as fallback | **Tested in simulator** | `--procedural` run passes |
+| Notebook opens beside the patient, sections, notes shown | **Tested in simulator at function level** | `demo/06…08-notebook-*.jpg`; opened and filled by the script, not by pinch or keyboard |
+| Notebook mutes the microphone (note-taking mode) | **Tested in simulator** with the scripted mock voice | log `notebook open=true … mic=Muted`, Live again after reset. Real ElevenLabs mute: blocked by credentials |
+| Diagnosis submitted from the notebook, feedback shown in it | **Tested in simulator** | `demo/09-feedback.jpg`, 72/100 |
+| Notes compared with the record; claimed-but-not-done flagged; no points from notes | **Tested in simulator** + automated | log `associated_symptoms:unsupported`; `test_notes_never_earn_examination_points` |
+| Reset clears notes | **Tested in simulator** | log `notes=blank` |
+| Offline fallback with notes | **Tested in simulator** | `--kill-backend`: feedback from the offline engine, same documentation result |
+| Typing and dictating into the notebook, pinch to open | **Compiled, not runtime-tested** | needs a person in the simulator or the headset |
+| Compact control window as a low "utility panel" | **Not effective in the simulator** | placement request is ignored there; window opens straight ahead, so the patient sits 0.3 m to its right. Check on the headset |
+
+Known visual limits seen in the screenshots: fingers are slightly splayed, the face is neutral
+and does not move, and the first session start shows the patient about a second late while the
+model loads.

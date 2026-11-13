@@ -12,6 +12,9 @@ let data = try Data(contentsOf: root.appendingPathComponent("scenarios/wrist_tra
 let caseId = "wrist_trauma_001"
 let snuff = "right_anatomical_snuffbox", forearm = "right_distal_forearm", leftWrist = "left_wrist"
 
+extension OfflineClinicalEngine {
+    func diagnose(_ diagnosis: String) async throws -> Feedback { try await diagnose(diagnosis, notes: ClinicalNotes()) }
+}
 @MainActor func fresh() async throws -> OfflineClinicalEngine {
     let e = try OfflineClinicalEngine(scenarioData: data)
     _ = try await e.startSession(caseId: caseId)
@@ -122,6 +125,25 @@ do {
     }
 }
 
+// Notes are compared with the record and never earn examination points
+do {
+    let e = try await fresh()
+    let f = try await e.diagnose("scaphoid fracture", notes: ClinicalNotes(
+        history: "Fell off bike yesterday.", examination: "Marked snuffbox tenderness on the right, left wrist normal."))
+    check(f.categories.first { $0.id == "examination" }?.score == 0, "claimed examination earns no points")
+    check(f.documentation.first { $0.criterionId == "examined_snuffbox" }?.status == "unsupported", "claimed exam flagged unsupported")
+    check(f.summary.contains("not supported"), "summary mentions unsupported notes")
+}
+do {
+    let e = try await fresh()
+    _ = try await e.examine(zoneId: snuff, action: "palpation")
+    let pre = try await e.feedback()
+    check(pre.relevantFindings == ["Right wrist, thumb side: marked tenderness (pain 8/10)"] && pre.documentation.isEmpty, "neutral label before diagnosis")
+    let f = try await e.diagnose("sprain", notes: ClinicalNotes(assessment: "Plan: X-ray."))
+    check(met(f, "further_assessment").met, "written plan counts as reasoning")
+    check(f.documentation.first { $0.criterionId == "examined_snuffbox" }?.status == "undocumented", "examined but not written down")
+}
+
 // Optional parity replay against the backend's fixtures
 let fx = root.appendingPathComponent("backend/tests/fixtures")
 if let inData = try? Data(contentsOf: fx.appendingPathComponent("parity_input.json")),
@@ -136,7 +158,9 @@ if let inData = try? Data(contentsOf: fx.appendingPathComponent("parity_input.js
         case "interaction":
             await say(e, step["text"] as! String, SpeakerRole(rawValue: step["role"] as! String) ?? .learner)
         default:
-            f = try await e.diagnose(step["diagnosis"] as! String)
+            let n = step["notes"] as? [String: String] ?? [:]
+            f = try await e.diagnose(step["diagnosis"] as! String, notes: ClinicalNotes(
+                history: n["history"] ?? "", examination: n["examination"] ?? "", assessment: n["assessment"] ?? ""))
         }
     }
     let enc = JSONEncoder.medsim

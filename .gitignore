@@ -11,3 +11,4 @@ xcuserdata/
 visionos/Config/Local.xcconfig
 .codegraph/
 .claude/
+assets/patient/.cache/

@@ -24,7 +24,8 @@ See `scenarios/wrist_trauma_001.json`. Top-level keys:
 |---|---|---|
 | `case_id`, `title`, `learner_brief`, `patient` | yes | metadata |
 | `voice_context` | app only (sent to voice agent) | facts the *patient* knows; contains no diagnosis |
-| `examination_zones[]` → `id,label,attach_to,offset,radius` | yes | spatial zone definition |
+| `examination_zones[]` → `id,label,attach_to,offset,radius` | yes | spatial zone definition; `label` is neutral ("Right wrist, thumb side") |
+| `examination_zones[].clinical_label` | only in feedback after a diagnosis | anatomical name ("Right anatomical snuffbox") |
 | `examination_zones[].result` | only via `/examine` | finding for that zone |
 | `scripted_dialogue[]` → `id,learner,patient` | yes | offline fallback dialogue |
 | `hidden.diagnosis`, `hidden.next_steps`, `hidden.rubric` | **no** | scoring |
@@ -46,8 +47,10 @@ sequence (interactions and examinations share one monotonically increasing `seq`
 | `learner_said_after_pain` | a learner turn containing a keyword comes after an examination with `pain_level >= 5` | `keyword` |
 | `learner_avoided` | at least one learner turn exists and none contains a keyword | `keyword` |
 | `examined_any` | any zone in `zones` was examined | `rule` |
-| `diagnosis_or_learner_said` | submitted diagnosis or any learner turn contains a keyword; if `requires_examined` is set, at least one of those zones must also have been examined | `keyword` |
+| `diagnosis_or_learner_said` | submitted diagnosis, the notebook's assessment section, or any learner turn contains a keyword; if `requires_examined` is set, at least one of those zones must also have been examined | `keyword` |
 | `diagnosis_matches` | diagnosis contains an `accepted_keywords` entry → full points; else a `partial_keywords` entry → half points (rounded down), `met=false`; else 0 | `rule` |
+
+A criterion may carry `note_keywords`: phrases that count as the learner having *written the item down* in the notebook (same matching rule). They never award points; see §6 `documentation`.
 
 Keyword criteria are a documented heuristic, not a real assessment of empathy
 or reasoning; the feedback must label them with `method: "keyword"`.
@@ -138,7 +141,14 @@ Private agents only. Backend calls ElevenLabs with `ELEVENLABS_API_KEY` + `ELEVE
 ## 6. Diagnosis & feedback
 
 ### `POST /sessions/{session_id}/diagnose`
-Request `{ "diagnosis": "Suspected scaphoid fracture" }` → `Feedback`. Re-submitting replaces the previous diagnosis.
+Request → `Feedback`. Re-submitting replaces the previous diagnosis and notes.
+```json
+{ "diagnosis": "Suspected scaphoid fracture",
+  "notes": { "history": "Fell off bike yesterday…", "examination": "Tender at base of thumb…", "assessment": "Plan: X-ray, splint." } }
+```
+`notes` is optional (all three fields default to `""`). The learner writes the diagnosis themselves; the app offers no suggestions. Accepted wording is defined by `hidden.diagnosis.accepted_keywords` / `partial_keywords` (synonyms and common misspellings, e.g. scaphoid / navicular / Kahnbein).
+
+Notes **never earn history or examination points**: those come only from recorded interactions and examination events. The assessment section is read together with the diagnosis for `diagnosis_or_learner_said` (a written plan is reasoning), but `diagnosis_matches` looks at the `diagnosis` field alone.
 
 ### `GET /sessions/{session_id}/feedback` → `Feedback`
 Works at any time. Before a diagnosis is submitted nothing hidden leaks: `diagnostic_assessment.verdict == "not_submitted"`, `expected == null`, `next_steps == []`, every category keeps its `score` but has `criteria == []`, `strengths == []`, `missed == []`, and `summary == "Submit a diagnosis to unlock detailed feedback."` (the rubric wording itself would reveal the diagnosis).
@@ -171,6 +181,10 @@ Works at any time. Before a diagnosis is submitted nothing hidden leaks: `diagno
   "missed": ["You did not ask about numbness or altered sensation."],
   "relevant_findings": ["Right anatomical snuffbox: marked tenderness (pain 8/10)"],
   "next_steps": ["Request dedicated scaphoid-view radiographs; an initial X-ray can be normal."],
+  "documentation": [
+    { "criterion_id": "examined_snuffbox", "label": "Palpated the anatomical snuffbox", "status": "documented",
+      "comment": "Documented, and supported by the session record." }
+  ],
   "disclaimer": "Educational simulation only. Not a clinical diagnostic tool. Transcript-based criteria use simple keyword heuristics."
 }
 ```
@@ -178,7 +192,8 @@ Works at any time. Before a diagnosis is submitted nothing hidden leaks: `diagno
 - Category ids and order: `history` (30), `examination` (40), `communication` (20), `reasoning` (10).
 - `criteria[].evidence`: first matching learner quote (preferred over the diagnosis text), or examined zone label; `null` whenever `met` is false. `comment`: the criterion's `met_text` or `missed_text`.
 - `strengths` = `met_text` of met criteria; `missed` = `missed_text` of unmet criteria.
-- `relevant_findings`: one line per distinct examined zone, `"<label>: <finding with spaces> (pain <n>/10)"`.
+- `relevant_findings`: one line per distinct examined zone, `"<label>: <finding with spaces> (pain <n>/10)"`. The neutral `label` before a diagnosis, the `clinical_label` after.
+- `documentation`: notebook versus session record, one entry per criterion that has `note_keywords` and was either written down or met, in rubric order. `status`: `documented` (written and met), `unsupported` (written, but no matching question/examination was recorded), `undocumented` (met, not written). `[]` when no notes were sent or no diagnosis exists yet. If any entry is `unsupported`, `summary` ends with "Some of your notes are not supported by what was actually asked or examined."
 - `transcript_available`: false when no learner turns were recorded.
 - `summary` (after a diagnosis), sentences joined by one space: (1) only if no transcript: "No conversation transcript was recorded, so history-taking and communication could not be assessed." (2) first strength, if any (3) if any missed: "However, " + first missed item, first letter lower-cased (4) `diagnostic_assessment.explanation`.
 
@@ -187,5 +202,5 @@ Works at any time. Before a diagnosis is submitted nothing hidden leaks: `diagno
 Defined in `visionos/MedSimXR/Models/Contracts.swift`:
 
 - `ClinicalEngine` — implemented by `BackendClinicalEngine` (HTTP), `OfflineClinicalEngine` (bundled scenario JSON, same rules), `FallbackClinicalEngine` (backend first, offline on network failure).
-- `VoiceService` — implemented by `ElevenLabsVoiceService` and `MockVoiceService`.
+- `VoiceService` — implemented by `ElevenLabsVoiceService` and `MockVoiceService`. `setMicMuted(_:)` is note-taking mode: the notebook mutes the microphone while it is open so dictated notes are not heard by the patient.
 - `AppModel` (`App/AppModel.swift`) owns both and is the only object views talk to.

@@ -47,6 +47,7 @@ class Session:
     interactions: list[dict] = field(default_factory=list)  # seq, role, text, timestamp
     examinations: list[dict] = field(default_factory=list)  # seq, zone_id, action, pain_level
     diagnosis: str | None = None
+    notes: dict | None = None  # history, examination, assessment (set on diagnose)
 
     def next_seq(self) -> int:
         self.seq += 1

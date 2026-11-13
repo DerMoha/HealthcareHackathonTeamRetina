@@ -141,15 +141,108 @@ final class PatientAvatar {
         return e
     }
 
-    // MARK: Optional USDZ
+    // MARK: Realistic model (Patient.usdz), procedural body as fallback
 
-    /// If a bundled Patient.usdz exists, use it for visuals; anchors/hierarchy stay as-is.
+    private struct Sidecar: Decodable {
+        var seatHeight: Float
+        var anchors: [String: [Float]]
+    }
+
+    /// Skinned mesh of Patient.usdz; nil while the procedural body is in use.
+    private var skinned: ModelEntity?
+    private var restJoints: [Transform] = []
+    /// Model-space rest rotation of each joint's parent (identity for roots).
+    private var parentRotation: [simd_quatf] = []
+    private var jointIndex: [String: Int] = [:]
+    /// Current model-space rotation offsets per joint (short name), applied on top of the rest pose.
+    private var jointDelta: [String: simd_quatf] = [:]
+
+    /// Swaps the primitive body for the bundled seated human (assets/patient). The model was
+    /// exported from Blender: Z up, facing -Y. Anchors come from Patient.json, in avatar space.
+    /// Launch argument `-proceduralAvatar` keeps the primitive body.
     func loadOptionalVisuals() async {
-        guard Bundle.main.url(forResource: "Patient", withExtension: "usdz") != nil,
-              let model = try? await Entity(named: "Patient") else { return }
+        guard !ProcessInfo.processInfo.arguments.contains("-proceduralAvatar"),
+              let json = Bundle.main.url(forResource: "Patient", withExtension: "json"),
+              let data = try? Data(contentsOf: json),
+              let sidecar = try? JSONDecoder.medsim.decode(Sidecar.self, from: data),
+              let model = try? await Entity(named: "Patient") else {
+            SmokeLog.mark("avatar procedural")
+            return
+        }
         for v in visuals { v.components.remove(ModelComponent.self) }
         model.name = "patient_usdz"
         root.addChild(model)
+        // Stand the model up if the loader did not honour the stage's Z-up axis.
+        let size = model.visualBounds(relativeTo: root).extents
+        if size.z > size.y { model.orientation = simd_quatf(angle: -.pi / 2, axis: [1, 0, 0]) }
+        buildStool(seatHeight: sidecar.seatHeight)
+        for (name, p) in sidecar.anchors where p.count == 3 {
+            anchors[name]?.setPosition([p[0], p[1], p[2]], relativeTo: root)
+        }
+        if let mesh = Self.findSkinned(model) {
+            skinned = mesh
+            restJoints = mesh.jointTransforms
+            let names = mesh.jointNames
+            let indexByPath = Dictionary(uniqueKeysWithValues: names.enumerated().map { ($1, $0) })
+            var world = [simd_quatf](repeating: simd_quatf(angle: 0, axis: [0, 1, 0]), count: names.count)
+            parentRotation = world
+            for (i, path) in names.enumerated() { // parents precede children
+                let parts = path.split(separator: "/")
+                jointIndex[String(parts.last ?? "")] = i
+                if let parent = indexByPath[parts.dropLast().joined(separator: "/")] { parentRotation[i] = world[parent] }
+                world[i] = parentRotation[i] * restJoints[i].rotation
+            }
+        }
+        let b = model.visualBounds(relativeTo: root)
+        SmokeLog.mark("avatar usdz joints=\(restJoints.count) size=\(b.extents) minY=\(b.min.y)")
+    }
+
+    private static func findSkinned(_ e: Entity) -> ModelEntity? {
+        if let m = e as? ModelEntity, !m.jointNames.isEmpty { return m }
+        for child in e.children { if let found = findSkinned(child) { return found } }
+        return nil
+    }
+
+    /// Examination stool matched to the model's seat height.
+    private func buildStool(seatHeight h: Float) {
+        let cushion = SimpleMaterial(color: UIColor(white: 0.12, alpha: 1), roughness: 0.8, isMetallic: false)
+        let steel = SimpleMaterial(color: UIColor(white: 0.75, alpha: 1), roughness: 0.3, isMetallic: true)
+        let parts: [(MeshResource, SIMD3<Float>, SimpleMaterial)] = [
+            (.generateCylinder(height: 0.06, radius: 0.19), [0, h - 0.03, -0.02], cushion),
+            (.generateCylinder(height: h - 0.08, radius: 0.025), [0, (h - 0.08) / 2 + 0.02, -0.02], steel),
+            (.generateCylinder(height: 0.025, radius: 0.24), [0, 0.0125, -0.02], steel),
+        ]
+        for (mesh, position, material) in parts {
+            let e = ModelEntity(mesh: mesh, materials: [material])
+            e.name = "stool"
+            e.position = position
+            root.addChild(e)
+        }
+    }
+
+    /// Eases joints to model-space rotation offsets (Blender axes: X = patient's left, -Y = front, Z = up).
+    private func tweenJoints(_ target: [String: simd_quatf], duration: Double) async {
+        guard let skinned else { return }
+        let start = target.keys.reduce(into: [String: simd_quatf]()) {
+            $0[$1] = jointDelta[$1] ?? simd_quatf(angle: 0, axis: [0, 1, 0])
+        }
+        let frames = max(1, Int(duration * 60))
+        for frame in 1...frames {
+            let t = Float(frame) / Float(frames)
+            let eased = t * t * (3 - 2 * t)
+            for (name, goal) in target { jointDelta[name] = simd_slerp(start[name]!, goal, eased) }
+            var joints = restJoints
+            for (name, delta) in jointDelta {
+                guard let i = jointIndex[name] else { continue }
+                joints[i].rotation = parentRotation[i].inverse * delta * parentRotation[i] * restJoints[i].rotation
+            }
+            skinned.jointTransforms = joints
+            try? await Task.sleep(nanoseconds: 16_000_000)
+        }
+    }
+
+    private static func rot(_ degrees: Float, _ axis: SIMD3<Float>) -> simd_quatf {
+        simd_quatf(angle: degrees * .pi / 180, axis: axis)
     }
 
     // MARK: Idle + reactions
@@ -168,6 +261,9 @@ final class PatientAvatar {
                 var t = torsoBase
                 t.scale = phase ? [1.02, 1.015, 1.03] : [1, 1, 1]
                 self.torso.move(to: t, relativeTo: self.torso.parent, duration: 2.5, timingFunction: .easeInOut)
+                // realistic model: slow head turn and a hint of breathing
+                Task { await self.tweenJoints(["neck_01": Self.rot(phase ? 4 : -4, [0, 0, 1]),
+                                               "spine_03": Self.rot(phase ? -1.2 : 0, [1, 0, 0])], duration: 2.4) }
                 phase.toggle()
                 try? await Task.sleep(nanoseconds: 2_500_000_000)
             }
@@ -193,8 +289,16 @@ final class PatientAvatar {
             pull.translation += [0, 0.03, -0.12]
             rightArm.move(to: pull, relativeTo: rightArm.parent, duration: 0.12, timingFunction: .easeOut)
         }
+        // realistic model: lean back, pull the right elbow back and lift the forearm off the thigh
+        var joints: [String: simd_quatf] = ["spine_01": Self.rot(-7, [1, 0, 0]), "head": Self.rot(-6, [1, 0, 0])]
+        if animation == "arm_withdrawal" {
+            joints["upperarm_r"] = Self.rot(24, [1, 0, 0])
+            joints["lowerarm_r"] = Self.rot(-22, [1, 0, 0])
+        }
+        await tweenJoints(joints, duration: 0.14)
         try? await Task.sleep(nanoseconds: 650_000_000)
         upper.move(to: upperBase, relativeTo: upper.parent, duration: 0.45, timingFunction: .easeInOut)
         rightArm.move(to: armBase, relativeTo: rightArm.parent, duration: 0.45, timingFunction: .easeInOut)
+        await tweenJoints(joints.mapValues { _ in Self.rot(0, [1, 0, 0]) }, duration: 0.45)
     }
 }

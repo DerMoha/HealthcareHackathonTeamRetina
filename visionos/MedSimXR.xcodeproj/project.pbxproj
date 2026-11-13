@@ -31,10 +31,13 @@
 		916D2455AD149648AF08F383 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */; };
 		9481626117F1BF11B3B59018 /* Contracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B46355DA7F1620E7187A59E3 /* Contracts.swift */; };
 		986565E468A45407EDBAFD10 /* left_wrist.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 870FD8DD945440A47FF1F123 /* left_wrist.m4a */; };
+		9F1A74813949268C6173EBD6 /* Patient.json in Resources */ = {isa = PBXBuildFile; fileRef = B09FC5747FBE2B068E740DB5 /* Patient.json */; };
 		9F34C34513E345F55B19D8DB /* right_anatomical_snuffbox.m4a in Resources */ = {isa = PBXBuildFile; fileRef = DFD4D55943B774A35174DC6F /* right_anatomical_snuffbox.m4a */; };
 		A73EF3C9A3409AEA709C8FEA /* empathy.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7CA90764AA49279F0AD23A0E /* empathy.m4a */; };
 		A7E433B84AC1FC6322978380 /* Placement.swift in Sources */ = {isa = PBXBuildFile; fileRef = E06A41707145C15A77CD799E /* Placement.swift */; };
+		B44DA5C871277FB6E11C2230 /* NotebookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01228C8C258BA9F97D1F6029 /* NotebookView.swift */; };
 		BAB62293E9693B4C029B5A5F /* location.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D5FA3ED3B156DCAED6F9F289 /* location.m4a */; };
+		BBB730040571EB343A90CB83 /* Patient.usdz in Resources */ = {isa = PBXBuildFile; fileRef = DAC227FB2E23D5588C500963 /* Patient.usdz */; };
 		C58D6A32827F0E9D044A117E /* numbness.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 8FAB4E7C3261A194949DF12A /* numbness.m4a */; };
 		D94BFB74632487EE524140D3 /* ouch.m4a in Resources */ = {isa = PBXBuildFile; fileRef = F92D79924D92B2B6DE8BBF1A /* ouch.m4a */; };
 		E056F5B5AD983F47572264A6 /* MedSimXRApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87ED0E452FE02E813528F56E /* MedSimXRApp.swift */; };
@@ -43,6 +46,7 @@
 
 /* Begin PBXFileReference section */
 		010C4E1EF27A8CCED80291E9 /* ElevenLabsVoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElevenLabsVoiceService.swift; sourceTree = "<group>"; };
+		01228C8C258BA9F97D1F6029 /* NotebookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookView.swift; sourceTree = "<group>"; };
 		1AFD268A4A2F88FBD5FFD3A8 /* BackendClinicalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendClinicalEngine.swift; sourceTree = "<group>"; };
 		411341ADA2F30AA6C2CF194C /* ExamZones.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExamZones.swift; sourceTree = "<group>"; };
 		41987FE7A5AF451369BD2C62 /* greeting.m4a */ = {isa = PBXFileReference; path = greeting.m4a; sourceTree = "<group>"; };
@@ -59,11 +63,13 @@
 		8FAB4E7C3261A194949DF12A /* numbness.m4a */ = {isa = PBXFileReference; path = numbness.m4a; sourceTree = "<group>"; };
 		9BC2A7B7B970B168F87EA0C7 /* SmokeLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeLog.swift; sourceTree = "<group>"; };
 		9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		B09FC5747FBE2B068E740DB5 /* Patient.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Patient.json; sourceTree = "<group>"; };
 		B2D785B57B22AC62D89A38A1 /* ControlPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlPanelView.swift; sourceTree = "<group>"; };
 		B46355DA7F1620E7187A59E3 /* Contracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contracts.swift; sourceTree = "<group>"; };
 		C294E97270F41EF68340CFAC /* FingertipExaminer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FingertipExaminer.swift; sourceTree = "<group>"; };
 		CB6B263C048F155DE6E6A502 /* wrist_trauma_001.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = wrist_trauma_001.json; sourceTree = "<group>"; };
 		D5FA3ED3B156DCAED6F9F289 /* location.m4a */ = {isa = PBXFileReference; path = location.m4a; sourceTree = "<group>"; };
+		DAC227FB2E23D5588C500963 /* Patient.usdz */ = {isa = PBXFileReference; lastKnownFileType = file.usdz; path = Patient.usdz; sourceTree = "<group>"; };
 		DFD4D55943B774A35174DC6F /* right_anatomical_snuffbox.m4a */ = {isa = PBXFileReference; path = right_anatomical_snuffbox.m4a; sourceTree = "<group>"; };
 		E01D899BCF7FED4BE9771CAE /* OfflineClinicalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineClinicalEngine.swift; sourceTree = "<group>"; };
 		E06A41707145C15A77CD799E /* Placement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Placement.swift; sourceTree = "<group>"; };
@@ -96,6 +102,7 @@
 				B2D785B57B22AC62D89A38A1 /* ControlPanelView.swift */,
 				FC9C9B36CB6529DAFB8E3273 /* FeedbackView.swift */,
 				813A01C10B111313CE1DDF90 /* ImmersivePatientView.swift */,
+				01228C8C258BA9F97D1F6029 /* NotebookView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -192,6 +199,8 @@
 		A97CD62E0511CDD96C46C52F /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				B09FC5747FBE2B068E740DB5 /* Patient.json */,
+				DAC227FB2E23D5588C500963 /* Patient.usdz */,
 				B3FBE6A650845E112C3FB3DF /* Audio */,
 			);
 			path = Resources;
@@ -308,6 +317,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9F1A74813949268C6173EBD6 /* Patient.json in Resources */,
+				BBB730040571EB343A90CB83 /* Patient.usdz in Resources */,
 				A73EF3C9A3409AEA709C8FEA /* empathy.m4a in Resources */,
 				6AE62016437F65B972D32412 /* greeting.m4a in Resources */,
 				986565E468A45407EDBAFD10 /* left_wrist.m4a in Resources */,
@@ -343,6 +354,7 @@
 				23D05D9AE53E1E394B6078C4 /* ImmersivePatientView.swift in Sources */,
 				E056F5B5AD983F47572264A6 /* MedSimXRApp.swift in Sources */,
 				161515A51A5638D1AEAF8A8C /* Mocks.swift in Sources */,
+				B44DA5C871277FB6E11C2230 /* NotebookView.swift in Sources */,
 				45883C3FCB36D3A3F7708CE9 /* OfflineClinicalEngine.swift in Sources */,
 				2B18EB1CC30A4B01DF40F97C /* PatientAvatar.swift in Sources */,
 				A7E433B84AC1FC6322978380 /* Placement.swift in Sources */,

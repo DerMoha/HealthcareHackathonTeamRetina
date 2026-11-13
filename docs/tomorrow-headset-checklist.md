@@ -20,7 +20,8 @@ Budget: 45–60 minutes. Requires visionOS 26+ on the headset.
 ## 2. Placement and scale — first thing never tested (10 min)
 
 - [ ] Patient is on the floor, about 1.5 m away, slightly to the right of the window, facing you.
-- [ ] Looks like a seated adult (head around 1.25 m). Not floating, not sunk.
+- [ ] Looks like a seated adult on the stool (head top around 1.37 m). Feet on the floor, not floating, not sunk.
+- [ ] Skin, hair and shirt render cleanly up close (hair is alpha cut-out; look for holes or shimmer).
 - [ ] Turn 90°, **Recenter Patient** → patient moves in front of the new direction. This uses the head pose and has never run.
 - [ ] If the patient is off: tune `distance` / `lateral` in `Reality/Placement.swift`.
 
@@ -48,6 +49,10 @@ If voice cannot be fixed in time: demo with Debug mode scripted questions; every
 
 ## 5. Full run and fallbacks (10 min)
 
+- [ ] Pinch the **Notebook** beside the patient → it opens; Microphone shows **Muted**. Close → **Live** again.
+- [ ] Type a note with the virtual keyboard, then use the keyboard's dictation key. Check Alex does **not** answer while you dictate.
+- [ ] Notebook is readable and reachable where it floats; if not, tune its position in `Views/ImmersivePatientView.swift`.
+- [ ] Assessment → enter your own diagnosis → **Submit diagnosis** → feedback appears inside the notebook.
 - [ ] Complete `docs/demo-script.md` once, timed.
 - [ ] Feedback screen: readable at arm's length, scrolls, **Try Again** resets.
 - [ ] Kill the backend mid-session → Engine switches to **Offline**, session continues, feedback still appears.

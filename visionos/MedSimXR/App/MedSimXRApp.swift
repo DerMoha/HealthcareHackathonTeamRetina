@@ -21,7 +21,9 @@ struct MedSimXRApp: App {
             ControlPanelView()
                 .environment(model)
         }
-        .defaultSize(width: 560, height: 780)
+        .defaultSize(width: 400, height: 460)
+        // Small and low, like a tool palette: the patient keeps the centre of the view.
+        .defaultWindowPlacement { _, _ in WindowPlacement(.utilityPanel) }
 
         ImmersiveSpace(id: "patient") {
             ImmersivePatientView()

@@ -17,6 +17,20 @@ BEFORE A DIAGNOSIS IS SUBMITTED the rubric wording would give the answer away,
 so feedback is redacted: scores stay, but every category has criteria == [],
 strengths == [] and missed == [], and summary == PENDING_SUMMARY.
 
+LABELS: zones have a neutral `label` (shown during the session) and a `clinical_label`
+(anatomical name). Feedback uses the clinical label only after a diagnosis.
+
+NOTES: the notebook never earns examination or history points. Its assessment section is
+read together with the diagnosis for diagnosis_or_learner_said (a written plan counts as
+reasoning). After a diagnosis, each criterion with `note_keywords` is compared with the
+notes (all sections joined by newlines):
+  noted and met      -> documented   (DOC_OK)
+  noted, not met     -> unsupported  (DOC_UNSUPPORTED_EXAM for category "examination", else _ASK)
+  met, not noted     -> undocumented (DOC_MISSING)
+  neither            -> no entry
+No notes, or no diagnosis yet -> documentation == [].
+If any entry is unsupported, the summary ends with UNSUPPORTED_SUMMARY.
+
 SUMMARY TEMPLATE after a diagnosis (deterministic; sentences joined by one space):
   S1  only if transcript_available is false: NO_TRANSCRIPT
   S2  strengths[0], if any
@@ -27,7 +41,8 @@ SUMMARY TEMPLATE after a diagnosis (deterministic; sentences joined by one space
 import re
 from functools import lru_cache
 
-from .models import (CategoryResult, CriterionResult, DiagnosticAssessment, Feedback)
+from .models import (CategoryResult, CriterionResult, DiagnosticAssessment, DocumentationItem,
+                     Feedback)
 from .sessions import Session
 
 DISCLAIMER = ("Educational simulation only. Not a clinical diagnostic tool. "
@@ -35,6 +50,13 @@ DISCLAIMER = ("Educational simulation only. Not a clinical diagnostic tool. "
 NO_TRANSCRIPT = ("No conversation transcript was recorded, so history-taking and "
                  "communication could not be assessed.")
 PENDING_SUMMARY = "Submit a diagnosis to unlock detailed feedback."
+DOC_OK = "Documented, and supported by the session record."
+DOC_UNSUPPORTED_EXAM = ("Your notes mention this, but no matching examination was recorded. "
+                        "Notes alone earn no points.")
+DOC_UNSUPPORTED_ASK = ("Your notes mention this, but no matching question was recorded. "
+                       "Notes alone earn no points.")
+DOC_MISSING = "You did this, but did not write it down."
+UNSUPPORTED_SUMMARY = "Some of your notes are not supported by what was actually asked or examined."
 
 
 @lru_cache(maxsize=None)
@@ -53,7 +75,7 @@ def _first_quote(turns: list[dict], keywords: list[str]) -> str | None:
     return next((t["text"] for t in turns if _hit(t["text"], keywords)), None)
 
 
-def _run_check(check: dict, max_points: int, s: Session, labels: dict[str, str]):
+def _run_check(check: dict, max_points: int, s: Session, labels: dict[str, str], plan: str | None):
     """Return (points, met, evidence, method) for one criterion."""
     kind = check["type"]
     kws = check.get("keywords", [])
@@ -81,8 +103,8 @@ def _run_check(check: dict, max_points: int, s: Session, labels: dict[str, str])
         quote = labels[zone] if zone else None
     elif kind == "diagnosis_or_learner_said":
         quote = _first_quote(turns, kws)
-        if quote is None and s.diagnosis and _hit(s.diagnosis, kws):
-            quote = s.diagnosis
+        if quote is None and plan and _hit(plan, kws):
+            quote = plan
         need = check.get("requires_examined")
         if need and not any(e["zone_id"] in need for e in exams):
             quote = None
@@ -95,7 +117,13 @@ def _run_check(check: dict, max_points: int, s: Session, labels: dict[str, str])
 def evaluate(scenario: dict, s: Session) -> Feedback:
     hidden = scenario["hidden"]
     diag = hidden["diagnosis"]
-    labels = {z["id"]: z["label"] for z in scenario["examination_zones"]}
+    neutral = {z["id"]: z["label"] for z in scenario["examination_zones"]}
+    labels = {z["id"]: z.get("clinical_label", z["label"]) for z in scenario["examination_zones"]}
+    notes = s.notes or {}
+    note_text = "\n".join(notes.get(k, "") for k in ("history", "examination", "assessment"))
+    plan = s.diagnosis  # diagnosis plus the written assessment
+    if plan and notes.get("assessment", "").strip():
+        plan = plan + "\n" + notes["assessment"]
     findings = {z["id"]: z["result"] for z in scenario["examination_zones"]}
 
     # verdict
@@ -108,7 +136,7 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
     else:
         verdict, text = "incorrect", diag["incorrect_text"]
 
-    categories, strengths, missed = [], [], []
+    categories, strengths, missed, documentation = [], [], [], []
     for cat in hidden["rubric"]["categories"]:
         results = []
         for c in cat["criteria"]:
@@ -119,7 +147,16 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
                 if met:
                     ev = s.diagnosis
             else:
-                pts, met, ev, method = _run_check(check, mx, s, labels)
+                pts, met, ev, method = _run_check(check, mx, s, labels, plan)
+            if note_text.strip() and c.get("note_keywords"):
+                noted = _hit(note_text, c["note_keywords"])
+                if noted or met:
+                    status = "documented" if noted and met else "unsupported" if noted else "undocumented"
+                    comment = {"documented": DOC_OK, "undocumented": DOC_MISSING,
+                               "unsupported": DOC_UNSUPPORTED_EXAM if cat["id"] == "examination"
+                               else DOC_UNSUPPORTED_ASK}[status]
+                    documentation.append(DocumentationItem(
+                        criterion_id=c["id"], label=c["label"], status=status, comment=comment))
             (strengths if met else missed).append(c["met_text"] if met else c["missed_text"])
             results.append(CriterionResult(
                 id=c["id"], label=c["label"], met=met, points=pts, max_points=mx,
@@ -130,14 +167,17 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
 
     # relevant findings: distinct zones in order of first examination
     seen = list(dict.fromkeys(e["zone_id"] for e in sorted(s.examinations, key=lambda e: e["seq"])))
-    relevant = [f"{labels[z]}: {findings[z]['finding'].replace('_', ' ')} (pain {findings[z]['pain_level']}/10)"
+    shown = labels if verdict != "not_submitted" else neutral
+    relevant = [f"{shown[z]}: {findings[z]['finding'].replace('_', ' ')} (pain {findings[z]['pain_level']}/10)"
                 for z in seen]
 
     has_transcript = any(t["role"] == "learner" for t in s.interactions)
     summary = _summary(strengths, missed, text, has_transcript)
     if verdict == "not_submitted":  # redact: rubric wording reveals the diagnosis
         categories = [c.model_copy(update={"criteria": []}) for c in categories]
-        strengths, missed, summary = [], [], PENDING_SUMMARY
+        strengths, missed, documentation, summary = [], [], [], PENDING_SUMMARY
+    elif any(d.status == "unsupported" for d in documentation):
+        summary += " " + UNSUPPORTED_SUMMARY
     next_steps = list(hidden["next_steps"]) if verdict != "not_submitted" else []
     return Feedback(
         session_id=s.id, case_id=s.case_id, diagnosis_submitted=s.diagnosis,
@@ -148,7 +188,8 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
             verdict=verdict, explanation=text,
             expected=diag["name"] if verdict != "not_submitted" else None),
         categories=categories, strengths=strengths, missed=missed,
-        relevant_findings=relevant, next_steps=next_steps, disclaimer=DISCLAIMER)
+        relevant_findings=relevant, next_steps=next_steps, documentation=documentation,
+        disclaimer=DISCLAIMER)
 
 
 def _summary(strengths, missed, explanation, has_transcript) -> str:

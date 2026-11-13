@@ -2,9 +2,10 @@
 
 # MedSim XR — AI patient for Apple Vision Pro
 
-A seated virtual patient in your real room. Talk to them (ElevenLabs Agents),
-examine their wrist by gaze + pinch, watch them flinch, submit a diagnosis, get
-structured feedback. One complete case: Alex, 28, wrist pain after a bicycle fall.
+A seated virtual patient in your real room. Talk to them (ElevenLabs Agents), examine
+them by gaze + pinch, watch them flinch, write your findings in the notebook beside them,
+commit to your own diagnosis, get structured feedback. One complete case. Nothing on screen
+tells the learner what it is until they submit.
 
 Educational simulation only. All patient data is fictional. Not a diagnostic tool.
 
@@ -12,6 +13,7 @@ Educational simulation only. All patient data is fictional. Not a diagnostic too
 visionos/    Vision Pro app (SwiftUI + RealityKit), XcodeGen project
 backend/     FastAPI clinical scenario engine + tests (runs on Windows/macOS/Linux)
 scenarios/   Case definitions (JSON) — single source of truth, bundled into the app
+assets/      Patient avatar build (Blender + MakeHuman CC0 assets) and licence notes
 elevenlabs/  Agent prompt, dashboard setup, offline clip generator
 docs/        Contracts, architecture, device setup, demo script, troubleshooting
 ```
@@ -96,7 +98,21 @@ cd visionos && xcodebuild -quiet -project MedSimXR.xcodeproj -scheme MedSimXR \
   -destination 'generic/platform=visionOS' CODE_SIGNING_ALLOWED=NO build
 ```
 
-## 4. Demo
+## 4. Using it
+
+- **Control panel**: Start/Stop, Recenter, status, and a **Debug** toggle (examination and
+  scripted-question buttons, last finding). Nothing else.
+- **Notebook** (floats beside the patient, pinch to open): History, Examination, Assessment,
+  Conversation. Type or use the keyboard's dictation key. While it is open the patient's
+  microphone is muted, so dictated notes are not heard as speech to the patient.
+- **Diagnosis**: written by the learner under Assessment, no suggestions offered. Feedback
+  appears in the notebook and compares the notes with what was actually asked and examined;
+  writing down an examination that never happened earns nothing and is flagged.
+- **Patient model**: `visionos/MedSimXR/Resources/Patient.usdz`, CC0, rebuilt with
+  `assets/patient/build.sh` ([details](assets/patient/README.md)). Launch argument
+  `-proceduralAvatar` falls back to the primitive body.
+
+## 5. Demo
 
 [docs/demo-script.md](docs/demo-script.md) — 90 seconds. Everything except the live
 conversation also works with no network at all (Debug mode has buttons for every
@@ -104,10 +120,11 @@ examination zone and scripted question).
 
 ## Status
 
-Launched and exercised in the visionOS 27.2 simulator: app start, mixed immersive space, seated
-patient, all three examinations with correct findings, flinch and arm withdrawal, zone flash,
-local clips started, diagnosis, feedback, reset, and backend killed mid-session with the session
-continuing offline. Details, evidence and the per-feature status table:
+Launched and exercised in the visionOS 27.2 simulator: app start, mixed immersive space, the
+realistic seated patient on a stool, all three examinations with correct findings, joint-driven
+flinch and arm withdrawal, zone flash, local clips started, notebook notes, learner-written
+diagnosis, feedback with notes-versus-record, reset, and backend killed mid-session with the
+session continuing offline. Details, evidence and the per-feature status table:
 [docs/simulator-test-report.md](docs/simulator-test-report.md).
 
 Re-run it:
@@ -129,6 +146,7 @@ Known limits:
 - Transcript scoring is whole-word keyword matching (labelled "heuristic" in the feedback). It
   cannot judge empathy or meaning, only whether certain phrases were said.
 - Without live voice, history and communication points come only from the scripted Debug questions.
-- Procedural primitive avatar; drop a `Patient.usdz` into `visionos/MedSimXR/Resources/` to replace the visuals.
+- The avatar is a static seated pose with a few animated joints: no lip sync, no facial expression, fingers do not move.
+- Notes are compared by keyword, like the transcript: it detects that something was written down, not whether it is right.
 - Offline speech uses macOS `say` placeholder clips until `generate_clips.py` is run.
 - One case, English only, sessions in memory (a backend restart drops them; the app then continues offline).

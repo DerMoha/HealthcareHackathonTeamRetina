@@ -25,7 +25,7 @@ final class BackendClinicalEngine: ClinicalEngine {
     private struct StartBody: Encodable { var caseId: String }
     private struct ExamineBody: Encodable { var bodyPart: String; var action: String }
     private struct InteractionBody: Encodable { var role: String; var text: String; var timestamp: String }
-    private struct DiagnoseBody: Encodable { var diagnosis: String }
+    private struct DiagnoseBody: Encodable { var diagnosis: String; var notes: ClinicalNotes }
     private struct Detail: Decodable { var detail: String }
 
     func startSession(caseId: String) async throws -> SessionInfo {
@@ -51,8 +51,8 @@ final class BackendClinicalEngine: ClinicalEngine {
         _ = try? await raw("POST", "\(p)/interactions", body)
     }
 
-    func diagnose(_ diagnosis: String) async throws -> Feedback {
-        try await send("POST", "\(try path())/diagnose", DiagnoseBody(diagnosis: diagnosis))
+    func diagnose(_ diagnosis: String, notes: ClinicalNotes) async throws -> Feedback {
+        try await send("POST", "\(try path())/diagnose", DiagnoseBody(diagnosis: diagnosis, notes: notes))
     }
 
     func feedback() async throws -> Feedback {

@@ -50,7 +50,7 @@ final class MockClinicalEngine: ClinicalEngine {
         )
     }
 
-    func diagnose(_ diagnosis: String) async throws -> Feedback { makeFeedback(diagnosis) }
+    func diagnose(_ diagnosis: String, notes: ClinicalNotes) async throws -> Feedback { makeFeedback(diagnosis) }
     func feedback() async throws -> Feedback { makeFeedback(nil) }
 
     private func makeFeedback(_ diagnosis: String?) -> Feedback {
@@ -73,6 +73,7 @@ final class MockClinicalEngine: ClinicalEngine {
             missed: ["You did not ask about numbness or altered sensation."],
             relevantFindings: ["Right anatomical snuffbox: marked tenderness (pain 8/10)"],
             nextSteps: diagnosis == nil ? [] : ["Request dedicated scaphoid-view radiographs."],
+            documentation: [],
             disclaimer: "Educational simulation only."
         )
     }
@@ -99,6 +100,10 @@ final class MockVoiceService: VoiceService {
         try? await Task.sleep(nanoseconds: 600_000_000)
         status = .connected
         micStatus = .live
+    }
+
+    func setMicMuted(_ muted: Bool) async {
+        if status == .connected { micStatus = muted ? .muted : .live }
     }
 
     func stop() async {

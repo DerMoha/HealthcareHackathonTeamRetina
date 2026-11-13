@@ -120,6 +120,22 @@ struct CategoryResult: Codable, Hashable, Identifiable, Sendable {
     var criteria: [CriterionResult]
 }
 
+/// The learner's notebook. Compared with the session record; never a source of points.
+struct ClinicalNotes: Codable, Hashable, Sendable {
+    var history = ""
+    var examination = ""
+    var assessment = ""
+}
+
+struct DocumentationItem: Codable, Hashable, Identifiable, Sendable {
+    var criterionId: String
+    var label: String
+    /// documented | undocumented | unsupported
+    var status: String
+    var comment: String
+    var id: String { criterionId }
+}
+
 struct Feedback: Codable, Hashable, Sendable {
     var sessionId: String
     var caseId: String
@@ -134,6 +150,7 @@ struct Feedback: Codable, Hashable, Sendable {
     var missed: [String]
     var relevantFindings: [String]
     var nextSteps: [String]
+    var documentation: [DocumentationItem]
     var disclaimer: String
 }
 
@@ -148,7 +165,7 @@ protocol ClinicalEngine: AnyObject {
     func examine(zoneId: String, action: String) async throws -> ExaminationResult
     /// Best effort; must never throw into the UI.
     func recordInteraction(_ turn: TranscriptTurn) async
-    func diagnose(_ diagnosis: String) async throws -> Feedback
+    func diagnose(_ diagnosis: String, notes: ClinicalNotes) async throws -> Feedback
     func feedback() async throws -> Feedback
     func reset() async throws -> SessionInfo
 }
@@ -190,6 +207,8 @@ protocol VoiceService: AnyObject {
     /// Connects and passes `caseContext` as dynamic variable `case_context`.
     func start(caseContext: String) async
     func stop() async
+    /// Note-taking mode: while muted the agent must not hear the learner (dictated notes).
+    func setMicMuted(_ muted: Bool) async
     /// Forwards `ExaminationResult.voiceContext`; the agent must speak a reaction.
     func sendExaminationEvent(_ text: String) async
 }

@@ -25,6 +25,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
             }
             var id: String
             var label: String
+            var clinicalLabel: String?
             var attachTo: String
             var offset: [Float]
             var radius: Float
@@ -50,6 +51,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
             var label: String
             var points: Int
             var check: Check
+            var noteKeywords: [String]?
             var metText: String
             var missedText: String
         }
@@ -85,6 +87,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
     private var exams: [Exam] = []
     private var turns: [Turn] = []
     private var diagnosis: String?
+    private var notes = ClinicalNotes()
 
     init(scenarioData: Data) throws {
         scenario = try JSONDecoder.medsim.decode(Scenario.self, from: scenarioData)
@@ -133,9 +136,10 @@ final class OfflineClinicalEngine: ClinicalEngine {
         turns.append(Turn(seq: seq, role: turn.role, text: turn.text))
     }
 
-    func diagnose(_ diagnosis: String) async throws -> Feedback {
+    func diagnose(_ diagnosis: String, notes: ClinicalNotes) async throws -> Feedback {
         guard sessionId != nil else { throw noSession }
         self.diagnosis = diagnosis
+        self.notes = notes
         return try await feedback()
     }
 
@@ -149,7 +153,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
     private var noSession: OfflineEngineError { OfflineEngineError(errorDescription: "No active session.") }
 
     private func clear() -> SessionInfo {
-        seq = 0; exams = []; turns = []; diagnosis = nil
+        seq = 0; exams = []; turns = []; diagnosis = nil; notes = ClinicalNotes()
         let s = scenario
         return SessionInfo(
             sessionId: sessionId ?? "", startedAt: ISO8601DateFormatter().string(from: Date()),
@@ -186,11 +190,13 @@ final class OfflineClinicalEngine: ClinicalEngine {
         learnerTurns.first { include($0) && hits($0.text, keywords) }?.text
     }
 
+    /// Anatomical name; only used in feedback after a diagnosis.
     private func label(_ zoneId: String) -> String {
-        scenario.examinationZones.first { $0.id == zoneId }?.label ?? zoneId
+        let zone = scenario.examinationZones.first { $0.id == zoneId }
+        return zone?.clinicalLabel ?? zone?.label ?? zoneId
     }
 
-    private func evaluate(_ c: Scenario.Criterion, diagnosis dx: String?) -> Outcome {
+    private func evaluate(_ c: Scenario.Criterion, diagnosis dx: String?, plan: String?) -> Outcome {
         let kw = c.check.keywords ?? []
         let full = c.points
         func keyword(_ quote: String?) -> Outcome {
@@ -215,7 +221,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
         case "diagnosis_or_learner_said":
             let required = c.check.requiresExamined ?? []
             guard required.isEmpty || exams.contains(where: { required.contains($0.zoneId) }) else { return keyword(nil) }
-            let dxHit = dx.flatMap { hits($0, kw) ? $0 : nil }
+            let dxHit = plan.flatMap { hits($0, kw) ? $0 : nil }
             return keyword(firstLearnerQuote(kw) ?? dxHit)
         case "diagnosis_matches":
             let d = scenario.hidden.diagnosis
@@ -232,11 +238,33 @@ final class OfflineClinicalEngine: ClinicalEngine {
         let h = scenario.hidden
         let dx = diagnosis.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
         var strengths: [String] = [], missed: [String] = []
+        var documentation: [DocumentationItem] = []
+        let noteText = [notes.history, notes.examination, notes.assessment].joined(separator: "\n")
+        let hasNotes = !noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        // The written assessment is read together with the diagnosis (reasoning, not examination).
+        let assessment = notes.assessment.trimmingCharacters(in: .whitespacesAndNewlines)
+        let plan = dx.map { assessment.isEmpty ? $0 : $0 + "\n" + notes.assessment }
 
         var categories = h.rubric.categories.map { cat -> CategoryResult in
             let criteria = cat.criteria.map { c -> CriterionResult in
-                let o = evaluate(c, diagnosis: dx)
+                let o = evaluate(c, diagnosis: dx, plan: plan)
                 if o.met { strengths.append(c.metText) } else { missed.append(c.missedText) }
+                if hasNotes, let keywords = c.noteKeywords {
+                    let noted = hits(noteText, keywords)
+                    if noted || o.met {
+                        let status = noted && o.met ? "documented" : noted ? "unsupported" : "undocumented"
+                        let comment: String
+                        switch status {
+                        case "documented": comment = "Documented, and supported by the session record."
+                        case "undocumented": comment = "You did this, but did not write it down."
+                        default:
+                            comment = "Your notes mention this, but no matching "
+                                + (cat.id == "examination" ? "examination" : "question")
+                                + " was recorded. Notes alone earn no points."
+                        }
+                        documentation.append(DocumentationItem(criterionId: c.id, label: c.label, status: status, comment: comment))
+                    }
+                }
                 return CriterionResult(id: c.id, label: c.label, met: o.met, points: o.points, maxPoints: c.points,
                                        method: o.method, evidence: o.evidence, comment: o.met ? c.metText : c.missedText)
             }
@@ -258,15 +286,17 @@ final class OfflineClinicalEngine: ClinicalEngine {
         let findings = exams.compactMap { e -> String? in
             guard seen.insert(e.zoneId).inserted,
                   let z = scenario.examinationZones.first(where: { $0.id == e.zoneId }) else { return nil }
-            return "\(z.label): \(z.result.finding.replacingOccurrences(of: "_", with: " ")) (pain \(z.result.painLevel)/10)"
+            return "\(dx == nil ? z.label : label(z.id)): \(z.result.finding.replacingOccurrences(of: "_", with: " ")) (pain \(z.result.painLevel)/10)"
         }
 
         let transcript = !learnerTurns.isEmpty
         var summary = Self.composeSummary(transcriptAvailable: transcript, strengths: strengths, missed: missed, explanation: explanation)
         if dx == nil { // redact: rubric wording reveals the diagnosis
             categories = categories.map { var c = $0; c.criteria = []; return c }
-            strengths = []; missed = []
+            strengths = []; missed = []; documentation = []
             summary = "Submit a diagnosis to unlock detailed feedback."
+        } else if documentation.contains(where: { $0.status == "unsupported" }) {
+            summary += " Some of your notes are not supported by what was actually asked or examined."
         }
         return Feedback(
             sessionId: sessionId, caseId: scenario.caseId, diagnosisSubmitted: dx,
@@ -275,7 +305,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
             transcriptAvailable: transcript,
             diagnosticAssessment: DiagnosticAssessment(verdict: verdict, explanation: explanation, expected: dx == nil ? nil : d.name),
             categories: categories, strengths: strengths, missed: missed, relevantFindings: findings,
-            nextSteps: dx == nil ? [] : h.nextSteps,
+            nextSteps: dx == nil ? [] : h.nextSteps, documentation: documentation,
             disclaimer: "Educational simulation only. Not a clinical diagnostic tool. Transcript-based criteria use simple keyword heuristics."
         )
     }

@@ -9,8 +9,9 @@ final class Placement {
     private let world = WorldTrackingProvider()
     private var started = false
     static let distance: Float = 1.4
-    /// Metres to the wearer's right, so the patient does not sit behind the control window.
-    static let lateral: Float = 0.55
+    /// Metres to the wearer's right: just enough that the patient's head does not cover the
+    /// control window, which opens straight ahead and further away.
+    static let lateral: Float = 0.3
 
     /// Fallback when tracking is unavailable (simulator, denied, not yet tracking).
     static let fallback = place(head: .zero, forward: [0, 0, -1])

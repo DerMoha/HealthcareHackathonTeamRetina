@@ -16,6 +16,11 @@ struct ReactionEvent: Identifiable, Equatable {
     var speakLocally: Bool
 }
 
+enum NotebookTab: String, CaseIterable, Identifiable {
+    case history = "History", examination = "Examination", assessment = "Assessment", conversation = "Conversation"
+    var id: String { rawValue }
+}
+
 enum SessionPhase: Equatable {
     case idle, running, feedback
 }
@@ -38,6 +43,12 @@ final class AppModel {
     private(set) var recenterToken = 0
     private(set) var isBusy = false
     var debugMode = false
+
+    /// The learner's notebook: free-text notes plus the diagnosis they formulate themselves.
+    var notes = ClinicalNotes()
+    var diagnosis = ""
+    var notebookTab = NotebookTab.history
+    private(set) var notebookOpen = false
 
     /// Seconds between accepted examination events (gaze+pinch or fingertip).
     static let examineCooldown: TimeInterval = 1.5
@@ -78,6 +89,13 @@ final class AppModel {
     }
 
     func recenter() { recenterToken += 1 }
+
+    /// Opening the notebook is note-taking mode: the patient's microphone is muted so that
+    /// dictated notes are not heard as speech to the patient.
+    func setNotebookOpen(_ open: Bool) {
+        notebookOpen = open
+        Task { await voice.setMicMuted(open && phase == .running) }
+    }
 
     // MARK: Examination
 
@@ -121,11 +139,11 @@ final class AppModel {
 
     // MARK: Diagnosis / feedback
 
-    func submitDiagnosis(_ text: String) async {
-        let diagnosis = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    func submitDiagnosis() async {
+        let diagnosis = diagnosis.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !diagnosis.isEmpty, session != nil else { return }
         await run {
-            self.feedback = try await self.engine.diagnose(diagnosis)
+            self.feedback = try await self.engine.diagnose(diagnosis, notes: self.notes)
             self.phase = .feedback
             await self.voice.stop()
         }
@@ -144,6 +162,10 @@ final class AppModel {
         examinations = []
         feedback = nil
         reaction = nil
+        notes = ClinicalNotes()
+        diagnosis = ""
+        notebookTab = .history
+        notebookOpen = false
         lastExamineAt = .distantPast
         phase = .running
     }

@@ -1,9 +1,10 @@
 STEP 01-launch
-immersive scene built zones=0
 immersive opened=true
-placed at SIMD3<Float>(0.55, 0.0, -1.4) tracked=false
+placed at SIMD3<Float>(0.3, 0.0, -1.4) tracked=false
 zones rebuilt ["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"]
-session id=672a530f9c064bd0948dc6742fd92407 zones=["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"] engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=0 error=none
+avatar usdz joints=53 size=SIMD3<Float>(0.52524173, 1.37687, 0.7801993) minY=0.0
+immersive scene built zones=3
+session id=b4e8a576cb5b47409025c8800033af5e zones=["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"] engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=0 error=none
 STEP 02-session
 asked greeting engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=2 error=none
 audio clip=greeting started=true duration=5.03s
@@ -22,14 +23,16 @@ STEP 05-killwindow
 examined right_distal_forearm finding=no_focal_tenderness pain=1 animation=none speakLocally=true engine=Offline voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=7 error=none
 zone flash right_distal_forearm painful=false
 audio clip=right_distal_forearm started=true duration=1.74s
-placed at SIMD3<Float>(0.55, 0.0, -1.4) tracked=false
+placed at SIMD3<Float>(0.3, 0.0, -1.4) tracked=false
 recentered token=1
 pre-diagnosis feedback verdict=not_submitted criteria=[0, 0, 0, 0]
-STEP 06-feedback-locked
-STEP 07-diagnosis-entered
-diagnosed score=68/100 verdict=correct categories=["history:12", "examination:40", "communication:10", "reasoning:6"] engine=Offline voice=Disconnected mic=Unknown exams=3 turns=7 error=none
-STEP 08-feedback
-reset feedback=cleared engine=Offline voice=Error: No agent ID set and backend unreachable for voice token mic=Unknown exams=0 turns=0 error=none
-STEP 09-reset
-STEP 10-stopped
+notebook open=true engine=Offline voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=7 error=none
+STEP 06-notebook-history
+STEP 07-notebook-examination
+STEP 08-notebook-assessment
+diagnosed score=72/100 verdict=correct categories=["history:12", "examination:40", "communication:10", "reasoning:10"] notes=["mechanism:documented", "onset:documented", "location:unsupported", "associated_symptoms:unsupported", "examined_injured_wrist:documented", "examined_snuffbox:documented", "comparison:documented"] engine=Offline voice=Disconnected mic=Unknown exams=3 turns=7 error=none
+STEP 09-feedback
+reset feedback=cleared notes=blank engine=Offline voice=Error: No agent ID set and backend unreachable for voice token mic=Unknown exams=0 turns=0 error=none
+STEP 10-reset
+STEP 11-stopped
 DONE

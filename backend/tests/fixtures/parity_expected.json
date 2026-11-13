@@ -2,9 +2,9 @@
   "session_id": "SESSION",
   "case_id": "wrist_trauma_001",
   "diagnosis_submitted": "Probably a fracture of the wrist",
-  "total_score": 76,
+  "total_score": 80,
   "max_score": 100,
-  "summary": "You asked how the injury happened. However, you did not ask when the injury happened or when the pain started. Partly correct. A fracture is likely, but the specific concern here is the scaphoid: fall on an outstretched hand plus anatomical snuffbox tenderness.",
+  "summary": "You asked how the injury happened. However, you did not ask when the injury happened or when the pain started. Partly correct. A fracture is likely, but the specific concern here is the scaphoid: fall on an outstretched hand plus anatomical snuffbox tenderness. Some of your notes are not supported by what was actually asked or examined.",
   "transcript_available": true,
   "diagnostic_assessment": {
     "verdict": "partial",
@@ -169,7 +169,7 @@
     {
       "id": "reasoning",
       "title": "Clinical reasoning",
-      "score": 3,
+      "score": 7,
       "max_score": 10,
       "criteria": [
         {
@@ -185,12 +185,12 @@
         {
           "id": "further_assessment",
           "label": "Recognised the need for further assessment and imaging",
-          "met": false,
-          "points": 0,
+          "met": true,
+          "points": 4,
           "max_points": 4,
           "method": "keyword",
-          "evidence": null,
-          "comment": "You did not mention further clinical assessment or imaging (for example scaphoid-view X-rays)."
+          "evidence": "Probably a fracture of the wrist\nNeeds an X-ray and a splint.",
+          "comment": "You recognised that further assessment and imaging are needed."
         }
       ]
     }
@@ -205,14 +205,14 @@
     "You introduced yourself.",
     "You asked for permission before examining.",
     "You acknowledged the patient's pain after the painful examination.",
-    "No disrespectful language was detected."
+    "No disrespectful language was detected.",
+    "You recognised that further assessment and imaging are needed."
   ],
   "missed": [
     "You did not ask when the injury happened or when the pain started.",
     "You did not ask about numbness or altered sensation.",
     "You did not show that you recognised what localised snuffbox tenderness means.",
-    "You did not identify a possible scaphoid injury.",
-    "You did not mention further clinical assessment or imaging (for example scaphoid-view X-rays)."
+    "You did not identify a possible scaphoid injury."
   ],
   "relevant_findings": [
     "Right anatomical snuffbox: marked tenderness (pain 8/10)",
@@ -223,6 +223,56 @@
     "Request dedicated scaphoid-view radiographs; an initial X-ray can be normal.",
     "If clinical suspicion remains despite normal X-rays: immobilise in a thumb spica splint and arrange repeat imaging or MRI.",
     "Explain the plan and the risk of a missed scaphoid fracture (non-union, avascular necrosis) to the patient."
+  ],
+  "documentation": [
+    {
+      "criterion_id": "mechanism",
+      "label": "Mechanism of injury",
+      "status": "documented",
+      "comment": "Documented, and supported by the session record."
+    },
+    {
+      "criterion_id": "onset",
+      "label": "Time of onset",
+      "status": "unsupported",
+      "comment": "Your notes mention this, but no matching question was recorded. Notes alone earn no points."
+    },
+    {
+      "criterion_id": "location",
+      "label": "Location of pain",
+      "status": "documented",
+      "comment": "Documented, and supported by the session record."
+    },
+    {
+      "criterion_id": "severity",
+      "label": "Pain severity",
+      "status": "undocumented",
+      "comment": "You did this, but did not write it down."
+    },
+    {
+      "criterion_id": "associated_symptoms",
+      "label": "Associated symptoms (numbness / altered sensation)",
+      "status": "unsupported",
+      "comment": "Your notes mention this, but no matching question was recorded. Notes alone earn no points."
+    },
+    {
+      "criterion_id": "examined_injured_wrist",
+      "label": "Examined the injured wrist",
+      "status": "documented",
+      "comment": "Documented, and supported by the session record."
+    },
+    {
+      "criterion_id": "examined_snuffbox",
+      "label": "Palpated the anatomical snuffbox",
+      "status": "documented",
+      "comment": "Documented, and supported by the session record."
+    },
+    {
+      "criterion_id": "comparison",
+      "label": "Checked a comparison area",
+      "status": "documented",
+      "comment": "Documented, and supported by the session record."
+    }
   ],
   "disclaimer": "Educational simulation only. Not a clinical diagnostic tool. Transcript-based criteria use simple keyword heuristics."
 }

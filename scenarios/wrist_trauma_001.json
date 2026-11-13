@@ -1,26 +1,27 @@
 {
   "schema_version": 1,
   "case_id": "wrist_trauma_001",
-  "title": "Wrist pain after a bicycle fall",
-  "learner_brief": "Alex, 28, presents with right wrist pain one day after falling off a bicycle. Take a focused history, examine the patient, and submit your suspected diagnosis.",
+  "title": "Clinic patient: Alex, 28",
+  "learner_brief": "Alex, 28, is waiting to be seen. Take a history, examine the patient, and record your findings and suspected diagnosis in the notebook.",
   "patient": {
     "name": "Alex",
     "age": 28,
-    "appearance": "Young adult sitting upright on an examination stool, right forearm resting on the right thigh.",
+    "appearance": "Young adult sitting on an examination stool.",
     "personality": "Cooperative but slightly anxious."
   },
   "voice_context": "CASE FACTS (all you know as the patient):\n- You are Alex, 28, an office worker, right-handed.\n- Yesterday afternoon you fell off your bicycle after braking hard on wet leaves and landed on your outstretched right hand, palm down.\n- Your right wrist has hurt ever since. The pain is on the thumb side of the wrist, near the base of the thumb.\n- Pain is about 3/10 at rest and 7-8/10 when gripping, pushing a door, or when someone presses on the sore spot.\n- There is slight swelling on the thumb side of the wrist. No visible bruise, no wound, no deformity.\n- No numbness, no tingling, no pins and needles. You can move all fingers; gripping and pinching with the thumb hurts.\n- You did not hit your head and did not lose consciousness. No other injuries apart from a small scrape on the right knee.\n- You took one ibuprofen 400 mg last night; it helped a little.\n- No previous wrist injuries, no chronic illnesses, no regular medication, no known allergies. You do not smoke.\n- Your left wrist and left arm feel completely normal.\n- You are worried because you need your hand for typing at work.\n- You do not know what is wrong with your wrist.",
   "examination_zones": [
     {
       "id": "right_anatomical_snuffbox",
-      "label": "Right anatomical snuffbox",
+      "label": "Right wrist, thumb side",
+      "clinical_label": "Right anatomical snuffbox",
       "attach_to": "right_wrist",
       "offset": [
         0.0,
         0.0,
         0.0
       ],
-      "radius": 0.05,
+      "radius": 0.042,
       "result": {
         "finding": "marked_tenderness",
         "pain_level": 8,
@@ -32,14 +33,15 @@
     },
     {
       "id": "right_distal_forearm",
-      "label": "Right distal forearm",
+      "label": "Right forearm",
+      "clinical_label": "Right distal forearm",
       "attach_to": "right_forearm",
       "offset": [
         0.0,
         0.0,
         0.0
       ],
-      "radius": 0.06,
+      "radius": 0.05,
       "result": {
         "finding": "no_focal_tenderness",
         "pain_level": 1,
@@ -51,14 +53,15 @@
     },
     {
       "id": "left_wrist",
-      "label": "Left wrist (comparison)",
+      "label": "Left wrist",
+      "clinical_label": "Left wrist (comparison)",
       "attach_to": "left_wrist",
       "offset": [
         0.0,
         0.0,
         0.0
       ],
-      "radius": 0.055,
+      "radius": 0.045,
       "result": {
         "finding": "normal",
         "pain_level": 0,
@@ -112,15 +115,20 @@
       "accepted_keywords": [
         "scaphoid*",
         "skaphoid*",
+        "scafoid*",
+        "schaphoid*",
         "kahnbein*",
-        "navicular fracture"
+        "navicular*",
+        "os naviculare"
       ],
       "partial_keywords": [
         "fracture*",
         "broken",
+        "break",
         "carpal",
         "fraktur*",
-        "bruch"
+        "bruch",
+        "gebrochen"
       ],
       "correct_text": "Correct. A fall on an outstretched hand with anatomical snuffbox tenderness makes a scaphoid fracture the key diagnosis to suspect and exclude.",
       "partial_text": "Partly correct. A fracture is likely, but the specific concern here is the scaphoid: fall on an outstretched hand plus anatomical snuffbox tenderness.",
@@ -162,7 +170,18 @@
                 ]
               },
               "met_text": "You asked how the injury happened.",
-              "missed_text": "You did not ask about the mechanism of injury (how exactly the patient fell)."
+              "missed_text": "You did not ask about the mechanism of injury (how exactly the patient fell).",
+              "note_keywords": [
+                "fall",
+                "fell",
+                "bike",
+                "bicycle",
+                "cycling",
+                "foosh",
+                "outstretched",
+                "landed",
+                "accident"
+              ]
             },
             {
               "id": "onset",
@@ -182,7 +201,16 @@
                 ]
               },
               "met_text": "You established when the pain started.",
-              "missed_text": "You did not ask when the injury happened or when the pain started."
+              "missed_text": "You did not ask when the injury happened or when the pain started.",
+              "note_keywords": [
+                "yesterday",
+                "1 day",
+                "one day",
+                "24 h*",
+                "since",
+                "ago",
+                "onset"
+              ]
             },
             {
               "id": "location",
@@ -200,7 +228,15 @@
                 ]
               },
               "met_text": "You asked the patient to localise the pain.",
-              "missed_text": "You did not ask where exactly the pain is located."
+              "missed_text": "You did not ask where exactly the pain is located.",
+              "note_keywords": [
+                "thumb",
+                "radial",
+                "snuffbox",
+                "snuff box",
+                "localis*",
+                "localiz*"
+              ]
             },
             {
               "id": "severity",
@@ -225,7 +261,20 @@
                 ]
               },
               "met_text": "You assessed pain severity.",
-              "missed_text": "You did not ask how severe the pain is (for example on a 0-10 scale)."
+              "missed_text": "You did not ask how severe the pain is (for example on a 0-10 scale).",
+              "note_keywords": [
+                "out of 10",
+                "out of ten",
+                "10",
+                "severity",
+                "nrs",
+                "vas",
+                "mild",
+                "moderate",
+                "severe",
+                "pain score",
+                "pain scale"
+              ]
             },
             {
               "id": "associated_symptoms",
@@ -246,7 +295,17 @@
                 ]
               },
               "met_text": "You screened for associated symptoms such as numbness.",
-              "missed_text": "You did not ask about numbness or altered sensation."
+              "missed_text": "You did not ask about numbness or altered sensation.",
+              "note_keywords": [
+                "numb*",
+                "tingl*",
+                "sensation",
+                "neurovascular*",
+                "paraesthesia*",
+                "paresthesia*",
+                "swelling",
+                "swollen"
+              ]
             }
           ]
         },
@@ -267,7 +326,13 @@
                 ]
               },
               "met_text": "You examined the injured right wrist.",
-              "missed_text": "You did not physically examine the injured right wrist."
+              "missed_text": "You did not physically examine the injured right wrist.",
+              "note_keywords": [
+                "tender*",
+                "palpat*",
+                "examin*",
+                "pain on"
+              ]
             },
             {
               "id": "examined_snuffbox",
@@ -280,7 +345,16 @@
                 ]
               },
               "met_text": "You palpated the anatomical snuffbox and elicited marked tenderness, the key finding.",
-              "missed_text": "Critical finding missed: you did not palpate the anatomical snuffbox."
+              "missed_text": "Critical finding missed: you did not palpate the anatomical snuffbox.",
+              "note_keywords": [
+                "snuffbox",
+                "snuff box",
+                "tabati*",
+                "thumb",
+                "radial side",
+                "radial wrist",
+                "radial styloid"
+              ]
             },
             {
               "id": "comparison",
@@ -294,7 +368,17 @@
                 ]
               },
               "met_text": "You examined a comparison area to confirm the tenderness is localised.",
-              "missed_text": "You did not examine a comparison area (uninjured wrist or adjacent forearm)."
+              "missed_text": "You did not examine a comparison area (uninjured wrist or adjacent forearm).",
+              "note_keywords": [
+                "left",
+                "contralateral",
+                "other side",
+                "other wrist",
+                "comparison",
+                "compared",
+                "uninjured",
+                "forearm"
+              ]
             },
             {
               "id": "significance",
