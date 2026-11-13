@@ -221,8 +221,8 @@ else
   expect "examination pose restored, one exam recorded per touch" "^after recoil state=arms_extended .*exams=2 "
 fi
 expect "X-ray result came from the engine"   "^investigation right_wrist_xray impression=\"No definite fracture visible.\" image=wrist_xray_pa imageFound=true"
-expect "viewer opened on the result"         "^viewer open=right_wrist_xray notebook=true"
-expect "back to notebook, Investigations tab" "^viewer closed=true tab=Investigations"
+expect "viewer opened on the result"         "^viewer open=right_wrist_xray"
+expect "viewer closed"                        "^viewer closed=true"
 expect "management scored separately"        "diagnosed score=[0-9]+/100 .*management=20/20"
 expect "MRI is a labelled report without image" "^investigation right_wrist_mri .*image=none imageFound=false"
 reject "X-ray order reveals nothing else"    "^investigation right_wrist_xray .*(scaphoid|MRI)"

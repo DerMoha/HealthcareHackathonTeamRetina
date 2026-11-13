@@ -132,7 +132,7 @@ struct ScenarioCard: View {
         await pause(3)
         let order = await model.orderInvestigation("right_wrist_xray")
         SmokeLog.mark("order right_wrist_xray -> \(order.prefix(60)) results=\(model.investigationResults.count)")
-        if model.viewing != nil { model.closeViewer(); model.setNotebookOpen(false) }
+        model.closeViewer()
         await model.requestHint()
         SmokeLog.mark("hint before events=\(model.hint ?? "none")")
         await pause(1)

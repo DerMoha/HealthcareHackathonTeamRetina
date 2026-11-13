@@ -361,7 +361,6 @@ final class AppModel {
     func setNotebookOpen(_ open: Bool) {
         notebookOpen = open
         if !open {
-            viewing = nil
             // Stops recording before the patient's microphone opens again; the transcript still lands.
             Task { await dictation.stop() }
         }
@@ -411,19 +410,14 @@ final class AppModel {
         }
     }
 
-    /// Opens the radiology viewer. It does not mute the microphone: only the notes pages do.
+    /// Opens the radiology viewer, its own panel beside the notebook. It does not mute the
+    /// microphone: only the notes pages do.
     func show(_ result: InvestigationResult) {
         viewerZoom = 1
         viewing = result
-        notebookOpen = true
     }
 
-    /// "Back to notebook": lands on the Investigations tab, in note-taking mode.
-    func closeViewer() {
-        viewing = nil
-        notebookTab = .investigations
-        setNotebookOpen(true)
-    }
+    func closeViewer() { viewing = nil }
 
     // MARK: Measurement and orthosis fitting
 
