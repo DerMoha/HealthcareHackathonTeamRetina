@@ -10,6 +10,14 @@ struct ImmersivePatientView: View {
     @State private var lab = OrthoticsLab()
     @State private var us = UltrasoundScene()
     @State private var stage = ScenarioStage()
+    @State private var panels = MovablePanels()
+
+    /// Everything the scene's own tap and drag handle: all but the panel grab bars, which
+    /// ManipulationComponent moves.
+    private static let scene: QueryPredicate<Entity> = {
+        MovablePanels.GrabBar.registerComponent() // a query on an unregistered component traps
+        return !.has(MovablePanels.GrabBar.self)
+    }()
 
     var body: some View {
         RealityView { content, attachments in
@@ -17,10 +25,11 @@ struct ImmersivePatientView: View {
             content.add(avatar.root)
             if let notebook = attachments.entity(for: "notebook") {
                 // Beside the patient (the wearer's right), at chest height, turned to the wearer.
-                notebook.position = [0.42, 1.3, 0.5]
-                notebook.orientation = simd_quatf(angle: -0.35, axis: [0, 1, 0])
-                avatar.root.addChild(notebook)
-                us.notebook = notebook
+                us.notebook = panels.add(notebook, to: avatar.root, at: [0.42, 1.3, 0.5], yaw: -0.35)
+            }
+            if let viewer = attachments.entity(for: "viewer") {
+                // Further out than the notebook and nearer the wearer, so both can be read side by side.
+                panels.add(viewer, to: avatar.root, at: [1.0, 1.3, 0.75], yaw: -0.6)
             }
             avatar.rebuildZones(model.zones)
             avatar.startIdle()
@@ -37,19 +46,22 @@ struct ImmersivePatientView: View {
             us.setEnabled(model.phase == .running)
             if us.arrange(recumbent: avatar.isRecumbent) { model.recenter() }
             if let monitor = attachments.entity(for: "usMonitor") {
-                monitor.scale = [1.3, 1.3, 1.3]
-                us.monitorMount.addChild(monitor)
+                panels.add(monitor, to: us.monitorMount, scale: 1.3)
             }
-            if let panel = attachments.entity(for: "usPanel") { us.panelMount.addChild(panel) }
+            if let panel = attachments.entity(for: "usPanel") { panels.add(panel, to: us.panelMount) }
             lab.onMeasure = { id, value in Task { await model.measure(id, valueCm: value) } }
             lab.onPlace = { size, offset in Task { await model.placeOrthosis(size: size, offsetCm: offset) } }
             lab.build(model.session?.case.orthotics ?? Orthotics())
+            // Above the tray, scaled to be readable from the examination position.
             if let panel = attachments.entity(for: "fitting") {
-                panel.position = [-0.62, 1.38, 0.5] // above the tray
-                panel.scale = [1.5, 1.5, 1.5] // readable from the examination position
-                panel.orientation = simd_quatf(angle: 0.35, axis: [0, 1, 0])
-                avatar.root.addChild(panel)
+                panels.add(panel, to: avatar.root, at: [-0.62, 1.38, 0.5], yaw: 0.35, scale: 1.5)
             }
+            // The debrief replay: same spot (the fitting panel is gone by then), movable on its own.
+            if let panel = attachments.entity(for: "replay") {
+                panels.add(panel, to: avatar.root, at: [-0.62, 1.38, 0.5], yaw: 0.35, scale: 1.5)
+            }
+            panels.markHomes()
+            panels.updates = content.subscribe(to: SceneEvents.Update.self) { [panels] _ in panels.layout() }
             stage.install(on: avatar)
             stage.sync(model.scenario)
             stage.showInjury(model.visibleInjury)
@@ -57,14 +69,14 @@ struct ImmersivePatientView: View {
             SmokeLog.mark("immersive scene built zones=\(avatar.zoneEntities.count)")
         } attachments: {
             Attachment(id: "notebook") { NotebookView().environment(model) }
+            Attachment(id: "viewer") { NotebookView.ViewerPanel().environment(model) }
             Attachment(id: "usMonitor") { UltrasoundMonitorView().environment(model) }
             Attachment(id: "usPanel") { UltrasoundPanel().environment(model) }
-            Attachment(id: "fitting") {
-                VStack { FittingPanel(); ReplayPanel() }.environment(model)
-            }
+            Attachment(id: "fitting") { FittingPanel().environment(model) }
+            Attachment(id: "replay") { ReplayPanel().environment(model) }
         }
         .gesture(
-            SpatialTapGesture().targetedToAnyEntity().onEnded { value in
+            SpatialTapGesture().targetedToEntity(where: Self.scene).onEnded { value in
                 let id = value.entity.name
                 let world = value.convert(value.location3D, from: .local, to: .scene)
                 if us.item(value.entity) != nil { // probe or gel bottle: pick up (on the belly: lift off)
@@ -98,7 +110,7 @@ struct ImmersivePatientView: View {
         )
         .gesture(
             // Move a tray item through the room; letting go over the forearm snaps it on.
-            DragGesture().targetedToAnyEntity()
+            DragGesture().targetedToEntity(where: Self.scene)
                 .onChanged { value in
                     if let item = us.item(value.entity) { // probe or gel bottle follows the hand
                         guard model.phase == .running else { return }
@@ -155,6 +167,7 @@ struct ImmersivePatientView: View {
         .task(id: model.recenterToken) {
             let t = await placement.transform()
             avatar.root.move(to: t, relativeTo: nil, duration: 0.4)
+            panels.reset() // re-centring also brings moved panels back beside the patient
             SmokeLog.mark("placed at \(t.translation) tracked=\(t != Placement.fallback)")
         }
         .onChange(of: model.zones) { _, zones in

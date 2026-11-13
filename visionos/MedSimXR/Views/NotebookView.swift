@@ -1,5 +1,12 @@
 import SwiftUI
 
+/// A notebook-sized glass page.
+struct NotebookPage: ViewModifier {
+    func body(content: Content) -> some View {
+        content.padding(24).frame(width: 720, height: 700, alignment: .top).glassBackgroundEffect()
+    }
+}
+
 /// The clinical notebook that floats next to the patient. Closed it is a single button;
 /// open it holds the learner's notes, the conversation, the diagnosis and, after
 /// submission, the feedback. While it is open the patient's microphone is muted.
@@ -10,7 +17,7 @@ struct NotebookView: View {
         if model.session == nil {
             EmptyView()
         } else if model.notebookOpen {
-            page
+            notebook.modifier(NotebookPage())
         } else {
             Button { model.setNotebookOpen(true) } label: {
                 VStack(spacing: 8) {
@@ -24,18 +31,14 @@ struct NotebookView: View {
         }
     }
 
-    @ViewBuilder
-    private var page: some View {
-        if let result = model.viewing, model.phase == .running {
-            RadiologyViewer(result: result).modifier(Page())
-        } else {
-            notebook.modifier(Page())
-        }
-    }
+    /// The open result, in its own movable panel so the learner can read it while writing notes.
+    struct ViewerPanel: View {
+        @Environment(AppModel.self) private var model
 
-    private struct Page: ViewModifier {
-        func body(content: Content) -> some View {
-            content.padding(24).frame(width: 720, height: 700, alignment: .top).glassBackgroundEffect()
+        var body: some View {
+            if let result = model.viewing, model.phase == .running {
+                RadiologyViewer(result: result).modifier(NotebookPage())
+            }
         }
     }
 

@@ -8,7 +8,7 @@ enum RadiologyImage {
     }
 }
 
-/// Floating result viewer; takes the notebook's place until "Back to notebook".
+/// Floating result viewer, its own movable panel beside the notebook.
 /// The header names the study only. Findings are in the report body, from the case engine.
 struct RadiologyViewer: View {
     @Environment(AppModel.self) private var model
@@ -27,7 +27,7 @@ struct RadiologyViewer: View {
                     Text("\(result.modality) · \(result.title)").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button { model.closeViewer() } label: { Label("Back to notebook", systemImage: "book.fill") }
+                Button { model.closeViewer() } label: { Label("Close", systemImage: "xmark") }
             }
             if let name = result.image, let url = RadiologyImage.url(name), let image = UIImage(contentsOfFile: url.path) {
                 picture(image)
