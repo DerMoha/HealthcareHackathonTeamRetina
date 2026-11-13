@@ -2,6 +2,10 @@
 
 The app talks to an ElevenLabs Agent. Everything below is dashboard configuration; no code change is needed to change model, voice or prompt.
 
+**Shortcut:** `python3 elevenlabs/sync_agent.py` does sections 1-6 (private agent) through the config API, which costs no credits. It needs only `ELEVENLABS_API_KEY` in `.env`. Without `ELEVENLABS_AGENT_ID` it creates the agent and writes the id into `.env`; otherwise it updates that agent. It then reads the agent back and prints ok/BAD per setting. Re-run it after editing the prompt, and restart the backend after a new id. Not set by the script: voice (agent default) and interruptions/eagerness (ElevenLabs defaults).
+
+**Credits:** ElevenLabs bills connection time, so the app pauses the call itself (`VoicePausePolicy` in `ElevenLabsVoiceService.swift`): after 45 s without a finished spoken turn, after the notebook has been open 15 s, and at 590 s per connection (if the student talked in the last 45 s it reconnects straight away instead, with a short audio gap). The control window then shows "Paused · patient waiting" and **Talk to …**; closing the notebook resumes a pause the notebook caused. Examinations while paused use the local voice and are not sent to the agent. A resumed call is a new ElevenLabs conversation: `case_context` carries the newest ~8000 characters of the transcript plus recent context updates, and the first message is overridden to empty (needs the first-message override, set by the script). Very long consultations forget early details. The agent's `max_duration_seconds` (600) is only a safety net. Settings > **Check credits** shows the account's remaining credits (`GET /elevenlabs/usage`, all account usage, not only this agent). The end-of-consultation summary covers only what was said during connected calls.
+
 ## 1. Create the agent
 1. elevenlabs.io > Agents > Create agent > Blank agent. Name it `MedSim Patient Alex`.
 2. System prompt: paste the full contents of `elevenlabs/patient_system_prompt.md`.
@@ -30,7 +34,7 @@ Agent > Voice: pick a natural, warm, young-adult English voice from the library 
 - Interruptions: **enabled** (Advanced > "Interruptions"/"Allow interruption"). The SDK handles barge-in.
 - Client events (Advanced > Client events): enable at least `user_transcript`, `agent_response`, `agent_response_correction`, `interruption`, `audio` is not needed. Without `user_transcript` and `agent_response` the in-app transcript stays empty.
 - Disable any "end call" system tool; the session is ended by the app.
-- Security > Overrides: none needed. Dynamic variables are sent by the app automatically.
+- Security > Overrides: enable **First message** (resumed calls start without a greeting) and, optionally, **Voice** (step 2). Dynamic variables are sent by the app automatically.
 
 ## 5b. Client tool: patient movements
 Agent > Tools > Add tool > **Client tool**. The app (`ElevenLabsVoiceService.handleTool`) answers it.

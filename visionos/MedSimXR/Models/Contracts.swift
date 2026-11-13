@@ -705,6 +705,9 @@ enum VoiceStatus: Equatable, Sendable {
     case disconnected
     case connecting
     case connected
+    /// Planned disconnect to save credits (idle, notebook open, or connection time limit).
+    /// The run and its memory stay; `resume()` reconnects without a new greeting.
+    case paused
     case failed(String)
 
     var label: String {
@@ -712,6 +715,7 @@ enum VoiceStatus: Equatable, Sendable {
         case .disconnected: "Disconnected"
         case .connecting: "Connecting…"
         case .connected: "Connected"
+        case .paused: "Paused · patient waiting"
         case .failed(let message): "Error: \(message)"
         }
     }
@@ -743,15 +747,22 @@ protocol VoiceService: AnyObject {
     /// Called when the agent's client tool `request_team_action` fires, with the raw `action`
     /// string. Returns the tool result ("success: …", "blocked: …", "failure: …").
     var onTeamAction: ((String) async -> String)? { get set }
+    /// The consultation so far (live and local turns). Read when a paused conversation resumes,
+    /// so the new connection remembers it.
+    var history: (() -> [TranscriptTurn])? { get set }
 
     /// Connects and passes `caseContext` as dynamic variable `case_context`.
     /// `voiceId` (optional) overrides the agent's TTS voice for this conversation; the agent
     /// must allow voice overrides (elevenlabs/setup.md).
     func start(caseContext: String, voiceId: String?) async
+    /// Terminal: ends the run. `resume()` afterwards does nothing; `fetchSummary()` still works.
     func stop() async
-    /// Note-taking mode: while muted the agent must not hear the learner (dictated notes).
-    func setMicMuted(_ muted: Bool) async
-    /// Background information for the agent. Must not make it speak.
+    /// Reconnects a `.paused` run with its memory and without a greeting. Otherwise a no-op.
+    func resume() async
+    /// Note-taking mode: the microphone is muted at once (the agent must not hear dictated notes);
+    /// a notebook left open pauses the conversation. Closing it resumes a pause it caused.
+    func setNotebookOpen(_ open: Bool) async
+    /// Background information for the agent. Must not make it speak. Kept while paused.
     func sendContext(_ text: String) async
     /// Forwards `ExaminationResult.voiceContext`; the agent must speak a reaction.
     func sendExaminationEvent(_ text: String) async

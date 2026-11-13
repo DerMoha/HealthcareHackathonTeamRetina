@@ -17,6 +17,7 @@ struct ControlPanelView: View {
     private var immersed: Bool { model.immersiveOpen }
     /// Automation: scroll the dashboard to its Customize section.
     @State private var focusCustomize = false
+    @State private var creditsLine: String?
 
     var body: some View {
         Group {
@@ -77,6 +78,9 @@ struct ControlPanelView: View {
     /// Used by visionos/scripts/simulator_smoke_test.sh; "STEP" lines are screenshot cues.
     private func autoDemo() async {
         guard SmokeLog.enabled, !SmokeLog.scenarioDemo else { return }
+        #if DEBUG
+        SmokeLog.mark("voice policy selfcheck ok=\(VoiceMemory.selfCheck())")
+        #endif
         func pause(_ seconds: Double) async { try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
         func state() -> String {
             "engine=\(model.engineModeLabel) voice=\(model.voice.status.label) mic=\(model.voice.micStatus.rawValue) "
@@ -92,7 +96,7 @@ struct ControlPanelView: View {
         /// A spoken request: through the scripted voice when it is connected, else the same
         /// action hook directly (what the debug buttons do).
         func say(_ text: String, _ action: String) async {
-            if let mock = model.voice as? MockVoiceService, mock.status == .connected {
+            if let mock = model.voice as? MockVoiceService, mock.micStatus == .live {
                 await mock.hear(text)
             } else {
                 model.performPatientAction(action)
@@ -100,7 +104,7 @@ struct ControlPanelView: View {
         }
 
         func order(_ text: String, _ id: String) async {
-            if let mock = model.voice as? MockVoiceService, mock.status == .connected {
+            if let mock = model.voice as? MockVoiceService, mock.micStatus == .live {
                 await mock.hear(text)
             } else {
                 await model.orderInvestigation(id)
@@ -281,6 +285,17 @@ struct ControlPanelView: View {
         SmokeLog.mark("STEP 05-investigations")
         await pause(3)
         model.notebookTab = .history
+
+        // Credit-saving pause, then "Talk to patient": the patient must not greet a second time.
+        if let mock = model.voice as? MockVoiceService, mock.status == .connected {
+            let greetings = { model.transcript.filter { $0.text == "Hello, doctor." }.count }
+            let before = greetings()
+            mock.pause()
+            await pause(0.5)
+            SmokeLog.mark("voice paused \(state())")
+            await model.talkToPatient()
+            SmokeLog.mark("voice resumed newGreetings=\(greetings() - before) \(state())")
+        }
 
         // The learner documents the case and formulates the diagnosis in the notebook.
         model.setNotebookOpen(true)
@@ -495,7 +510,7 @@ struct ControlPanelView: View {
             await pause(3.2)
         }
         func team(_ text: String, _ action: String) async {
-            if let mock = model.voice as? MockVoiceService, mock.status == .connected {
+            if let mock = model.voice as? MockVoiceService, mock.micStatus == .live {
                 await mock.hear(text)
             } else {
                 await model.requestTeamAction(action)
@@ -556,7 +571,7 @@ struct ControlPanelView: View {
         SmokeLog.mark("STEP 05-rt-hospital")
         let handover = "Handover: Jordan, 34-year-old cyclist knocked off by a car about forty minutes ago. Bleeding wound over a "
             + "deformed right forearm, splinted, hand neurovascularly intact. Heart rate down to 104. We've given Penthrox and morphine."
-        if let mock = model.voice as? MockVoiceService, mock.status == .connected { await mock.hear(handover) }
+        if let mock = model.voice as? MockVoiceService, mock.micStatus == .live { await mock.hear(handover) }
         else { model.askScripted(ScriptedLine(id: "rt_handover", learner: handover, patient: "Thank you.")) }
         await pause(3)
         await team("Priya, please give IV antibiotics.", "iv_antibiotics")
@@ -607,6 +622,14 @@ struct ControlPanelView: View {
             statusRow(model.voice.micStatus == .live ? "mic.fill" : "mic.slash", "Microphone", model.voice.micStatus.rawValue,
                       color: model.voice.micStatus == .live ? .green : .secondary)
             statusRow("server.rack", "Engine", model.engineModeLabel, color: .secondary)
+            if model.phase == .running, model.voice.status == .paused {
+                Button { Task { await model.talkToPatient() } } label: {
+                    Label("Talk to \(model.session?.case.patient.name ?? "the patient")", systemImage: "waveform")
+                }
+                .buttonStyle(.borderedProminent)
+                Text("Paused to save credits; the patient remembers the conversation.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             // One-tap fallback when nobody is listening: without it a standing patient cannot be examined.
             if model.phase == .running, model.behavior.state == .standingIdle, model.voice.status != .connected {
                 Button("Ask \(model.session?.case.patient.name ?? "the patient") to sit down") {
@@ -623,7 +646,7 @@ struct ControlPanelView: View {
         switch model.voice.status {
         case .connected: .green
         case .connecting, .failed: .orange
-        case .disconnected: .secondary
+        case .disconnected, .paused: .secondary
         }
     }
 
@@ -751,6 +774,15 @@ struct ControlPanelView: View {
                 TextField("Voice ID, female patient (optional)", text: $femaleVoiceId)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                 Toggle("Fingertip examination (experimental)", isOn: $fingertip)
+                HStack {
+                    Text(creditsLine ?? "ElevenLabs credits").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Check credits") {
+                        creditsLine = "Checking…"
+                        Task { creditsLine = await ElevenLabsVoiceService.usageLine() }
+                    }
+                    .buttonStyle(.bordered)
+                }
                 Text("Backend, agent and voice changes apply on the next Start. Voice IDs need the agent's voice override enabled.")
                     .font(.caption).foregroundStyle(.secondary)
             }

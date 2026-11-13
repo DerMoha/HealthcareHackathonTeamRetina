@@ -252,6 +252,7 @@ final class AppModel {
         voice.onAction = { [weak self] raw in self?.performPatientAction(raw) ?? "failure: unavailable" }
         voice.onOrder = { [weak self] raw in await self?.orderInvestigation(raw) ?? "failure: unavailable" }
         voice.onTeamAction = { [weak self] raw in await self?.requestTeamAction(raw) ?? "failure: unavailable" }
+        voice.history = { [weak self] in self?.transcript ?? [] }
         director.onEvent = { [weak self] event in await self?.apply(event) ?? (false, "the app has no session") }
     }
 
@@ -364,14 +365,27 @@ final class AppModel {
     func recenter() { recenterToken += 1 }
 
     /// Opening the notebook is note-taking mode: the patient's microphone is muted so that
-    /// dictated notes are not heard as speech to the patient.
+    /// dictated notes are not heard as speech to the patient (left open, the voice pauses).
     func setNotebookOpen(_ open: Bool) {
         notebookOpen = open
-        if !open {
+        let started = session?.sessionId
+        Task {
             // Stops recording before the patient's microphone opens again; the transcript still lands.
-            Task { await dictation.stop() }
+            if !open { await dictation.stop() }
+            guard notebookOpen == open, session?.sessionId == started else { return }
+            await voice.setNotebookOpen(open && phase == .running)
         }
-        Task { await voice.setMicMuted(open && phase == .running) }
+    }
+
+    /// "Talk to patient" after a credit-saving pause: closes the notebook (note-taking mode) first.
+    func talkToPatient() async {
+        guard phase == .running, voice.status == .paused else { return }
+        if notebookOpen {
+            notebookOpen = false
+            await dictation.stop()
+            await voice.setNotebookOpen(false) // resumes a pause the notebook caused
+        }
+        await voice.resume()
     }
 
     /// Body movement requested by the voice agent's client tool or a debug button. Never an
@@ -380,6 +394,8 @@ final class AppModel {
     func performPatientAction(_ raw: String) -> String {
         guard phase == .running else { return "failure: no session is running" }
         let result = behavior.perform(raw).text
+        // Remembered for a resumed conversation (and harmless background for the live one).
+        if result.hasPrefix("success") { Task { await voice.sendContext("Your body: you did \(raw).") } }
         SmokeLog.mark("action \(raw) -> \(result) exams=\(examinations.count) turns=\(transcript.count)")
         return result
     }

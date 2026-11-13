@@ -132,24 +132,54 @@ final class MockVoiceService: VoiceService {
     @ObservationIgnored var onAction: ((String) -> String)?
     @ObservationIgnored var onOrder: ((String) async -> String)?
     @ObservationIgnored var onTeamAction: ((String) async -> String)?
+    @ObservationIgnored var history: (() -> [TranscriptTurn])?
     @ObservationIgnored private let scripted: Bool
+    @ObservationIgnored private var notebookOpen = false
+    /// Bumped by stop/pause so delayed scripted work from before is dropped.
+    @ObservationIgnored private var generation = 0
 
     init(scripted: Bool = false) { self.scripted = scripted }
 
     func start(caseContext: String, voiceId: String?) async {
         guard scripted else { return }
         summaryPolls = 0
+        guard await connect() else { return }
+        onTranscript?(TranscriptTurn(role: .patient, text: "Hello, doctor."))
+    }
+
+    private func connect() async -> Bool {
+        generation += 1
+        let gen = generation
         status = .connecting
         try? await Task.sleep(nanoseconds: 600_000_000)
+        guard gen == generation else { return false }
         status = .connected
-        micStatus = .live
-        onTranscript?(TranscriptTurn(role: .patient, text: "Hello, doctor."))
+        micStatus = notebookOpen ? .muted : .live
+        return true
+    }
+
+    /// Scripted stand-in for the live service's credit-saving pause (the smoke flow calls it;
+    /// the mock has no timers).
+    func pause() {
+        guard scripted, status == .connected else { return }
+        generation += 1
+        status = .paused
+        micStatus = .unknown
+        isAgentSpeaking = false
+        SmokeLog.mark("voice pause reason=mock")
+    }
+
+    /// Resumes without a second greeting, like the live service.
+    func resume() async {
+        guard scripted, status == .paused else { return }
+        SmokeLog.mark("voice resume memoryTurns=\(history?().count ?? 0)")
+        _ = await connect()
     }
 
     /// Deterministic stand-in for the live agent hearing the learner: the phrase is recorded as
     /// learner speech and, if it asks for a movement, the same action hook the client tool uses fires.
     func hear(_ text: String) async {
-        guard scripted, status == .connected else { return }
+        guard scripted, status == .connected, micStatus == .live else { return }
         onTranscript?(TranscriptTurn(role: .learner, text: text))
         let phrases: [(String, [String])] = [
             ("sit_down", ["sit", "seat"]), ("extend_both_arms", ["stretch", "hold", "extend"]),
@@ -188,11 +218,13 @@ final class MockVoiceService: VoiceService {
         isAgentSpeaking = false
     }
 
-    func setMicMuted(_ muted: Bool) async {
-        if status == .connected { micStatus = muted ? .muted : .live }
+    func setNotebookOpen(_ open: Bool) async {
+        notebookOpen = open
+        if status == .connected { micStatus = open ? .muted : .live }
     }
 
     func stop() async {
+        generation += 1
         status = .disconnected
         micStatus = .unknown
         isAgentSpeaking = false

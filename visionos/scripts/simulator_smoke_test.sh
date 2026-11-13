@@ -131,6 +131,7 @@ fail=0
 expect() { if grep -qE "$2" "$OUT/smoke.log"; then echo "  ok   $1"; else echo "  FAIL $1"; fail=1; fi; }
 reject() { if grep -qE "$2" "$OUT/smoke.log"; then echo "  FAIL $1"; fail=1; else echo "  ok   $1"; fi; }
 expect "demo ran to the end"               "^DONE$"
+expect "voice pause rules self-check"     "^voice policy selfcheck ok=true$"
 expect "catalog loaded from the bundle"    "^catalog cases=\[.*wrist_trauma_001"
 expect "dashboard was on screen first"     "^STEP 00-dashboard$"
 if [ $DASH_ONLY = 1 ]; then
@@ -253,6 +254,8 @@ if [ $MOCK_VOICE = 1 ]; then
   expect "exam reaction left to the agent"    "examined right_anatomical_snuffbox .*speakLocally=false"
   expect "pain clip played instantly"         "audio clip=ouch started=true"
   expect "notebook mutes the microphone"      "^notebook open=true .*mic=Muted"
+  expect "voice paused to save credits"       "^voice paused .*voice=Paused"
+  expect "resumed without a second greeting"  "^voice resumed newGreetings=0 .*voice=Connected mic=Live"
   expect "spoken order reached the engine"    "^heard \"I would like to order an X-ray of his right wrist.\" order=right_wrist_xray result=success"
   [ $PROCEDURAL = 1 ] || expect "spoken request triggered the action" "^heard \"Please have a seat.\" action=sit_down result=success"
 fi

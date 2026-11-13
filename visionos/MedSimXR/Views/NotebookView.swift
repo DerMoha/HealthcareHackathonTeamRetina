@@ -65,6 +65,13 @@ struct NotebookView: View {
                     Label("Note-taking mode: the patient cannot hear you while the notebook is open.", systemImage: "mic.slash.fill")
                         .font(.caption).foregroundStyle(.orange)
                 }
+                if model.phase == .running, model.voice.status == .paused {
+                    HStack {
+                        Label("Patient paused to save credits.", systemImage: "pause.circle").font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Talk to patient") { Task { await model.talkToPatient() } }.buttonStyle(.bordered)
+                    }
+                }
                 switch model.notebookTab {
                 case .team:
                     JourneyPanel()
@@ -184,7 +191,7 @@ struct NotebookView: View {
     private var summaryDraft: some View {
         switch model.summaryState {
         case .idle:
-            if model.phase == .running, model.voice.status == .connected {
+            if model.phase == .running, model.voice.status == .connected || model.voice.status == .paused {
                 VStack(alignment: .leading, spacing: 4) {
                     Button { model.endConsultation() } label: {
                         Label("End consultation and draft a summary", systemImage: "text.bubble")

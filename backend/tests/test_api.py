@@ -229,6 +229,32 @@ def test_token_success(client, monkeypatch):
     assert client.get("/elevenlabs/conversation-token").json() == {"token": "t"}
 
 
+def test_usage_maps_subscription(client, monkeypatch):
+    import httpx
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "sk-secret")
+    body = {"tier": "free", "character_count": 12000, "character_limit": 10000,
+            "next_character_count_reset_unix": 1700000000, "xi_api_key": "sk-secret"}
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: httpx.Response(200, json=body))
+    r = client.get("/elevenlabs/usage")
+    assert r.json() == {"tier": "free", "used": 12000, "limit": 10000, "remaining": 0, "next_reset_unix": 1700000000}
+
+
+def test_usage_errors_hide_key(client, monkeypatch):
+    import httpx
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    assert client.get("/elevenlabs/usage").status_code == 503
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "sk-secret")
+    for upstream in (httpx.Response(401, json={"detail": "sk-secret"}), httpx.Response(200, json={"tier": "free"})):
+        monkeypatch.setattr(httpx, "get", lambda *a, _r=upstream, **k: _r)
+        r = client.get("/elevenlabs/usage")
+        assert r.status_code == 502 and "sk-secret" not in r.text
+
+    def boom(*a, **k):
+        raise httpx.ConnectTimeout("t")
+    monkeypatch.setattr(httpx, "get", boom)
+    assert client.get("/elevenlabs/usage").status_code == 502
+
+
 def test_transcribe_unconfigured_503(client, monkeypatch):
     monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
     r = client.post("/elevenlabs/transcribe", content=b"audio", headers={"content-type": "audio/mp4"})

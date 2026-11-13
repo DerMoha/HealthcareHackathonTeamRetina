@@ -13,7 +13,7 @@ from .models import (ConversationSummary, DiagnoseRequest, ExamineRequest, Exami
                      InteractionCount, InteractionRequest, FitAck, FitRequest, FittingCheckRequest,
                      FittingCheckResult, GelResult, MeasurementRequest, ScanRequest, ScanResult, MeasurementResult, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
                      StageRequest, StageResult, TeamActionRequest, TeamActionResult,
-                     TokenResponse, TranscriptionResponse, CasePublic)
+                     TokenResponse, TranscriptionResponse, CasePublic, VoiceUsage)
 from .sessions import SESSIONS, Session, create_session, load_scenarios, now_iso, public_case, resolve_config
 
 VERSION = "0.1.0"
@@ -225,6 +225,30 @@ def conversation_token():
         # Never echo the upstream body or key; status code is enough to debug.
         raise HTTPException(502, f"ElevenLabs rejected the token request (HTTP {r.status_code}).")
     return TokenResponse(token=r.json()["token"])
+
+
+@app.get("/elevenlabs/usage", response_model=VoiceUsage)
+def voice_usage():
+    """Credits used and left on the ElevenLabs account, for the app's Settings. Needs only ELEVENLABS_API_KEY."""
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        raise HTTPException(503, "ElevenLabs is not configured: set ELEVENLABS_API_KEY.")
+    try:
+        r = httpx.get("https://api.elevenlabs.io/v1/user/subscription", headers={"xi-api-key": key}, timeout=10)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Could not reach ElevenLabs ({type(e).__name__}).")
+    if r.status_code != 200:
+        # Never echo the upstream body or key; status code is enough to debug.
+        raise HTTPException(502, f"ElevenLabs rejected the usage request (HTTP {r.status_code}).")
+    try:
+        body = r.json()
+        used, limit = int(body["character_count"]), int(body["character_limit"])
+        reset = body.get("next_character_count_reset_unix")
+        reset = int(reset) if reset is not None else None
+    except (ValueError, KeyError, TypeError):
+        raise HTTPException(502, "ElevenLabs sent an unexpected usage response.")
+    tier = body.get("tier") if isinstance(body.get("tier"), str) else None
+    return VoiceUsage(tier=tier, used=used, limit=limit, remaining=max(0, limit - used), next_reset_unix=reset)
 
 
 _CONVERSATION_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")

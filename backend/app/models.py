@@ -434,6 +434,15 @@ class TokenResponse(BaseModel):
     token: str
 
 
+class VoiceUsage(BaseModel):
+    """ElevenLabs account credits (all usage of the account, not only the patient agent). Display only."""
+    tier: str | None = None
+    used: int
+    limit: int
+    remaining: int
+    next_reset_unix: int | None = None
+
+
 class ConversationSummary(BaseModel):
     """ElevenLabs' post-call summary of one voice conversation. A draft for the learner, never scored."""
     status: Literal["pending", "done", "failed"]
