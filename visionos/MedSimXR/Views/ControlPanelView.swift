@@ -131,6 +131,48 @@ struct ControlPanelView: View {
         await examine("right_distal_forearm")
         await pause(3)
 
+        // Orthotics lab: the same drop/snap path a drag uses, driven by commands.
+        func drop(_ item: String, _ axialCm: Double, _ radialCm: Double) async {
+            model.selectedTool = item
+            await pause(0.8)
+            model.labCommand = LabCommand(item: item, axialCm: axialCm, radialCm: radialCm)
+            await pause(1.5)
+        }
+        await model.fittingCheck("neurovascular") // before immobilising
+        await pause(2.5)
+        SmokeLog.mark("STEP 05-lab-0-tray")
+        await pause(2)
+        await drop(OrthoticsLab.tapeName, 1, 3)
+        SmokeLog.mark("STEP 05-lab-1-measure-wrist")
+        await pause(2.5)
+        await drop(OrthoticsLab.tapeName, 14, 3)
+        SmokeLog.mark("STEP 05-lab-2-measure-forearm")
+        await pause(2.5)
+        await drop(OrthoticsLab.orthosisPrefix + "large", 3, 30) // let go too far from the arm
+        SmokeLog.mark("missed drop fit=\(model.fit == nil ? "none" : "SET")")
+        await drop(OrthoticsLab.orthosisPrefix + "large", 3, 4)
+        await model.stepTightness(1)
+        await model.fittingCheck("comfort")
+        await pause(1.5)
+        SmokeLog.mark("STEP 05-lab-3-too-large")
+        await pause(2.5)
+        await drop(OrthoticsLab.orthosisPrefix + "medium", 3, 2)
+        await model.stepTightness(1)
+        await model.stepTightness(1)
+        await model.fittingCheck("comfort")
+        await pause(1.5)
+        SmokeLog.mark("STEP 05-lab-4-too-tight")
+        await pause(2.5)
+        await model.stepTightness(-1)
+        await model.fittingCheck("neurovascular")
+        await pause(2.5)
+        await model.fittingCheck("comfort")
+        await pause(1.5)
+        SmokeLog.mark("fitted \(model.fit.map { "\($0.size) \($0.tightness) \($0.orientation) \($0.offsetCm)cm" } ?? "none") "
+            + "state=\(model.behavior.state.rawValue) \(state())")
+        SmokeLog.mark("STEP 05-lab-5-fitted")
+        await pause(2.5)
+
         model.recenter()
         await pause(2)
         SmokeLog.mark("recentered token=\(model.recenterToken)")
@@ -181,11 +223,17 @@ struct ControlPanelView: View {
         SmokeLog.mark("diagnosed score=\(f?.totalScore ?? -1)/\(f?.maxScore ?? -1) verdict=\(f?.diagnosticAssessment.verdict ?? "?") "
             + "categories=\(f?.categories.map { "\($0.id):\($0.score)" } ?? []) "
             + "management=\(f?.management.score ?? -1)/\(f?.management.maxScore ?? -1) "
+            + "fitting=\(f?.fitting.score ?? -1)/\(f?.fitting.maxScore ?? -1) "
             + "\(f?.management.criteria.map { "\($0.id):\($0.met)" } ?? []) "
             + "notes=\(f?.documentation.map { "\($0.criterionId):\($0.status)" } ?? []) \(state())")
         await pause(1.5)
         SmokeLog.mark("STEP 09-feedback")
         await pause(4)
+        model.setNotebookOpen(false) // clear the view of the arm
+        model.teachingMode = true
+        await pause(2)
+        SmokeLog.mark("STEP 09-teaching")
+        await pause(3)
 
         await model.reset()
         await pause(2)

@@ -181,3 +181,26 @@ Scripted `-autoDemo` runs; nobody pinched, typed or listened.
 | Live agent calls `order_investigation` | **Not tested** | no ElevenLabs credentials |
 | Pinch-to-zoom, typing the plan | **Not tested** | needs a person |
 | Rubric reviewed by a clinician | **Not done** | written against NICE NG38; needs review before teaching use |
+
+## Spatial orthotics lab pass (2026-11-13)
+
+Scripted `-autoDemo` runs. Tray items were moved by commands that place an item at a point and call the same drop/snap code a drag ends in. **No person dragged anything**: the gesture handlers themselves (pinch to pick up, drag, release) are untested.
+
+| Item | Result | How |
+|---|---|---|
+| Fitting engine: outcomes, checks, rubric, redaction, reset | Pass | 14 new backend tests |
+| Backend/Swift parity incl. measurements, fits, checks | Pass | golden fixture, 0 differences |
+| Wrist girth from case data (16.8 cm), band and value on the wrist | Pass | `05-lab-1-measure-wrist` |
+| Forearm length from skeleton joints (26.2 cm) | Pass | `05-lab-2-measure-forearm` |
+| Drop far from the arm: no snap, nothing recorded | Pass | smoke log `snapped=false`, `missed drop fit=none` |
+| Drop near the arm: snaps, follows the forearm | Pass | `05-lab-3-too-large` … `05-lab-5-fitted` |
+| Too large / too tight / appropriate patient responses | Pass | smoke log `check comfort …` |
+| Fitting adds no examinations, total stays /100 | Pass | smoke log, backend test |
+| Offline after backend kill | Pass | `--kill-backend`: `fit … engine=Offline` |
+| Anatomy overlay only after submission, reference vs learner | Pass | `09-teaching` |
+| Primitive fallback body | Pass | `--procedural --no-backend` |
+| Pinch/drag by a person, reach and legibility on the headset | **Not tested** | needs a person |
+| Live agent answering comfort questions from context notes | **Not tested** | no ElevenLabs credentials |
+| Rubric and outcome texts reviewed by a clinician | **Not done** | |
+
+Known limits: the support is a plain sleeve that passes through the hand; the wrist zones are covered while a support is on; bones are primitives placed by proportion, not a scanned skeleton; a support can be put on only by dragging.

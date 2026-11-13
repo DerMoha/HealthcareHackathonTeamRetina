@@ -31,6 +31,24 @@ class InvestigationInfo(BaseModel):
     label: str
 
 
+class MeasurementInfo(BaseModel):
+    id: str
+    label: str
+    kind: Literal["circumference", "length"]
+
+
+class OrthosisSize(BaseModel):
+    id: str
+    label: str
+    wrist_cm: list[float]  # [min, max] printed on the tray
+
+
+class Orthotics(BaseModel):
+    measurements: list[MeasurementInfo] = []
+    sizes: list[OrthosisSize] = []
+    tightness: list[str] = []
+
+
 class CasePublic(BaseModel):
     case_id: str
     title: str
@@ -40,6 +58,7 @@ class CasePublic(BaseModel):
     zones: list[Zone]
     scripted_dialogue: list[DialogueLine]
     investigations: list[InvestigationInfo] = []
+    orthotics: Orthotics = Orthotics()
 
 
 class Health(BaseModel):
@@ -92,6 +111,49 @@ class InvestigationResult(BaseModel):
     repeat_count: int
 
 
+class MeasurementRequest(BaseModel):
+    measurement_id: str
+    value_cm: float | None = None  # measured on the avatar; ignored when the case predefines it
+
+
+class MeasurementResult(BaseModel):
+    measurement_id: str
+    label: str
+    kind: str
+    value_cm: float
+    source: Literal["case", "avatar"]
+
+
+class OrthosisFit(BaseModel):
+    size: str
+    orientation: Literal["thumb_radial", "thumb_ulnar"]
+    offset_cm: float  # centre of the support, from the wrist joint towards the elbow
+    tightness: str
+
+
+class FitRequest(BaseModel):
+    fit: OrthosisFit | None = None  # null or absent = support removed
+
+
+class FitAck(BaseModel):
+    attempt: int
+    voice_note: str  # context for the voice agent; never spoken, never an outcome label
+
+
+class FittingCheckRequest(BaseModel):
+    check: Literal["comfort", "neurovascular"]
+
+
+class FittingCheckResult(BaseModel):
+    check: str
+    phase: Literal["before", "after"]
+    finding: str | None  # neurovascular only
+    patient_response: str
+    voice_context: str
+    comfortable: bool
+    animation: Literal["arm_withdrawal", "flinch", "none"]
+
+
 class InteractionRequest(BaseModel):
     role: Literal["learner", "patient"]
     text: str
@@ -139,7 +201,7 @@ class CriterionResult(BaseModel):
     method: Literal["keyword", "rule"]
     evidence: str | None
     comment: str
-    area: str | None = None  # management criteria only: investigation | interpretation | management | safety
+    area: str | None = None  # management / fitting criteria only, e.g. investigation | interpretation | management | safety | measurement | fitting
 
 
 class CategoryResult(BaseModel):
@@ -156,6 +218,17 @@ class ManagementAssessment(BaseModel):
     score: int
     max_score: int
     criteria: list[CriterionResult]
+
+
+class FittingAssessment(BaseModel):
+    """Measurement and orthosis fitting: scored separately, not part of total_score."""
+    title: str
+    score: int
+    max_score: int
+    criteria: list[CriterionResult]
+    final_fit: OrthosisFit | None
+    reference: dict | None      # size, orientation, offset_cm [min, max], tightness; null before a diagnosis
+    explanation: str | None     # why the final fit was or was not appropriate; null before a diagnosis
 
 
 class Feedback(BaseModel):
@@ -175,6 +248,7 @@ class Feedback(BaseModel):
     documentation: list[DocumentationItem]
     management: ManagementAssessment
     investigations: list[str]
+    fitting: FittingAssessment
     disclaimer: str
 
 

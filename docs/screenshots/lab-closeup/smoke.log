@@ -1,0 +1,125 @@
+STEP 01-launch
+immersive opened=true
+placed at SIMD3<Float>(0.24999999, 0.6, -0.95000005) tracked=false
+behavior reset state=standing_idle
+zones rebuilt ["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"]
+avatar usdz joints=53 size=SIMD3<Float>(0.52524173, 1.37687, 0.78019935) minY=0.0
+pose standing_idle right_wrist moved=0.54
+immersive scene built zones=3
+pose standing_idle right_wrist moved=0.54
+session id=9f8ebcc5661f4731b5fc6c3213daddf2 zones=["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"] engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=0 error=none
+STEP 02-session
+standing examine state=standing_idle engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=0 error=none
+STEP 03-sitting
+behavior standing_idle -> sitting_down
+action sit_down -> success: Alex is sitting down. exams=0 turns=0
+action sit_down -> success: Alex is already seated. exams=0 turns=0
+pose sitting_down right_wrist moved=0.01
+behavior sitting_down -> seated_idle
+pose seated_idle right_wrist moved=0.00
+STEP 03-seated
+asked greeting engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=2 error=none
+audio clip=greeting started=true duration=5.03s
+asked mechanism engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=4 error=none
+audio clip=mechanism started=true duration=4.87s
+STEP 03-conversation
+behavior seated_idle -> extending_arms
+action extend_both_arms -> success: Alex is holding both arms out. exams=0 turns=4
+behavior extending_arms -> returning_to_rest
+action relax_arms -> success: Alex is resting his arms. exams=0 turns=4
+behavior returning_to_rest -> extending_arms
+action extend_both_arms -> success: Alex is holding both arms out. exams=0 turns=4
+pose extending_arms right_wrist moved=0.32
+behavior extending_arms -> arms_extended
+pose arms_extended right_wrist moved=0.31
+STEP 04-arms-extended
+behavior arms_extended -> indicating_wrist
+action indicate_right_wrist -> success: Alex is showing his right wrist. exams=0 turns=4
+STEP 04-indicating
+pose indicating_wrist right_wrist moved=0.45
+behavior indicating_wrist -> returning_to_rest
+pose returning_to_rest right_wrist moved=0.31
+behavior returning_to_rest -> arms_extended
+pose arms_extended right_wrist moved=0.31
+examined left_wrist finding=normal pain=0 animation=none speakLocally=true engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=1 turns=5 error=none
+zone flash left_wrist painful=false
+audio clip=left_wrist started=true duration=2.69s
+STEP 04-pain
+behavior arms_extended -> pain_recoil
+examined right_anatomical_snuffbox finding=marked_tenderness pain=8 animation=arm_withdrawal speakLocally=true engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=2 turns=6 error=none
+animation arm_withdrawal
+zone flash right_anatomical_snuffbox painful=true
+audio clip=right_anatomical_snuffbox started=true duration=2.99s
+pose pain_recoil right_wrist moved=0.23
+behavior pain_recoil -> returning_to_rest
+pose returning_to_rest right_wrist moved=0.31
+behavior returning_to_rest -> arms_extended
+pose arms_extended right_wrist moved=0.32
+after recoil state=arms_extended engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=2 turns=6 error=none
+STEP 05-killwindow
+examined right_distal_forearm finding=no_focal_tenderness pain=1 animation=none speakLocally=true engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=7 error=none
+zone flash right_distal_forearm painful=false
+audio clip=right_distal_forearm started=true duration=1.74s
+check neurovascular phase=before comfortable=true response="Yes, I can feel that, and my fingers move fine." engine=Backend turns=8
+audio tts fallback
+STEP 05-lab-0-tray
+lab drop tool_tape axial=1.0cm radial=3.0cm snapped=true
+measure right_wrist_circumference value=16.8 source=case engine=Backend
+STEP 05-lab-1-measure-wrist
+lab drop tool_tape axial=14.0cm radial=3.0cm snapped=true
+measure right_forearm_length value=26.2 source=avatar engine=Backend
+STEP 05-lab-2-measure-forearm
+lab drop orthosis_large axial=3.0cm radial=30.0cm snapped=false
+missed drop fit=none
+lab drop orthosis_large axial=3.0cm radial=4.0cm snapped=true
+fit size=large offset=3.0 orientation=thumb_radial tightness=loose attempt=1 engine=Backend exams=3
+fit size=large offset=3.0 orientation=thumb_radial tightness=snug attempt=2 engine=Backend exams=3
+check comfort phase=after comfortable=false response="It's loose. It slides around and my wrist can still move inside it." engine=Backend turns=9
+audio tts fallback
+STEP 05-lab-3-too-large
+lab drop orthosis_medium axial=3.0cm radial=2.0cm snapped=true
+fit size=medium offset=3.0 orientation=thumb_radial tightness=loose attempt=3 engine=Backend exams=3
+fit size=medium offset=3.0 orientation=thumb_radial tightness=snug attempt=4 engine=Backend exams=3
+fit size=medium offset=3.0 orientation=thumb_radial tightness=tight attempt=5 engine=Backend exams=3
+behavior arms_extended -> pain_recoil
+check comfort phase=after comfortable=false response="That's too tight. My fingers are tingling." engine=Backend turns=10
+animation flinch
+audio tts fallback
+pose pain_recoil right_wrist moved=0.35
+behavior pain_recoil -> returning_to_rest
+pose returning_to_rest right_wrist moved=0.32
+behavior returning_to_rest -> arms_extended
+STEP 05-lab-4-too-tight
+pose arms_extended right_wrist moved=0.32
+fit size=medium offset=3.0 orientation=thumb_radial tightness=snug attempt=6 engine=Backend exams=3
+check neurovascular phase=after comfortable=true response="Yes, I can feel that, and my fingers still feel normal." engine=Backend turns=11
+audio tts fallback
+check comfort phase=after comfortable=true response="That feels snug and supported. It doesn't pinch anywhere." engine=Backend turns=12
+audio tts fallback
+fitted medium snug thumb_radial 3.0cm state=arms_extended engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=12 error=none
+STEP 05-lab-5-fitted
+placed at SIMD3<Float>(0.24999999, 0.6, -0.95000005) tracked=false
+recentered token=1
+pre-diagnosis feedback verdict=not_submitted criteria=[0, 0, 0, 0]
+investigation right_wrist_xray impression="No definite fracture visible." image=wrist_xray_pa imageFound=true engine=Backend results=1 exams=3 turns=12
+viewer open=right_wrist_xray notebook=true engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=12 error=none
+STEP 05-xray-viewer
+STEP 05-xray-zoom
+viewer closed=true tab=Investigations engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=12 error=none
+STEP 05-investigations
+notebook open=true engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=12 error=none
+STEP 06-notebook-history
+STEP 07-notebook-examination
+STEP 08-notebook-assessment
+diagnosed score=72/100 verdict=correct categories=["history:12", "examination:40", "communication:10", "reasoning:10"] management=20/20 fitting=20/20 ["imaging_requested:true", "result_interpreted:true", "immobilisation:true", "further_assessment_plan:true", "no_false_reassurance:true"] notes=["mechanism:documented", "onset:documented", "location:unsupported", "associated_symptoms:unsupported", "examined_injured_wrist:documented", "examined_snuffbox:documented", "comparison:documented"] engine=Backend voice=Disconnected mic=Unknown exams=3 turns=12 error=none
+STEP 09-feedback
+teaching on reference=medium centre=3.0cm learner=medium@3.0cm bones=17
+STEP 09-teaching
+behavior reset state=standing_idle
+pose standing_idle right_wrist moved=0.54
+reset feedback=cleared notes=blank engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=0 error=none
+STEP 10-reset
+investigation right_wrist_mri impression="Findings consistent with a non-displaced fracture of the scaphoid waist." image=none imageFound=false engine=Backend results=1 exams=0 turns=0
+STEP 10-mri-report
+STEP 11-stopped
+DONE

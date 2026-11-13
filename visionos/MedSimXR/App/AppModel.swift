@@ -59,6 +59,16 @@ final class AppModel {
     private(set) var viewing: InvestigationResult?
     var viewerZoom = 1.0
 
+    /// Orthotics lab. `fit` is the support as the engine last recorded it; the scene renders it.
+    private(set) var measurements: [MeasurementResult] = []
+    private(set) var fit: OrthosisFit?
+    private(set) var lastCheck: FittingCheckResult?
+    var selectedTool: String?
+    /// One-shot instruction for the 3D lab (scripted demo, panel fallback buttons).
+    var labCommand: LabCommand?
+    /// Anatomy overlay; only honoured once feedback is showing.
+    var teachingMode = false
+
     /// Seconds between accepted examination events (gaze+pinch or fingertip).
     static let examineCooldown: TimeInterval = 1.5
     private var lastExamineAt = Date.distantPast
@@ -161,6 +171,81 @@ final class AppModel {
         setNotebookOpen(true)
     }
 
+    // MARK: Measurement and orthosis fitting
+
+    func measure(_ id: String, valueCm: Double?) async {
+        guard phase == .running, behavior.canExamine else { return }
+        do {
+            let result = try await engine.recordMeasurement(id, valueCm: valueCm)
+            measurements.removeAll { $0.measurementId == id }
+            measurements.append(result)
+            lastError = nil
+            SmokeLog.mark("measure \(id) value=\(result.valueCm) source=\(result.source) engine=\(engineModeLabel)")
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// A support was dropped on the forearm (`offsetCm` nil = taken off). A newly placed
+    /// support starts in the tray orientation with its straps at the loosest setting.
+    func placeOrthosis(size: String, offsetCm: Double?) async {
+        guard let offsetCm else { return await setFit(nil) }
+        var next = fit ?? OrthosisFit(size: size, orientation: "thumb_radial", offsetCm: offsetCm,
+                                      tightness: session?.case.orthotics.tightness.first ?? "loose")
+        if next.size != size { next.tightness = session?.case.orthotics.tightness.first ?? "loose" }
+        next.size = size
+        next.offsetCm = offsetCm
+        await setFit(next)
+    }
+
+    func adjustFit(_ change: (inout OrthosisFit) -> Void) async {
+        guard var next = fit else { return }
+        change(&next)
+        await setFit(next)
+    }
+
+    func stepTightness(_ step: Int) async {
+        let levels = session?.case.orthotics.tightness ?? []
+        guard let current = fit, let i = levels.firstIndex(of: current.tightness), levels.indices.contains(i + step) else { return }
+        await adjustFit { $0.tightness = levels[i + step] }
+    }
+
+    /// Every change goes to the engine first; the scene shows only what was recorded.
+    func setFit(_ next: OrthosisFit?) async {
+        guard phase == .running, behavior.canExamine else { return }
+        do {
+            let ack = try await engine.recordFit(next)
+            fit = next
+            lastError = nil
+            SmokeLog.mark("fit \(next.map { "size=\($0.size) offset=\($0.offsetCm) orientation=\($0.orientation) tightness=\($0.tightness)" } ?? "removed") "
+                + "attempt=\(ack.attempt) engine=\(engineModeLabel) exams=\(examinations.count)")
+            await voice.sendContext(ack.voiceNote)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Explicit, recorded check: "comfort" or "neurovascular". The engine supplies the
+    /// finding and what the patient says; the voice agent only speaks it.
+    func fittingCheck(_ kind: String) async {
+        guard phase == .running, behavior.canExamine else { return }
+        do {
+            let result = try await engine.fittingCheck(kind)
+            lastCheck = result
+            let live = voice.status == .connected
+            reaction = ReactionEvent(animation: result.animation, painLevel: 0, text: result.patientResponse,
+                                     clip: nil, speakLocally: !live)
+            if result.animation != "none" { behavior.pain(withdrawArm: false) }
+            if live { await voice.sendExaminationEvent(result.voiceContext) }
+            else { record(TranscriptTurn(role: .patient, text: result.patientResponse)) }
+            lastError = nil
+            SmokeLog.mark("check \(kind) phase=\(result.phase) comfortable=\(result.comfortable) "
+                + "response=\"\(result.patientResponse)\" engine=\(engineModeLabel) turns=\(transcript.count)")
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
     // MARK: Examination
 
     /// Entry point for gaze+pinch, fingertip contact and debug buttons.
@@ -233,6 +318,11 @@ final class AppModel {
         notebookOpen = false
         investigationResults = []
         viewing = nil
+        measurements = []
+        fit = nil
+        lastCheck = nil
+        selectedTool = nil
+        teachingMode = false
         lastExamineAt = .distantPast
         behavior.reset()
         phase = .running

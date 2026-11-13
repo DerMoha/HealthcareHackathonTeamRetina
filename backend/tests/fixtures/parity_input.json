@@ -1,5 +1,5 @@
 {
-  "_doc": "Fixed run for Swift/Python parity. Steps are applied in order against a fresh session of case_id; the final /diagnose response (session_id replaced by \"SESSION\") must equal parity_expected.json. The diagnose step carries notebook notes: some supported by the record, some not (numbness never asked). Radiographs are ordered twice; the plan immobilises but arranges no follow-up.",
+  "_doc": "Fixed run for Swift/Python parity. Steps are applied in order against a fresh session of case_id; the final /diagnose response (session_id replaced by \"SESSION\") must equal parity_expected.json. The diagnose step carries notebook notes: some supported by the record, some not (numbness never asked). Radiographs are ordered twice; the plan immobilises but arranges no follow-up. A support is fitted twice (too large, then medium but tight); comfort is re-asked by voice, circulation is not re-checked.",
   "case_id": "wrist_trauma_001",
   "steps": [
     {
@@ -49,6 +49,58 @@
     {
       "op": "investigate",
       "investigation_id": "right_wrist_xray"
+    },
+    {
+      "op": "check",
+      "body": {
+        "check": "neurovascular"
+      }
+    },
+    {
+      "op": "measure",
+      "body": {
+        "measurement_id": "right_wrist_circumference"
+      }
+    },
+    {
+      "op": "measure",
+      "body": {
+        "measurement_id": "right_forearm_length",
+        "value_cm": 25.3
+      }
+    },
+    {
+      "op": "fit",
+      "body": {
+        "fit": {
+          "size": "large",
+          "orientation": "thumb_radial",
+          "offset_cm": 2.5,
+          "tightness": "snug"
+        }
+      }
+    },
+    {
+      "op": "check",
+      "body": {
+        "check": "comfort"
+      }
+    },
+    {
+      "op": "fit",
+      "body": {
+        "fit": {
+          "size": "medium",
+          "orientation": "thumb_radial",
+          "offset_cm": 2.5,
+          "tightness": "tight"
+        }
+      }
+    },
+    {
+      "op": "interaction",
+      "role": "learner",
+      "text": "How does that feel now?"
     },
     {
       "op": "diagnose",

@@ -81,7 +81,7 @@ xcrun simctl launch "$UDID" $BUNDLE "${ARGS[@]}"
 LOG="$(xcrun simctl get_app_container "$UDID" $BUNDLE data)/Documents/smoke.log"
 
 seen=0
-for _ in $(seq 1 480); do   # up to 120 s
+for _ in $(seq 1 1000); do   # up to 250 s
   if [ -f "$LOG" ]; then
     total=$(wc -l <"$LOG" | tr -d ' ')
     while [ "$seen" -lt "$total" ]; do
@@ -151,6 +151,19 @@ expect "back to notebook, Investigations tab" "^viewer closed=true tab=Investiga
 expect "management scored separately"        "diagnosed score=[0-9]+/100 .*management=20/20"
 expect "MRI is a labelled report without image" "^investigation right_wrist_mri .*image=none imageFound=false"
 reject "X-ray order reveals nothing else"    "^investigation right_wrist_xray .*(scaphoid|MRI)"
+expect "wrist girth from case data"          "^measure right_wrist_circumference value=16.8 source=case"
+expect "forearm length from the skeleton"    "^measure right_forearm_length value=[1-3][0-9]\.[0-9] source=avatar"
+expect "far drop does not snap"              "^lab drop orthosis_large .*snapped=false"
+expect "far drop fits nothing"               "^missed drop fit=none"
+expect "near drop snaps to the forearm"      "^lab drop orthosis_large .*snapped=true"
+expect "too large: patient says it slides"   "^check comfort phase=after comfortable=false response=\"It's loose. It slides"
+expect "too tight: patient complains"        "^check comfort phase=after comfortable=false response=\"That's too tight"
+expect "after adjusting: comfortable"        "^check comfort phase=after comfortable=true"
+# the fallback body starts seated, so its early examination attempt counts too
+if [ $PROCEDURAL = 1 ]; then EXAMS=4; else EXAMS=3; fi
+expect "fitting changed no examinations"     "^fitted medium snug thumb_radial .*exams=$EXAMS "
+expect "fitting scored separately"           "diagnosed score=[0-9]+/100 .*fitting=20/20"
+expect "anatomy overlay after submission"    "^teaching on reference=medium .*learner=medium"
 reject "no engine errors"                  "error=[^n]"
 if [ $MOCK_VOICE = 1 ]; then
   expect "scripted voice connected, mic live" "^session .*voice=Connected mic=Live"
@@ -162,6 +175,7 @@ if [ $MOCK_VOICE = 1 ]; then
 fi
 if [ $KILL = 1 ]; then
   expect "fell back to offline after kill" "examined right_distal_forearm .*engine=Offline .*exams=3 "
+  expect "fitting served offline"          "^fit size=medium .*engine=Offline"
   expect "investigation served offline"    "^investigation right_wrist_xray .*engine=Offline"
 elif [ $BACKEND = 1 ]; then
   expect "served by the backend"           "examined right_distal_forearm .*engine=Backend"

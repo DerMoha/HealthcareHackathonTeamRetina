@@ -5,9 +5,10 @@ from pathlib import Path
 import httpx
 from fastapi import FastAPI, HTTPException
 
-from . import evaluation, examination
+from . import evaluation, examination, fitting
 from .models import (DiagnoseRequest, ExamineRequest, ExamineResult, Feedback, Health,
-                     InteractionCount, InteractionRequest, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
+                     InteractionCount, InteractionRequest, FitAck, FitRequest, FittingCheckRequest,
+                     FittingCheckResult, MeasurementRequest, MeasurementResult, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
                      TokenResponse, CasePublic)
 from .sessions import SESSIONS, Session, create_session, load_scenarios, now_iso, public_case
 
@@ -82,6 +83,32 @@ def investigations(session_id: str, req: InvestigationRequest):
     if result is None:
         raise HTTPException(404, f"Unknown investigation '{req.investigation_id}'")
     return result
+
+
+@app.post("/sessions/{session_id}/measurements", response_model=MeasurementResult)
+def measurements(session_id: str, req: MeasurementRequest):
+    s = _session(session_id)
+    result = fitting.measure(SCENARIOS[s.case_id], s, req.measurement_id, req.value_cm)
+    if result is None:
+        raise HTTPException(404, f"Unknown measurement '{req.measurement_id}'")
+    if not result:
+        raise HTTPException(422, f"Measurement '{req.measurement_id}' needs value_cm from the avatar")
+    return result
+
+
+@app.post("/sessions/{session_id}/fitting", response_model=FitAck)
+def fit(session_id: str, req: FitRequest):
+    s = _session(session_id)
+    data = req.fit.model_dump() if req.fit else None
+    if not fitting.valid(SCENARIOS[s.case_id], data):
+        raise HTTPException(404, "Unknown orthosis size or tightness")
+    return fitting.record_fit(SCENARIOS[s.case_id], s, data)
+
+
+@app.post("/sessions/{session_id}/checks", response_model=FittingCheckResult)
+def checks(session_id: str, req: FittingCheckRequest):
+    s = _session(session_id)
+    return fitting.check(SCENARIOS[s.case_id], s, req.check)
 
 
 @app.post("/sessions/{session_id}/interactions", response_model=InteractionCount)

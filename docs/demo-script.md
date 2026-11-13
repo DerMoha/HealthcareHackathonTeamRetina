@@ -42,3 +42,18 @@ After examining the wrist:
 Talking point: "The X-ray is normal. The teaching point is what the student does next: a normal first X-ray does not exclude a scaphoid fracture." Do not order the MRI in front of the audience unless you want to show the answer.
 
 If voice ordering fails: the notebook buttons do the same thing, also offline.
+
+## Orthotics lab (added)
+
+With Alex seated and his arms extended ("Could you hold both arms out?"):
+
+1. **Check fingers** on the tray panel (circulation, sensation, movement before immobilising).
+2. Pinch the **tape** on the tray and drag it to his right wrist: a yellow band and "16.8 cm" appear. Drag it to mid-forearm for the forearm length.
+3. Each support on the tray shows its wrist range. Pinch one and **drag it onto the right forearm**; it snaps on where you let go if you are close enough, otherwise it returns to the tray.
+4. **Tighten** once (a new support starts with loose straps). Ask **"How does that feel?"** or press *Ask how it feels*.
+5. Show a mistake on purpose: the Large one ("it slides around") or Tighten again ("too tight, my fingers are tingling"), then correct it and re-check fingers and comfort.
+6. Submit the diagnosis and plan. Feedback has a third separate score, "Measurement and orthosis fitting", and a toggle that overlays the wrist bones (scaphoid highlighted) and the intended support position on the patient.
+
+Fallbacks without dragging: with the tape picked up the panel offers *Measure wrist* / *Measure forearm*; a placed support can be moved, turned, tightened and taken off from the panel. A support can only be put on by dragging.
+
+Say: "This is a teaching simulation of fitting, not a sizing tool."

@@ -238,3 +238,25 @@ Body `{"investigation_id": "right_wrist_xray"}`. 404 for an unknown id or sessio
 
 ### Client tool
 `order_investigation(investigation)` with the three ids above → `VoiceService.onOrder` → `AppModel.orderInvestigation`. The tool result tells the agent only that the order was placed.
+
+## Measurement and orthosis fitting
+
+Educational fitting simulation; not a validated sizing system. All dimensions, outcomes and responses are in the scenario (`orthotics`, `hidden.fitting`). Engine rules: `backend/app/fitting.py`, mirrored in `OfflineClinicalEngine`.
+
+`CasePublic.orthotics`: `{measurements: [{id, label, kind}], sizes: [{id, label, wrist_cm: [min, max]}], tightness: [..]}`. No reference values.
+
+| Endpoint | Body | Returns |
+|---|---|---|
+| `POST /sessions/{id}/measurements` | `{measurement_id, value_cm?}` | `{measurement_id, label, kind, value_cm, source}`. `source: "case"` = predefined in the scenario (wrist circumference; a sent value is ignored). `source: "avatar"` = the app measured it between skeleton joints (forearm length); 422 if no value was sent. 404 unknown id. |
+| `POST /sessions/{id}/fitting` | `{fit: {size, orientation, offset_cm, tightness} \| null}` | `{attempt, voice_note}`. Records the support's state (`null` = taken off). The outcome is **not** returned. `voice_note` is context for the voice agent. 404 unknown size/tightness. |
+| `POST /sessions/{id}/checks` | `{check: "comfort" \| "neurovascular"}` | `{check, phase: before\|after, finding, patient_response, voice_context, comfortable, animation}` for the current fit. `finding` only for neurovascular. |
+
+`orientation`: `thumb_radial | thumb_ulnar`. `offset_cm`: centre of the support from the wrist joint towards the elbow.
+
+Outcome precedence: `wrong_position`, `wrong_orientation`, `too_small` / `too_large`, `too_tight` / `too_loose`, `appropriate`; no support = `none`.
+
+`Feedback.fitting`: `{title, score, max_score: 20, criteria[], final_fit, reference, explanation}`. **Not part of `total_score`.** Before a diagnosis `criteria == []`, `reference == null`, `explanation == null`. Criteria `area`: `measurement | fitting | safety`.
+
+Rubric (20): measured the wrist before the first fit 3; neurovascular check before the first fit 3; final size 4; final position and orientation 4; final tension 2; neurovascular re-check after the last change 2; comfort asked after the last change 2 (recorded check, or a learner turn with comfort keywords after that point). Written for teaching purposes; not reviewed by a clinician.
+
+The voice agent never decides fit: it receives `voice_note` (context) and `voice_context` (stage direction) and only speaks them.

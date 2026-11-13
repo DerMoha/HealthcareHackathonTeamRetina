@@ -165,6 +165,32 @@ do {
     check(try await e.feedback().investigations.isEmpty, "reset clears orders")
 }
 
+// Measurement and orthosis fitting (separate 20 points)
+do {
+    let e = try await fresh()
+    let good = OrthosisFit(size: "medium", orientation: "thumb_radial", offsetCm: 3, tightness: "snug")
+    let c = try await e.recordMeasurement("right_wrist_circumference", valueCm: 99)
+    check(c.valueCm == 16.8 && c.source == "case", "circumference is predefined")
+    check(try await e.recordMeasurement("right_forearm_length", valueCm: 25.26).valueCm == 25.3, "length from avatar")
+    do { _ = try await e.recordMeasurement("right_forearm_length", valueCm: nil); check(false, "length needs a value") } catch {}
+    let before = try await e.fittingCheck("neurovascular")
+    check(before.phase == "before" && before.finding!.contains("under 2 seconds"), "baseline neurovascular")
+    var tight = good; tight.tightness = "tight"
+    _ = try await e.recordFit(tight)
+    let t = try await e.fittingCheck("comfort")
+    check(!t.comfortable && t.patientResponse.contains("too tight") && t.animation == "flinch", "too tight outcome")
+    check(try await e.fittingCheck("neurovascular").finding!.contains("about 3 seconds"), "tight neurovascular")
+    var wrong = good; wrong.orientation = "thumb_ulnar"
+    _ = try await e.recordFit(wrong)
+    check(try await e.fittingCheck("comfort").patientResponse.contains("wrong side"), "orientation outcome")
+    _ = try await e.recordFit(good)
+    _ = try await e.fittingCheck("neurovascular"); _ = try await e.fittingCheck("comfort")
+    let f = try await e.diagnose("scaphoid fracture")
+    check(f.fitting.score == 20 && f.maxScore == 100 && f.fitting.reference?.size == "medium", "perfect fitting 20/20, total /100")
+    _ = try await e.recordFit(nil)
+    check(try await e.feedback().fitting.finalFit == nil, "removed support")
+}
+
 // Optional parity replay against the backend's fixtures
 let fx = root.appendingPathComponent("backend/tests/fixtures")
 if let inData = try? Data(contentsOf: fx.appendingPathComponent("parity_input.json")),
@@ -178,6 +204,17 @@ if let inData = try? Data(contentsOf: fx.appendingPathComponent("parity_input.js
             _ = try await e.examine(zoneId: step["body_part"] as! String, action: step["action"] as? String ?? "palpation")
         case "interaction":
             await say(e, step["text"] as! String, SpeakerRole(rawValue: step["role"] as! String) ?? .learner)
+        case "measure":
+            let b = step["body"] as! [String: Any]
+            _ = try await e.recordMeasurement(b["measurement_id"] as! String, valueCm: b["value_cm"] as? Double)
+        case "check":
+            _ = try await e.fittingCheck((step["body"] as! [String: Any])["check"] as! String)
+        case "fit":
+            let b = (step["body"] as! [String: Any])["fit"] as? [String: Any]
+            _ = try await e.recordFit(b.map {
+                OrthosisFit(size: $0["size"] as! String, orientation: $0["orientation"] as! String,
+                            offsetCm: $0["offset_cm"] as! Double, tightness: $0["tightness"] as! String)
+            })
         case "investigate":
             _ = try await e.orderInvestigation(step["investigation_id"] as! String)
         default:

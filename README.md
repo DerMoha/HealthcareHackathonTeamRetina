@@ -151,3 +151,7 @@ Known limits:
 - Notes are compared by keyword, like the transcript: it detects that something was written down, not whether it is right.
 - Offline speech uses macOS `say` placeholder clips until `generate_clips.py` is run.
 - One case, English only, sessions in memory (a backend restart drops them; the app then continues offline).
+
+## Orthotics lab
+
+Spatial measuring and wrist-support fitting on the patient's right arm (`Reality/OrthoticsLab.swift`, `Reality/SpatialMeasurementTool.swift`, `backend/app/fitting.py`). An educational fitting simulation, not a validated medical-device sizing system. See `docs/demo-script.md` and `docs/api-contract.md`.

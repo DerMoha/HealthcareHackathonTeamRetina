@@ -48,6 +48,9 @@ Feedback.investigations = "<label>: <impression>" per distinct ordered investiga
 The plan text used by diagnosis_or_learner_said is the diagnosis followed by every non-blank
 note among assessment, interpretation, management, follow_up (joined by newlines).
 
+MEASUREMENT AND FITTING: a third separate dimension (Feedback.fitting, 20 points, not in
+total_score). Rules and outcome precedence are documented in fitting.py.
+
 SUMMARY TEMPLATE after a diagnosis (deterministic; sentences joined by one space):
   S1  only if transcript_available is false: NO_TRANSCRIPT
   S2  strengths[0], if any
@@ -60,6 +63,7 @@ from functools import lru_cache
 
 from .models import (CategoryResult, CriterionResult, DiagnosticAssessment, DocumentationItem,
                      Feedback, ManagementAssessment)
+from . import fitting
 from .sessions import Session
 
 DISCLAIMER = ("Educational simulation only. Not a clinical diagnostic tool. "
@@ -258,6 +262,7 @@ def evaluate(scenario: dict, s: Session) -> Feedback:
         categories=categories, strengths=strengths, missed=missed,
         relevant_findings=relevant, next_steps=next_steps, documentation=documentation,
         management=management, investigations=investigations,
+        fitting=fitting.assess(scenario, s, verdict == "not_submitted", _hit),
         disclaimer=DISCLAIMER)
 
 

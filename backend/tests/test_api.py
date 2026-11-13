@@ -236,6 +236,9 @@ def run_parity(client):
             say(client, sid, s["text"], s["role"])
         elif s["op"] == "examine":
             client.post(f"/sessions/{sid}/examine", json={"body_part": s["body_part"], "action": s["action"]})
+        elif s["op"] in ("measure", "fit", "check"):
+            path = {"measure": "measurements", "fit": "fitting", "check": "checks"}[s["op"]]
+            client.post(f"/sessions/{sid}/{path}", json=s["body"])
         elif s["op"] == "investigate":
             client.post(f"/sessions/{sid}/investigations", json={"investigation_id": s["investigation_id"]})
         else:
@@ -443,3 +446,123 @@ def test_conversation_cannot_earn_management_points(client, sid):
     say(client, sid, "I will order an MRI, put you in a splint and the X-ray does not exclude a fracture.")
     _, c = mgmt(client, sid, "scaphoid fracture")
     assert [k for k, v in c.items() if v["met"]] == ["no_false_reassurance"]
+
+
+# ---- measurement and orthosis fitting (third separate 20-point dimension)
+
+GOOD = {"size": "medium", "orientation": "thumb_radial", "offset_cm": 3.0, "tightness": "snug"}
+
+
+def post(client, sid, path, body):
+    return client.post(f"/sessions/{sid}/{path}", json=body)
+
+
+def fitted(client, sid, **change):
+    return post(client, sid, "fitting", {"fit": {**GOOD, **change}})
+
+
+def comfort(client, sid):
+    return post(client, sid, "checks", {"check": "comfort"}).json()
+
+
+def fitting_feedback(client, sid):
+    f = client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": "scaphoid fracture"}).json()
+    return f, {c["id"]: c["met"] for c in f["fitting"]["criteria"]}
+
+
+def test_measurements_circumference_is_predefined_length_comes_from_avatar(client, sid):
+    case = client.get("/cases").json()[0]
+    assert [x["id"] for x in case["orthotics"]["sizes"]] == ["small", "medium", "large"]
+    assert "reference" not in json.dumps(case["orthotics"]) and "16.8" not in json.dumps(case)
+    c = post(client, sid, "measurements", {"measurement_id": "right_wrist_circumference", "value_cm": 99}).json()
+    assert c["value_cm"] == 16.8 and c["source"] == "case" and c["kind"] == "circumference"
+    f = post(client, sid, "measurements", {"measurement_id": "right_forearm_length", "value_cm": 25.26}).json()
+    assert f["value_cm"] == 25.3 and f["source"] == "avatar"
+    assert post(client, sid, "measurements", {"measurement_id": "right_forearm_length"}).status_code == 422
+    assert post(client, sid, "measurements", {"measurement_id": "skull"}).status_code == 404
+
+
+@pytest.mark.parametrize("change,words,comfortable", [
+    ({}, "snug and supported", True),
+    ({"size": "large"}, "slides around", False),
+    ({"size": "small"}, "squeezing", False),
+    ({"orientation": "thumb_ulnar"}, "wrong side", False),
+    ({"tightness": "tight"}, "too tight", False),
+    ({"tightness": "loose"}, "loose", False),
+    ({"offset_cm": 14.0}, "forearm", False),
+])
+def test_fitting_outcomes(client, sid, change, words, comfortable):
+    ack = fitted(client, sid, **change).json()
+    assert ack["attempt"] == 1 and "do not speak" in ack["voice_note"]
+    assert not any(k in json.dumps(ack) for k in ("too_", "appropriate", "wrong_"))  # no outcome label leaves the engine
+    c = comfort(client, sid)
+    assert words in c["patient_response"] and c["comfortable"] is comfortable and c["phase"] == "after"
+    assert c["patient_response"] in c["voice_context"]
+
+
+def test_neurovascular_findings_follow_the_fit(client, sid):
+    before = post(client, sid, "checks", {"check": "neurovascular"}).json()
+    assert before["phase"] == "before" and "under 2 seconds" in before["finding"]
+    fitted(client, sid, tightness="tight")
+    tight = post(client, sid, "checks", {"check": "neurovascular"}).json()
+    assert tight["phase"] == "after" and "about 3 seconds" in tight["finding"] and "tingly" in tight["patient_response"]
+    fitted(client, sid)
+    assert "under 2 seconds" in post(client, sid, "checks", {"check": "neurovascular"}).json()["finding"]
+    assert post(client, sid, "fitting", {"fit": {**GOOD, "size": "xxl"}}).status_code == 404
+    assert post(client, sid, "checks", {"check": "reflexes"}).status_code == 422
+
+
+def test_perfect_fitting_scores_20_and_leaves_the_total_alone(client, sid):
+    base = client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": "scaphoid fracture"}).json()
+    post(client, sid, "measurements", {"measurement_id": "right_wrist_circumference"})
+    post(client, sid, "checks", {"check": "neurovascular"})
+    fitted(client, sid, tightness="tight")
+    comfort(client, sid)
+    fitted(client, sid)  # adjusted after the patient complained
+    post(client, sid, "checks", {"check": "neurovascular"})
+    comfort(client, sid)
+    f, met = fitting_feedback(client, sid)
+    assert f["fitting"]["score"] == f["fitting"]["max_score"] == 20 and all(met.values())
+    assert (f["total_score"], f["max_score"]) == (base["total_score"], 100)
+    assert f["management"]["max_score"] == 20
+    assert f["fitting"]["reference"]["size"] == "medium" and "Appropriate" in f["fitting"]["explanation"]
+    assert [c["area"] for c in f["fitting"]["criteria"]] == [
+        "measurement", "safety", "fitting", "fitting", "fitting", "safety", "safety"]
+
+
+def test_checks_before_the_last_adjustment_do_not_count_as_reassessment(client, sid):
+    fitted(client, sid, size="large")
+    post(client, sid, "checks", {"check": "neurovascular"})
+    comfort(client, sid)
+    post(client, sid, "measurements", {"measurement_id": "right_wrist_circumference"})  # too late
+    fitted(client, sid)
+    f, met = fitting_feedback(client, sid)
+    assert met == {"measured_wrist": False, "neurovascular_before": False, "size": True, "placement": True,
+                   "tension": True, "neurovascular_after": False, "comfort_after": False}
+    assert f["fitting"]["score"] == 10
+
+
+def test_spoken_comfort_question_counts_only_after_the_final_fit(client, sid):
+    say(client, sid, "Is that comfortable?")
+    fitted(client, sid)
+    assert not fitting_feedback(client, sid)[1]["comfort_after"]
+    say(client, sid, "How does that feel, is it too tight?")
+    _, met = fitting_feedback(client, sid)
+    assert met["comfort_after"] and not met["neurovascular_after"]
+
+
+def test_removed_support_and_no_fitting_score_nothing_for_fit(client, sid):
+    fitted(client, sid)
+    post(client, sid, "fitting", {"fit": None})
+    f, met = fitting_feedback(client, sid)
+    assert f["fitting"]["final_fit"] is None and not any(met[k] for k in ("size", "placement", "tension"))
+    assert comfort(client, sid)["phase"] == "before"
+
+
+def test_fitting_feedback_redacted_before_diagnosis_and_cleared_by_reset(client, sid):
+    fitted(client, sid, size="small")
+    f = client.get(f"/sessions/{sid}/feedback").json()["fitting"]
+    assert f["criteria"] == [] and f["reference"] is None and f["explanation"] is None
+    assert f["final_fit"]["size"] == "small"
+    client.post(f"/sessions/{sid}/reset")
+    assert client.get(f"/sessions/{sid}/feedback").json()["fitting"]["final_fit"] is None

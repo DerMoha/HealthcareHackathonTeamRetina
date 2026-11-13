@@ -57,6 +57,15 @@ final class MockClinicalEngine: ClinicalEngine {
                             repeatCount: 1)
     }
 
+    func recordMeasurement(_ id: String, valueCm: Double?) async throws -> MeasurementResult {
+        MeasurementResult(measurementId: id, label: "Mock measurement", kind: "length", valueCm: valueCm ?? 17, source: "case")
+    }
+    func recordFit(_ fit: OrthosisFit?) async throws -> FitAck { FitAck(attempt: 1, voiceNote: "") }
+    func fittingCheck(_ kind: String) async throws -> FittingCheckResult {
+        FittingCheckResult(check: kind, phase: "before", finding: nil, patientResponse: "It feels fine.",
+                           voiceContext: "[mock check]", comfortable: true, animation: "none")
+    }
+
     func diagnose(_ diagnosis: String, notes: ClinicalNotes) async throws -> Feedback { makeFeedback(diagnosis) }
     func feedback() async throws -> Feedback { makeFeedback(nil) }
 
@@ -83,6 +92,7 @@ final class MockClinicalEngine: ClinicalEngine {
             documentation: [],
             management: ManagementAssessment(title: "Investigation and management", score: 0, maxScore: 20, criteria: []),
             investigations: [],
+            fitting: FittingAssessment(title: "Measurement and orthosis fitting", score: 0, maxScore: 20, criteria: []),
             disclaimer: "Educational simulation only."
         )
     }
@@ -152,6 +162,8 @@ final class MockVoiceService: VoiceService {
         micStatus = .unknown
         isAgentSpeaking = false
     }
+
+    func sendContext(_ text: String) async {}
 
     func sendExaminationEvent(_ text: String) async {
         guard scripted, status == .connected else { return }

@@ -13,6 +13,11 @@ final class PatientAvatar {
     private let rightArm = Entity()
     private(set) var anchors: [String: Entity] = [:]
     var zoneEntities: [Entity] = []
+    /// Right forearm: origin at the wrist joint, +Y towards the hand, +Z the thumb (radial)
+    /// side. Rides on the forearm joint, so anything parented to it follows the arm.
+    let forearmFrame = Entity()
+    /// Elbow joint to wrist joint, metres.
+    private(set) var forearmLength: Float = 0.25
     /// Zones are only targetable while the patient is seated (PatientBehavior.canExamine).
     var zonesEnabled = true { didSet { zoneEntities.forEach { $0.isEnabled = zonesEnabled } } }
     private var visuals: [ModelEntity] = []
@@ -100,11 +105,34 @@ final class PatientAvatar {
         // Forearm entity origin = midpoint (zone offset [0,0,0] lands a hand's width above the wrist).
         anchors["\(n)_forearm"] = limb(from: elbow, to: wrist, radius: 0.036, mat: skin, name: "\(n)_forearm", parent: parent)
         anchors["\(n)_wrist"] = add(sphere: 0.034, at: wrist, mat: skin, name: "\(n)_wrist", to: parent)
+        if s < 0 {
+            forearmFrame.name = "right_forearm_frame"
+            forearmFrame.transform = Transform(matrix: Self.limbFrame(elbow: elbow, wrist: wrist))
+            forearmLength = simd_distance(elbow, wrist)
+            parent.addChild(forearmFrame)
+            anchors["right_forearm_frame"] = forearmFrame
+        }
 
         // Hand: thumb side up (resting neutral on the thigh).
         let handC = u(s * 0.115, 0.70, 0.435)
         add(box: [0.042, 0.085, 0.10], at: handC, mat: skin, name: "\(n)_hand", to: parent, corner: 0.015)
         add(box: [0.02, 0.02, 0.06], at: handC + [0, 0.05, -0.015], mat: skin, name: "\(n)_thumb", to: parent, corner: 0.008)
+    }
+
+    /// Frame at `wrist` with +Y along the limb and +Z as close to "up" as the limb allows
+    /// (the model rests with the thumb side up).
+    private static func limbFrame(elbow: SIMD3<Float>, wrist: SIMD3<Float>) -> simd_float4x4 {
+        let y = simd_normalize(wrist - elbow)
+        let up = SIMD3<Float>(0, 1, 0)
+        let z = simd_normalize(up - simd_dot(up, y) * y)
+        let x = simd_cross(y, z)
+        return simd_float4x4(SIMD4(x, 0), SIMD4(y, 0), SIMD4(z, 0), SIMD4(wrist, 1))
+    }
+
+    /// Teaching mode: lets the overlay inside the arm show through.
+    func setTranslucent(_ on: Bool) {
+        guard let model else { return }
+        if on { model.components.set(OpacityComponent(opacity: 0.4)) } else { model.components.remove(OpacityComponent.self) }
     }
 
     // MARK: Helpers
@@ -164,7 +192,8 @@ final class PatientAvatar {
     private var restWorld: [simd_float4x4] = []
     private var meshToRoot = matrix_identity_float4x4
     /// Exam anchors ride on these joints, so zones stay on the wrist in every pose.
-    private static let anchorJoints = ["right_wrist": "hand_r", "right_forearm": "lowerarm_r", "left_wrist": "hand_l"]
+    private static let anchorJoints = ["right_wrist": "hand_r", "right_forearm": "lowerarm_r", "left_wrist": "hand_l",
+                                       "right_forearm_frame": "lowerarm_r"]
     private var anchorRest: [String: simd_float4x4] = [:]
 
     /// True when the skinned model is in use and can be posed.
@@ -210,6 +239,11 @@ final class PatientAvatar {
             self.model = model
             restWorld = forwardKinematics(restJoints)
             meshToRoot = mesh.transformMatrix(relativeTo: root)
+            if let e = jointIndex["lowerarm_r"], let w = jointIndex["hand_r"] {
+                func point(_ i: Int) -> SIMD3<Float> { let v = meshToRoot * restWorld[i].columns.3; return [v.x, v.y, v.z] }
+                forearmFrame.setTransformMatrix(Self.limbFrame(elbow: point(e), wrist: point(w)), relativeTo: root)
+                forearmLength = simd_distance(point(e), point(w))
+            }
             for name in Self.anchorJoints.keys { anchorRest[name] = anchors[name]?.transformMatrix(relativeTo: root) }
         }
         let b = model.visualBounds(relativeTo: root)

@@ -43,6 +43,21 @@ final class FallbackClinicalEngine: ClinicalEngine {
         return try await route({ try await primary.orderInvestigation(id) }, shadow: { try shadow.get() })
     }
 
+    func recordMeasurement(_ id: String, valueCm: Double?) async throws -> MeasurementResult {
+        let shadow = await Result { try await offline.recordMeasurement(id, valueCm: valueCm) }
+        return try await route({ try await primary.recordMeasurement(id, valueCm: valueCm) }, shadow: { try shadow.get() })
+    }
+
+    func recordFit(_ fit: OrthosisFit?) async throws -> FitAck {
+        let shadow = await Result { try await offline.recordFit(fit) }
+        return try await route({ try await primary.recordFit(fit) }, shadow: { try shadow.get() })
+    }
+
+    func fittingCheck(_ kind: String) async throws -> FittingCheckResult {
+        let shadow = await Result { try await offline.fittingCheck(kind) }
+        return try await route({ try await primary.fittingCheck(kind) }, shadow: { try shadow.get() })
+    }
+
     func recordInteraction(_ turn: TranscriptTurn) async {
         await offline.recordInteraction(turn)
         if usingPrimary { await primary.recordInteraction(turn) }

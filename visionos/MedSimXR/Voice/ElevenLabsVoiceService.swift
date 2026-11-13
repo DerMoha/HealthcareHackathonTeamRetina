@@ -79,6 +79,11 @@ final class ElevenLabsVoiceService: VoiceService {
         try? await conversation.setMuted(muted) // $isMuted updates micStatus
     }
 
+    func sendContext(_ text: String) async {
+        guard status == .connected, let conversation else { return }
+        try? await conversation.updateContext(text)
+    }
+
     func sendExaminationEvent(_ text: String) async {
         guard status == .connected, let conversation else { return }
         // Non-fatal on failure: the avatar reaction and pain sound are local anyway.

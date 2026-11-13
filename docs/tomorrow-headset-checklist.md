@@ -82,3 +82,14 @@ Needs a live ElevenLabs agent with the `perform_patient_action` client tool (ele
 - [ ] Viewer readable at the notebook's distance; pinch zoom and the magnifier buttons work; image pans when zoomed.
 - [ ] Back to notebook → Assessment: type or dictate the three plan fields; submit.
 - [ ] Feedback shows "Investigation and management · n/20" under the categories.
+
+## Orthotics lab
+
+- [ ] Tray and its panel are reachable to the left of the patient; labels readable.
+- [ ] Pinch + drag the tape to the wrist and to the forearm: value appears beside the arm and in the panel.
+- [ ] Pinch + drag a support onto the right forearm: snaps when released near the arm, returns to the tray when released elsewhere.
+- [ ] Drag the fitted support along the arm; drag it away to take it off.
+- [ ] The support stays on the arm through "relax your arms", "hold them out" and a pain recoil.
+- [ ] Ask by voice "how does that feel?" after a too-large and a too-tight fit: Alex's answer matches the panel's quoted answer.
+- [ ] Tray position: adjust `tray.position` in `Reality/OrthoticsLab.swift` if it is in the way.
+- [ ] After feedback: anatomy toggle shows bones and the green intended position on the arm.

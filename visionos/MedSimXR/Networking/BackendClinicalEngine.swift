@@ -27,6 +27,9 @@ final class BackendClinicalEngine: ClinicalEngine {
     private struct InteractionBody: Encodable { var role: String; var text: String; var timestamp: String }
     private struct DiagnoseBody: Encodable { var diagnosis: String; var notes: ClinicalNotes }
     private struct InvestigationBody: Encodable { var investigationId: String }
+    private struct MeasurementBody: Encodable { var measurementId: String; var valueCm: Double? }
+    private struct FitBody: Encodable { var fit: OrthosisFit? }
+    private struct CheckBody: Encodable { var check: String }
     private struct Detail: Decodable { var detail: String }
 
     func startSession(caseId: String) async throws -> SessionInfo {
@@ -47,6 +50,18 @@ final class BackendClinicalEngine: ClinicalEngine {
 
     func orderInvestigation(_ id: String) async throws -> InvestigationResult {
         try await send("POST", "\(try path())/investigations", InvestigationBody(investigationId: id))
+    }
+
+    func recordMeasurement(_ id: String, valueCm: Double?) async throws -> MeasurementResult {
+        try await send("POST", "\(try path())/measurements", MeasurementBody(measurementId: id, valueCm: valueCm))
+    }
+
+    func recordFit(_ fit: OrthosisFit?) async throws -> FitAck {
+        try await send("POST", "\(try path())/fitting", FitBody(fit: fit))
+    }
+
+    func fittingCheck(_ kind: String) async throws -> FittingCheckResult {
+        try await send("POST", "\(try path())/checks", CheckBody(check: kind))
     }
 
     func recordInteraction(_ turn: TranscriptTurn) async {

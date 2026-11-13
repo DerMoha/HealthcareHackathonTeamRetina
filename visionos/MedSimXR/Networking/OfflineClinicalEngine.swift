@@ -52,6 +52,9 @@ final class OfflineClinicalEngine: ClinicalEngine {
                 var requiresOrdered: [String]?
                 var ignoreNegated: Bool?
                 var checks: [Check]?
+                // fitting checks
+                var measurements: [String]?
+                var check: String?
             }
             var id: String
             var label: String
@@ -92,6 +95,22 @@ final class OfflineClinicalEngine: ClinicalEngine {
             var nextSteps: [String]
             var rubric: Rubric
             var management: Management
+            var fitting: Fitting
+        }
+        struct Fitting: Decodable {
+            struct Outcome: Decodable {
+                var patientResponse: String
+                var comfortable: Bool
+                var animation: String
+                var neurovascular: String
+                var neurovascularResponse: String
+                var explanation: String
+            }
+            // Whether dictionary keys pass through the snake_case strategy differs by platform: look up both forms.
+            var measurements: [String: Double]
+            var reference: FittingReference
+            var outcomes: [String: Outcome]
+            var rubric: Management
         }
 
         var caseId: String
@@ -102,6 +121,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
         var examinationZones: [Zone]
         var scriptedDialogue: [ScriptedLine]
         var investigations: [Investigation]
+        var orthotics: Orthotics
         var hidden: Hidden
     }
 
@@ -115,6 +135,9 @@ final class OfflineClinicalEngine: ClinicalEngine {
     private var turns: [Turn] = []
     /// Ordered investigation ids, in order (repeats included).
     private var orders: [String] = []
+    private var measured: [(seq: Int, id: String)] = []
+    private var fittings: [(seq: Int, fit: OrthosisFit?)] = []
+    private var checks: [(seq: Int, kind: String)] = []
     private var diagnosis: String?
     private var notes = ClinicalNotes()
 
@@ -197,7 +220,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
     private var noSession: OfflineEngineError { OfflineEngineError(errorDescription: "No active session.") }
 
     private func clear() -> SessionInfo {
-        seq = 0; exams = []; turns = []; orders = []; diagnosis = nil; notes = ClinicalNotes()
+        seq = 0; exams = []; turns = []; orders = []; measured = []; fittings = []; checks = []; diagnosis = nil; notes = ClinicalNotes()
         let s = scenario
         return SessionInfo(
             sessionId: sessionId ?? "", startedAt: ISO8601DateFormatter().string(from: Date()),
@@ -208,7 +231,8 @@ final class OfflineClinicalEngine: ClinicalEngine {
                     ZoneInfo(id: $0.id, label: $0.label, attachTo: $0.attachTo, offset: $0.offset, radius: $0.radius)
                 },
                 scriptedDialogue: s.scriptedDialogue,
-                investigations: s.investigations.map { InvestigationInfo(id: $0.id, label: $0.label) }
+                investigations: s.investigations.map { InvestigationInfo(id: $0.id, label: $0.label) },
+                orthotics: s.orthotics
             )
         )
     }
@@ -277,6 +301,120 @@ final class OfflineClinicalEngine: ClinicalEngine {
         default:
             return Outcome(met: false, points: 0, method: "rule", evidence: nil)
         }
+    }
+
+    // MARK: Measurement and orthosis fitting (mirrors backend/app/fitting.py)
+
+    private func camel(_ key: String) -> String {
+        let parts = key.split(separator: "_")
+        return ([String(parts.first ?? "")] + parts.dropFirst().map { $0.prefix(1).uppercased() + $0.dropFirst() }).joined()
+    }
+
+    func recordMeasurement(_ id: String, valueCm: Double?) async throws -> MeasurementResult {
+        guard sessionId != nil else { throw noSession }
+        guard let spec = scenario.orthotics.measurements.first(where: { $0.id == id }) else {
+            throw OfflineEngineError(errorDescription: "Unknown measurement '\(id)'.")
+        }
+        let predefined = scenario.hidden.fitting.measurements[id] ?? scenario.hidden.fitting.measurements[camel(id)]
+        guard let raw = predefined ?? valueCm else {
+            throw OfflineEngineError(errorDescription: "Measurement '\(id)' needs a value from the avatar.")
+        }
+        seq += 1
+        measured.append((seq, id))
+        return MeasurementResult(measurementId: id, label: spec.label, kind: spec.kind,
+                                 valueCm: (raw * 10).rounded() / 10, source: predefined != nil ? "case" : "avatar")
+    }
+
+    private func outcome(_ fit: OrthosisFit?) -> String {
+        guard let fit else { return "none" }
+        let ref = scenario.hidden.fitting.reference
+        let sizes = scenario.orthotics.sizes.map(\.id), levels = scenario.orthotics.tightness
+        func index(_ list: [String], _ value: String) -> Int { list.firstIndex(of: value) ?? -1 }
+        if fit.offsetCm < ref.offsetCm[0] || fit.offsetCm > ref.offsetCm[1] { return "wrong_position" }
+        if fit.orientation != ref.orientation { return "wrong_orientation" }
+        if fit.size != ref.size { return index(sizes, fit.size) < index(sizes, ref.size) ? "too_small" : "too_large" }
+        if fit.tightness != ref.tightness {
+            return index(levels, fit.tightness) > index(levels, ref.tightness) ? "too_tight" : "too_loose"
+        }
+        return "appropriate"
+    }
+
+    private func outcomeSpec(_ fit: OrthosisFit?) -> Scenario.Fitting.Outcome {
+        { let key = outcome(fit); let all = scenario.hidden.fitting.outcomes; return all[key] ?? all[camel(key)]! }()
+    }
+
+    private var currentFit: OrthosisFit? { fittings.last?.fit }
+
+    func recordFit(_ fit: OrthosisFit?) async throws -> FitAck {
+        guard sessionId != nil else { throw noSession }
+        if let fit, !scenario.orthotics.sizes.contains(where: { $0.id == fit.size })
+            || !scenario.orthotics.tightness.contains(fit.tightness) {
+            throw OfflineEngineError(errorDescription: "Unknown orthosis size or tightness.")
+        }
+        seq += 1
+        fittings.append((seq, fit))
+        let note = fit == nil ? "[Context only, do not speak now. The wrist support was taken off again.]"
+            : "[Context only, do not speak now. A wrist support was just put on or adjusted on your right wrist. "
+              + "If the student asks how it feels, answer with this meaning: \"\(outcomeSpec(fit).patientResponse)\"]"
+        return FitAck(attempt: fittings.filter { $0.fit != nil }.count, voiceNote: note)
+    }
+
+    func fittingCheck(_ kind: String) async throws -> FittingCheckResult {
+        guard sessionId != nil else { throw noSession }
+        guard kind == "comfort" || kind == "neurovascular" else {
+            throw OfflineEngineError(errorDescription: "Unknown check '\(kind)'.")
+        }
+        let fit = currentFit, spec = outcomeSpec(fit), nv = kind == "neurovascular"
+        seq += 1
+        checks.append((seq, kind))
+        let response = nv ? spec.neurovascularResponse : spec.patientResponse
+        let lead = nv ? "[The student checks the colour, feeling and movement of your fingers."
+                      : "[The student asks how the wrist support feels."
+        return FittingCheckResult(
+            check: kind, phase: fit == nil ? "before" : "after", finding: nv ? spec.neurovascular : nil,
+            patientResponse: response,
+            voiceContext: lead + " Answer out loud right now in one short sentence with this meaning: \"\(response)\"]",
+            comfortable: spec.comfortable, animation: nv ? "none" : spec.animation)
+    }
+
+    private func buildFitting(redact: Bool) -> FittingAssessment {
+        let spec = scenario.hidden.fitting, ref = spec.reference, fit = currentFit
+        let firstFit = fittings.first { $0.fit != nil }?.seq ?? Int.max
+        let lastChange = fittings.last?.seq ?? Int.max
+        func met(_ c: Scenario.Criterion.Check) -> Bool {
+            switch c.type {
+            case "measured":
+                return measured.contains { (c.measurements ?? []).contains($0.id) && $0.seq < firstFit }
+            case "checked_before_fit":
+                return checks.contains { $0.kind == c.check && $0.seq < firstFit }
+            case "final_fit":
+                guard let fit else { return false }
+                return (c.fields ?? []).allSatisfy { field in
+                    switch field {
+                    case "size": fit.size == ref.size
+                    case "orientation": fit.orientation == ref.orientation
+                    case "tightness": fit.tightness == ref.tightness
+                    case "offset_cm": fit.offsetCm >= ref.offsetCm[0] && fit.offsetCm <= ref.offsetCm[1]
+                    default: false
+                    }
+                }
+            case "checked_after_final_fit":
+                guard fit != nil else { return false }
+                if checks.contains(where: { $0.kind == c.check && $0.seq > lastChange }) { return true }
+                return learnerTurns.contains { $0.seq > lastChange && hits($0.text, c.keywords ?? []) }
+            default:
+                return false
+            }
+        }
+        let criteria = spec.rubric.criteria.map { c -> CriterionResult in
+            let ok = met(c.check)
+            return CriterionResult(id: c.id, label: c.label, met: ok, points: ok ? c.points : 0, maxPoints: c.points,
+                                   method: "rule", evidence: nil, comment: ok ? c.metText : c.missedText, area: c.area)
+        }
+        return FittingAssessment(
+            title: spec.rubric.title, score: criteria.reduce(0) { $0 + $1.points }, maxScore: spec.rubric.maxScore,
+            criteria: redact ? [] : criteria, finalFit: fit, reference: redact ? nil : ref,
+            explanation: redact ? nil : outcomeSpec(fit).explanation)
     }
 
     // MARK: Investigation and management (separate from the 100-point rubric)
@@ -409,7 +547,7 @@ final class OfflineClinicalEngine: ClinicalEngine {
             diagnosticAssessment: DiagnosticAssessment(verdict: verdict, explanation: explanation, expected: dx == nil ? nil : d.name),
             categories: categories, strengths: strengths, missed: missed, relevantFindings: findings,
             nextSteps: dx == nil ? [] : h.nextSteps, documentation: documentation,
-            management: management, investigations: investigations,
+            management: management, investigations: investigations, fitting: buildFitting(redact: dx == nil),
             disclaimer: "Educational simulation only. Not a clinical diagnostic tool. Transcript-based criteria use simple keyword heuristics."
         )
     }

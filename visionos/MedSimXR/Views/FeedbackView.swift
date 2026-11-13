@@ -14,6 +14,18 @@ struct FeedbackView: View {
                         ForEach(f.categories) { CategoryCard(category: $0) }
                     }
                     management(f.management)
+                    scored(f.fitting.title, f.fitting.score, f.fitting.maxScore, f.fitting.criteria, [
+                        ("measurement", "Measurement"), ("fitting", "Size, position and tension"),
+                        ("safety", "Circulation, sensation and comfort checks"),
+                    ])
+                    if let explanation = f.fitting.explanation {
+                        Text(explanation).font(.callout)
+                        Toggle(isOn: Bindable(model).teachingMode) {
+                            Label("Show wrist anatomy and intended support position on the patient", systemImage: "eye")
+                        }
+                        Text("Simplified teaching overlay. Educational fitting exercise, not a validated sizing method.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                     list("Investigations requested", f.investigations, "rays", .teal)
                     list("Strengths", f.strengths, "checkmark.circle.fill", .green)
                     list("Missed", f.missed, "exclamationmark.circle.fill", .orange)
@@ -39,14 +51,19 @@ struct FeedbackView: View {
     ]
 
     /// Separate dimension: shown with its own score, never added to the 100 points.
-    @ViewBuilder
     private func management(_ m: ManagementAssessment) -> some View {
-        if !m.criteria.isEmpty {
-            section("\(m.title) · \(m.score)/\(m.maxScore)") {
+        scored(m.title, m.score, m.maxScore, m.criteria, Self.areas)
+    }
+
+    @ViewBuilder
+    private func scored(_ title: String, _ score: Int, _ maxScore: Int, _ criteria: [CriterionResult],
+                        _ areas: [(String, String)]) -> some View {
+        if !criteria.isEmpty {
+            section("\(title) · \(score)/\(maxScore)") {
                 Text("Scored separately from the 100 points above.").font(.caption).foregroundStyle(.secondary)
-                ForEach(Self.areas, id: \.0) { area, title in
+                ForEach(areas, id: \.0) { area, title in
                     Text(title).font(.subheadline.bold())
-                    ForEach(m.criteria.filter { $0.area == area }) { c in
+                    ForEach(criteria.filter { $0.area == area }) { c in
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(c.label) · \(c.points)/\(c.maxPoints)").font(.callout.weight(.medium))

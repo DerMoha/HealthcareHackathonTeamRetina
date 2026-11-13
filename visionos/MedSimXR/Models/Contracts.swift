@@ -50,6 +50,27 @@ struct InvestigationInfo: Codable, Hashable, Identifiable, Sendable {
     var label: String
 }
 
+struct MeasurementInfo: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var label: String
+    /// circumference | length
+    var kind: String
+}
+
+struct OrthosisSize: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var label: String
+    /// [min, max] wrist circumference printed on the tray.
+    var wristCm: [Double]
+}
+
+/// What the orthotics tray offers. Reference values and outcomes stay with the engine.
+struct Orthotics: Codable, Hashable, Sendable {
+    var measurements: [MeasurementInfo] = []
+    var sizes: [OrthosisSize] = []
+    var tightness: [String] = []
+}
+
 struct CaseInfo: Codable, Hashable, Sendable {
     var caseId: String
     var title: String
@@ -59,6 +80,7 @@ struct CaseInfo: Codable, Hashable, Sendable {
     var zones: [ZoneInfo]
     var scriptedDialogue: [ScriptedLine]
     var investigations: [InvestigationInfo] = []
+    var orthotics = Orthotics()
 }
 
 struct SessionInfo: Codable, Hashable, Sendable {
@@ -99,6 +121,64 @@ struct InvestigationResult: Codable, Hashable, Identifiable, Sendable {
     var orderedAt: String
     var repeatCount: Int
     var id: String { investigationId }
+}
+
+// MARK: - Measurement and orthosis fitting
+
+struct MeasurementResult: Codable, Hashable, Identifiable, Sendable {
+    var measurementId: String
+    var label: String
+    var kind: String
+    var valueCm: Double
+    /// case (predefined) | avatar (measured between joints)
+    var source: String
+    var id: String { measurementId }
+}
+
+/// The support as it sits on the arm. `offsetCm`: its centre, from the wrist joint towards the elbow.
+struct OrthosisFit: Codable, Hashable, Sendable {
+    var size: String
+    /// thumb_radial | thumb_ulnar
+    var orientation: String
+    var offsetCm: Double
+    var tightness: String
+}
+
+struct FitAck: Codable, Hashable, Sendable {
+    var attempt: Int
+    /// Context for the voice agent; never spoken, never an outcome label.
+    var voiceNote: String
+}
+
+struct FittingCheckResult: Codable, Hashable, Sendable {
+    /// comfort | neurovascular
+    var check: String
+    /// before | after (a support is on the arm)
+    var phase: String
+    var finding: String?
+    var patientResponse: String
+    var voiceContext: String
+    var comfortable: Bool
+    var animation: String
+}
+
+struct FittingReference: Codable, Hashable, Sendable {
+    var size: String
+    var orientation: String
+    var offsetCm: [Double]
+    var tightness: String
+}
+
+/// Scored separately, not part of `totalScore`.
+struct FittingAssessment: Codable, Hashable, Sendable {
+    var title: String
+    var score: Int
+    var maxScore: Int
+    var criteria: [CriterionResult]
+    var finalFit: OrthosisFit?
+    /// Nil before a diagnosis is submitted.
+    var reference: FittingReference?
+    var explanation: String?
 }
 
 // MARK: - Transcript
@@ -195,6 +275,7 @@ struct Feedback: Codable, Hashable, Sendable {
     var management: ManagementAssessment
     /// "<label>: <impression>" for each investigation that was ordered.
     var investigations: [String]
+    var fitting: FittingAssessment
     var disclaimer: String
 }
 
@@ -209,6 +290,12 @@ protocol ClinicalEngine: AnyObject {
     func examine(zoneId: String, action: String) async throws -> ExaminationResult
     /// Records the order and returns the scenario's predefined result.
     func orderInvestigation(_ id: String) async throws -> InvestigationResult
+    /// `valueCm` is the avatar measurement; the engine overrides it when the case predefines one.
+    func recordMeasurement(_ id: String, valueCm: Double?) async throws -> MeasurementResult
+    /// Records the support's current state (nil = removed). The outcome stays with the engine.
+    func recordFit(_ fit: OrthosisFit?) async throws -> FitAck
+    /// comfort | neurovascular, answered for the current fit.
+    func fittingCheck(_ kind: String) async throws -> FittingCheckResult
     /// Best effort; must never throw into the UI.
     func recordInteraction(_ turn: TranscriptTurn) async
     func diagnose(_ diagnosis: String, notes: ClinicalNotes) async throws -> Feedback
@@ -261,6 +348,8 @@ protocol VoiceService: AnyObject {
     func stop() async
     /// Note-taking mode: while muted the agent must not hear the learner (dictated notes).
     func setMicMuted(_ muted: Bool) async
+    /// Background information for the agent. Must not make it speak.
+    func sendContext(_ text: String) async
     /// Forwards `ExaminationResult.voiceContext`; the agent must speak a reaction.
     func sendExaminationEvent(_ text: String) async
 }

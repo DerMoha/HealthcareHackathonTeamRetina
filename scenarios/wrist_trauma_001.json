@@ -1,8 +1,8 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "case_id": "wrist_trauma_001",
   "title": "Clinic patient: Alex, 28",
-  "learner_brief": "Alex, 28, is waiting to be seen. Take a history, examine the patient, request any investigations you need, and record your findings, suspected diagnosis and management plan in the notebook.",
+  "learner_brief": "Alex, 28, is waiting to be seen. Take a history, examine the patient, request any investigations you need, and record your findings, suspected diagnosis and management plan in the notebook. A tray with a measuring tape and wrist supports is beside the patient.",
   "patient": {
     "name": "Alex",
     "age": 28,
@@ -147,6 +147,52 @@
       }
     }
   ],
+  "orthotics": {
+    "_doc": "Educational fitting simulation. Dimensions are those of the virtual patient, not real-world sizing guidance.",
+    "measurements": [
+      {
+        "id": "right_wrist_circumference",
+        "label": "Right wrist circumference",
+        "kind": "circumference"
+      },
+      {
+        "id": "right_forearm_length",
+        "label": "Right forearm length (elbow to wrist)",
+        "kind": "length"
+      }
+    ],
+    "sizes": [
+      {
+        "id": "small",
+        "label": "Small",
+        "wrist_cm": [
+          13.0,
+          15.5
+        ]
+      },
+      {
+        "id": "medium",
+        "label": "Medium",
+        "wrist_cm": [
+          15.5,
+          18.0
+        ]
+      },
+      {
+        "id": "large",
+        "label": "Large",
+        "wrist_cm": [
+          18.0,
+          21.0
+        ]
+      }
+    ],
+    "tightness": [
+      "loose",
+      "snug",
+      "tight"
+    ]
+  },
   "hidden": {
     "diagnosis": {
       "name": "Suspected scaphoid fracture",
@@ -850,6 +896,202 @@
           "missed_text": "Your notes treat the injury as excluded or minor. With snuffbox tenderness, a normal radiograph is not enough to reassure and discharge."
         }
       ]
+    },
+    "fitting": {
+      "_doc": "Separate 20-point dimension, NOT part of the 100-point total. Simulated outcomes for an educational fitting exercise; not a validated sizing or competence assessment. Not reviewed by a clinician.",
+      "measurements": {
+        "right_wrist_circumference": 16.8
+      },
+      "reference": {
+        "size": "medium",
+        "orientation": "thumb_radial",
+        "offset_cm": [
+          0.0,
+          6.0
+        ],
+        "tightness": "snug"
+      },
+      "outcomes": {
+        "none": {
+          "patient_response": "There's nothing on my wrist yet.",
+          "comfortable": true,
+          "animation": "none",
+          "neurovascular": "Fingers warm and pink. Capillary refill under 2 seconds. Light touch intact in thumb, index and little finger. All fingers and the thumb move.",
+          "neurovascular_response": "Yes, I can feel that, and my fingers move fine.",
+          "explanation": "No support was fitted."
+        },
+        "appropriate": {
+          "patient_response": "That feels snug and supported. It doesn't pinch anywhere.",
+          "comfortable": true,
+          "animation": "none",
+          "neurovascular": "Fingers warm and pink. Capillary refill under 2 seconds. Light touch intact in thumb, index and little finger. All fingers and the thumb move.",
+          "neurovascular_response": "Yes, I can feel that, and my fingers still feel normal.",
+          "explanation": "Appropriate size, position and tension: the wrist and the base of the thumb are supported and the fingers stay free."
+        },
+        "wrong_position": {
+          "patient_response": "It's sitting on my forearm. My wrist can still move and it still hurts when I bend it.",
+          "comfortable": false,
+          "animation": "none",
+          "neurovascular": "Fingers warm and pink. Capillary refill under 2 seconds. Light touch intact in thumb, index and little finger. All fingers and the thumb move.",
+          "neurovascular_response": "Yes, I can feel that fine.",
+          "explanation": "The support was not over the wrist, so the wrist was not immobilised."
+        },
+        "wrong_orientation": {
+          "patient_response": "The opening is on the wrong side. It's pressing on my little finger side and my thumb is squashed.",
+          "comfortable": false,
+          "animation": "flinch",
+          "neurovascular": "Fingers warm and pink. Capillary refill under 2 seconds. Light touch intact in thumb, index and little finger. All fingers and the thumb move.",
+          "neurovascular_response": "I can feel that, but the edge is digging in.",
+          "explanation": "The support was rotated: the thumb opening must sit on the thumb (radial) side."
+        },
+        "too_small": {
+          "patient_response": "Ow, that's really squeezing. My fingers are starting to tingle.",
+          "comfortable": false,
+          "animation": "flinch",
+          "neurovascular": "Fingertips slightly dusky and cool. Capillary refill about 3 seconds. Patient reports tingling in the fingers.",
+          "neurovascular_response": "It feels a bit numb and tingly in my fingers.",
+          "explanation": "The support was too small for the measured wrist circumference and compressed the wrist."
+        },
+        "too_large": {
+          "patient_response": "It's loose. It slides around and my wrist can still move inside it.",
+          "comfortable": false,
+          "animation": "none",
+          "neurovascular": "Fingers warm and pink. Capillary refill under 2 seconds. Light touch intact in thumb, index and little finger. All fingers and the thumb move.",
+          "neurovascular_response": "Yes, I can feel that fine.",
+          "explanation": "The support was too large for the measured wrist circumference and did not immobilise the wrist."
+        },
+        "too_tight": {
+          "patient_response": "That's too tight. My fingers are tingling.",
+          "comfortable": false,
+          "animation": "flinch",
+          "neurovascular": "Fingertips slightly dusky and cool. Capillary refill about 3 seconds. Patient reports tingling in the fingers.",
+          "neurovascular_response": "My fingertips feel tingly and a bit numb.",
+          "explanation": "The straps were too tight: tingling and slow capillary refill mean it must be loosened."
+        },
+        "too_loose": {
+          "patient_response": "It's the right shape, but it's loose. It shifts when I move.",
+          "comfortable": false,
+          "animation": "none",
+          "neurovascular": "Fingers warm and pink. Capillary refill under 2 seconds. Light touch intact in thumb, index and little finger. All fingers and the thumb move.",
+          "neurovascular_response": "Yes, I can feel that fine.",
+          "explanation": "The straps were too loose to hold the wrist still."
+        }
+      },
+      "rubric": {
+        "title": "Measurement and orthosis fitting",
+        "max_score": 20,
+        "criteria": [
+          {
+            "id": "measured_wrist",
+            "area": "measurement",
+            "label": "Measured the wrist before choosing a size",
+            "points": 3,
+            "check": {
+              "type": "measured",
+              "measurements": [
+                "right_wrist_circumference"
+              ]
+            },
+            "met_text": "You measured the wrist circumference before choosing a size.",
+            "missed_text": "You did not measure the wrist circumference before the support was fitted."
+          },
+          {
+            "id": "neurovascular_before",
+            "area": "safety",
+            "label": "Checked distal circulation and sensation before immobilising",
+            "points": 3,
+            "check": {
+              "type": "checked_before_fit",
+              "check": "neurovascular"
+            },
+            "met_text": "You checked circulation, sensation and movement in the hand before fitting the support.",
+            "missed_text": "You did not check circulation, sensation and movement in the hand before fitting the support."
+          },
+          {
+            "id": "size",
+            "area": "fitting",
+            "label": "Chose the size that matches the measurement",
+            "points": 4,
+            "check": {
+              "type": "final_fit",
+              "fields": [
+                "size"
+              ]
+            },
+            "met_text": "The size you left on the patient matches the measured wrist.",
+            "missed_text": "The size left on the patient does not match the measured wrist, or no support was left on."
+          },
+          {
+            "id": "placement",
+            "area": "fitting",
+            "label": "Positioned and oriented the support over the wrist",
+            "points": 4,
+            "check": {
+              "type": "final_fit",
+              "fields": [
+                "offset_cm",
+                "orientation"
+              ]
+            },
+            "met_text": "The support was over the wrist with the thumb opening on the thumb side.",
+            "missed_text": "The support was not over the wrist, or the thumb opening was on the wrong side."
+          },
+          {
+            "id": "tension",
+            "area": "fitting",
+            "label": "Left the support snug, not tight or loose",
+            "points": 2,
+            "check": {
+              "type": "final_fit",
+              "fields": [
+                "tightness"
+              ]
+            },
+            "met_text": "The support was left snug.",
+            "missed_text": "The support was left too tight or too loose."
+          },
+          {
+            "id": "neurovascular_after",
+            "area": "safety",
+            "label": "Re-checked circulation and sensation after the final adjustment",
+            "points": 2,
+            "check": {
+              "type": "checked_after_final_fit",
+              "check": "neurovascular"
+            },
+            "met_text": "You re-checked circulation and sensation after the final adjustment.",
+            "missed_text": "You did not re-check circulation and sensation after the final adjustment."
+          },
+          {
+            "id": "comfort_after",
+            "area": "safety",
+            "label": "Asked about comfort after the final adjustment",
+            "points": 2,
+            "check": {
+              "type": "checked_after_final_fit",
+              "check": "comfort",
+              "keywords": [
+                "how does it feel",
+                "how does that feel",
+                "how is that",
+                "how's that",
+                "comfortable",
+                "too tight",
+                "too loose",
+                "pinch*",
+                "does it hurt",
+                "does that hurt",
+                "feel ok",
+                "feel okay",
+                "bequem",
+                "drückt"
+              ]
+            },
+            "met_text": "You asked the patient about comfort after the final adjustment.",
+            "missed_text": "You did not ask the patient about comfort after the final adjustment."
+          }
+        ]
+      }
     }
   }
 }

@@ -354,5 +354,105 @@
   "investigations": [
     "Right wrist radiographs: No definite fracture visible."
   ],
+  "fitting": {
+    "title": "Measurement and orthosis fitting",
+    "score": 16,
+    "max_score": 20,
+    "criteria": [
+      {
+        "id": "measured_wrist",
+        "label": "Measured the wrist before choosing a size",
+        "met": true,
+        "points": 3,
+        "max_points": 3,
+        "method": "rule",
+        "evidence": null,
+        "comment": "You measured the wrist circumference before choosing a size.",
+        "area": "measurement"
+      },
+      {
+        "id": "neurovascular_before",
+        "label": "Checked distal circulation and sensation before immobilising",
+        "met": true,
+        "points": 3,
+        "max_points": 3,
+        "method": "rule",
+        "evidence": null,
+        "comment": "You checked circulation, sensation and movement in the hand before fitting the support.",
+        "area": "safety"
+      },
+      {
+        "id": "size",
+        "label": "Chose the size that matches the measurement",
+        "met": true,
+        "points": 4,
+        "max_points": 4,
+        "method": "rule",
+        "evidence": null,
+        "comment": "The size you left on the patient matches the measured wrist.",
+        "area": "fitting"
+      },
+      {
+        "id": "placement",
+        "label": "Positioned and oriented the support over the wrist",
+        "met": true,
+        "points": 4,
+        "max_points": 4,
+        "method": "rule",
+        "evidence": null,
+        "comment": "The support was over the wrist with the thumb opening on the thumb side.",
+        "area": "fitting"
+      },
+      {
+        "id": "tension",
+        "label": "Left the support snug, not tight or loose",
+        "met": false,
+        "points": 0,
+        "max_points": 2,
+        "method": "rule",
+        "evidence": null,
+        "comment": "The support was left too tight or too loose.",
+        "area": "fitting"
+      },
+      {
+        "id": "neurovascular_after",
+        "label": "Re-checked circulation and sensation after the final adjustment",
+        "met": false,
+        "points": 0,
+        "max_points": 2,
+        "method": "rule",
+        "evidence": null,
+        "comment": "You did not re-check circulation and sensation after the final adjustment.",
+        "area": "safety"
+      },
+      {
+        "id": "comfort_after",
+        "label": "Asked about comfort after the final adjustment",
+        "met": true,
+        "points": 2,
+        "max_points": 2,
+        "method": "rule",
+        "evidence": null,
+        "comment": "You asked the patient about comfort after the final adjustment.",
+        "area": "safety"
+      }
+    ],
+    "final_fit": {
+      "size": "medium",
+      "orientation": "thumb_radial",
+      "offset_cm": 2.5,
+      "tightness": "tight"
+    },
+    "reference": {
+      "size": "medium",
+      "orientation": "thumb_radial",
+      "offset_cm": [
+        0.0,
+        6.0
+      ],
+      "tightness": "snug"
+    },
+    "explanation": "The straps were too tight: tingling and slow capillary refill mean it must be loosened."
+  },
   "disclaimer": "Educational simulation only. Not a clinical diagnostic tool. Transcript-based criteria use simple keyword heuristics."
 }
