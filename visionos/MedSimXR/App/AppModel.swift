@@ -114,6 +114,9 @@ final class AppModel {
     }
     /// Bundled avatar model for the encounter being started or running ("Patient", "Patient_female", ...).
     private(set) var activeAvatarModel = "Patient"
+    /// Journey cases replace the room with their own surroundings (road, ambulance, hospital):
+    /// the immersive space then runs in full immersion instead of passthrough.
+    private(set) var fullImmersion = false
     /// Resolved at Start (random picks included) and consumed by `startSession`.
     @ObservationIgnored private var pending: (caseId: String, config: SessionConfig?)?
 
@@ -295,6 +298,7 @@ final class AppModel {
         }
         let plan = (caseId: chosen?.caseId ?? AppConfig.defaultCaseId, config: config)
         activeAvatarModel = avatarModel(chosen?.catalog, config?.avatar)
+        fullImmersion = chosen?.journey != nil
         pending = plan
         return plan
     }
@@ -342,6 +346,7 @@ final class AppModel {
         endScenario()
         teamSpeech?.cancel()
         teamReaction?.cancel()
+        fullImmersion = false
         phase = .idle
     }
 
@@ -830,6 +835,7 @@ final class AppModel {
     private func apply(_ info: SessionInfo) {
         session = info
         activeAvatarModel = avatarModel(info.case.catalog, info.config?.avatar)
+        fullImmersion = info.case.journey != nil
         transcript = []
         examinations = []
         feedback = nil

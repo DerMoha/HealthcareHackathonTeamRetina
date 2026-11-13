@@ -123,6 +123,9 @@ cd visionos && xcodebuild -quiet -project MedSimXR.xcodeproj -scheme MedSimXR \
   (observations, bleeding control, splint, pain relief, cannula, pre-alert, antibiotics, …) and
   **Move on** to the next place. You can also ask the team out loud (the voice agent routes it).
   Every team line and result comes from the case engine; the feedback is scored per place.
+  This case runs in **full immersion**: the room disappears and the scene is drawn around you
+  (a street with the crashed car, the bicycle and the ambulance; then the inside of the ambulance;
+  then a resus bay). The other cases stay in passthrough.
 - **Control panel during a session**: Stop, Recenter, status, and a **Debug** toggle (examination and
   scripted-question buttons, last finding). Nothing else.
 - **Notebook** (floats beside the patient, pinch to open): History, Examination, Assessment,

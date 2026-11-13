@@ -10,6 +10,7 @@ struct ImmersivePatientView: View {
     @State private var lab = OrthoticsLab()
     @State private var us = UltrasoundScene()
     @State private var stage = ScenarioStage()
+    @State private var environment = JourneyEnvironment()
 
     var body: some View {
         RealityView { content, attachments in
@@ -53,6 +54,8 @@ struct ImmersivePatientView: View {
             stage.install(on: avatar)
             stage.sync(model.scenario)
             stage.showInjury(model.visibleInjury)
+            environment.install(on: avatar)
+            buildEnvironment()
             model.stageStatus = stage.status
             SmokeLog.mark("immersive scene built zones=\(avatar.zoneEntities.count)")
         } attachments: {
@@ -119,7 +122,7 @@ struct ImmersivePatientView: View {
             lab.build(orthotics ?? Orthotics())
             lab.sync(model.fit) // equipment delivered mid-session: a support already on the arm stays there
         }
-        .modifier(StageSync(stage: stage))
+        .modifier(StageSync(stage: stage, rebuild: buildEnvironment))
         .onChange(of: model.session?.sessionId) { lab.build(model.session?.case.orthotics ?? Orthotics()) }
         .modifier(UltrasoundSync(model: model, us: us))
         .onChange(of: model.activeAvatarModel) { _, variant in
@@ -129,6 +132,7 @@ struct ImmersivePatientView: View {
                 model.behavior.attach(animated: avatar.isAnimated, recumbent: avatar.isRecumbent) { await avatar.apply($0) }
                 await avatar.apply(model.behavior.machine, snap: true)
                 avatar.rebuildZones(model.zones)
+                buildEnvironment() // the seat follows the new model's seat height
                 us.build(model.ultrasound)
                 us.setEnabled(model.phase == .running)
                 lab.avatarChanged(fit: model.fit)
@@ -174,6 +178,15 @@ struct ImmersivePatientView: View {
         }
         .onDisappear { avatar.stopIdle(); stage.stop(); model.stageStatus = "immersive scene not open" }
     }
+
+    /// Journey cases: the road, the ambulance or the hospital around the patient, with its own seat
+    /// instead of the clinic stool. Other cases: nothing, and the stool is back.
+    private func buildEnvironment() {
+        let stage = model.currentStage
+        avatar.furnitureHidden = stage != nil
+        environment.build(stage?.id, index: model.stageIndex, count: model.journey?.stages.count ?? 0,
+                          seatHeight: avatar.seatHeight)
+    }
 }
 
 /// Keeps the scenario stage in step with the model. Its own modifier so the view's
@@ -181,6 +194,8 @@ struct ImmersivePatientView: View {
 private struct StageSync: ViewModifier {
     @Environment(AppModel.self) private var model
     let stage: ScenarioStage
+    /// Rebuilds the journey surroundings for the current place.
+    let rebuild: () -> Void
 
     func body(content: Content) -> some View {
         content
@@ -200,6 +215,7 @@ private struct StageSync: ViewModifier {
         stage.showJourney(model.currentStage, team: model.teamPresent, position: model.stageIndex,
                           count: model.journey?.stages.count ?? 0)
         stage.showInjury(model.visibleInjury) // showJourney(nil) clears it; a journey keeps it
+        rebuild()
     }
 }
 

@@ -45,6 +45,15 @@ struct MedSimXRApp: App {
                 .onAppear { model.immersiveOpen = true }
                 .onDisappear { model.immersiveOpen = false }
         }
-        .immersionStyle(selection: .constant(.mixed), in: .mixed)
+        // Passthrough for the clinic cases; full immersion for a journey case, whose road, ambulance
+        // and hospital replace the room (JourneyEnvironment).
+        .immersionStyle(selection: Binding<any ImmersionStyle>(
+            get: {
+                if model.fullImmersion { let full: FullImmersionStyle = .full; return full }
+                let mixed: MixedImmersionStyle = .mixed
+                return mixed
+            },
+            set: { _ in }
+        ), in: .mixed, .full)
     }
 }
