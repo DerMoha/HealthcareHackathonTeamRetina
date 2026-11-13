@@ -8,8 +8,8 @@ enum PatientOption {
     static func mood(_ id: String) -> Info {
         switch id {
         case "calm": Info(name: "Calm", icon: "leaf.fill", detail: "Relaxed and cooperative.")
-        case "nervous": Info(name: "Nervous", icon: "exclamationmark.bubble.fill", detail: "Hesitant and worried. Needs reassurance.")
-        case "angry": Info(name: "Angry", icon: "flame.fill", detail: "Annoyed about the wait. Short answers until acknowledged.")
+        case "nervous": Info(name: "Nervous", icon: "exclamationmark.bubble.fill", detail: "Hesitant and worried.")
+        case "angry": Info(name: "Angry", icon: "flame.fill", detail: "Annoyed about the wait.")
         default: Info(name: id.replacingOccurrences(of: "_", with: " ").capitalized, icon: "person.fill", detail: "")
         }
     }
@@ -47,7 +47,7 @@ struct ScenarioDashboardView<Footer: View>: View {
                     footer
                 }
                 .padding(.horizontal, 28)
-                .padding(.top, 20)
+                .padding(.top, 14)
                 .padding(.bottom, 12)
             }
             .scrollIndicators(.hidden)
@@ -65,7 +65,7 @@ struct ScenarioDashboardView<Footer: View>: View {
             Image(systemName: "cross.case.fill")
                 .font(.title)
                 .foregroundStyle(.teal)
-                .frame(width: 52, height: 52)
+                .frame(width: 44, height: 44)
                 .background(.teal.opacity(0.18), in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 Text("MedSim XR").font(.title.bold())
@@ -169,7 +169,7 @@ struct ScenarioDashboardView<Footer: View>: View {
             Button(action: onStart) {
                 Label(model.selection.surprise ? "Start Random Scenario" : "Start Session", systemImage: "play.fill")
                     .font(.title3.weight(.semibold))
-                    .frame(maxWidth: .infinity, minHeight: 36)
+                    .frame(maxWidth: .infinity, minHeight: 30)
             }
             .buttonStyle(.borderedProminent)
             .tint(.teal)
@@ -180,7 +180,7 @@ struct ScenarioDashboardView<Footer: View>: View {
             }
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 14)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial)
     }
@@ -273,7 +273,7 @@ private struct SurpriseCard: View {
                 Spacer(minLength: 0)
                 SelectionMark(selected: selected)
             }
-            .padding(14)
+            .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .modifier(CardChrome(selected: selected))
         }
@@ -305,7 +305,7 @@ private struct OptionTile: View {
                 Spacer(minLength: 0)
             }
             .padding(14)
-            .frame(maxWidth: .infinity, minHeight: info.detail.count > 30 ? 92 : 72, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: info.detail.count > 30 ? 76 : 64, alignment: .topLeading)
             .modifier(CardChrome(selected: selected, radius: 16))
         }
         .buttonStyle(.plain)
