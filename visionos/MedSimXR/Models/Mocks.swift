@@ -131,6 +131,7 @@ final class MockVoiceService: VoiceService {
     @ObservationIgnored var onTranscript: ((TranscriptTurn) -> Void)?
     @ObservationIgnored var onAction: ((String) -> String)?
     @ObservationIgnored var onOrder: ((String) async -> String)?
+    @ObservationIgnored var onTeamAction: ((String) async -> String)?
     @ObservationIgnored private let scripted: Bool
 
     init(scripted: Bool = false) { self.scripted = scripted }
@@ -155,12 +156,25 @@ final class MockVoiceService: VoiceService {
             ("relax_arms", ["relax", "rest your"]), ("indicate_right_wrist", ["which wrist", "show me", "where"]),
         ]
         let orders: [(String, [String])] = [
+            ("rt_xray_forearm", ["x-ray of his forearm", "x-ray of her forearm", "x-ray of the forearm", "forearm x-ray"]),
             ("right_wrist_xray", ["x-ray", "xray", "radiograph"]), ("right_wrist_mri", ["mri"]),
             ("right_wrist_ct", ["ct scan", "a ct"]),
         ]
+        // Requests to the medical team of a journey case (a case without a team answers "failure").
+        let team: [(String, [String])] = [
+            ("scene_safety", ["scene safe", "is it safe"]), ("observations", ["observations", "obs", "vital signs"]),
+            ("haemorrhage_control", ["pressure on", "control the bleeding", "dressing on"]),
+            ("photograph_wound", ["photo"]), ("splint_arm", ["splint"]), ("iv_analgesia", ["iv pain relief", "morphine"]),
+            ("analgesia", ["pain relief", "penthrox"]), ("iv_access", ["cannula", "iv access"]),
+            ("pre_alert", ["pre-alert", "prealert"]), ("iv_antibiotics", ["antibiotic"]), ("tetanus", ["tetanus booster"]),
+            ("orthopaedic_referral", ["orthopaedic", "ortho team"]),
+        ]
         let lower = text.lowercased()
         var reply = "Okay."
-        if let order = orders.first(where: { $0.1.contains { lower.contains($0) } })?.0 {
+        if let request = team.first(where: { $0.1.contains { lower.contains($0) } })?.0,
+           let result = await onTeamAction?(request), !result.hasPrefix("failure") {
+            SmokeLog.mark("heard \"\(text)\" team=\(request) result=\(result)")
+        } else if let order = orders.first(where: { $0.1.contains { lower.contains($0) } })?.0 {
             let result = await onOrder?(order) ?? "failure: unavailable"
             SmokeLog.mark("heard \"\(text)\" order=\(order) result=\(result)")
         } else if let action = phrases.first(where: { $0.1.contains { lower.contains($0) } })?.0 {

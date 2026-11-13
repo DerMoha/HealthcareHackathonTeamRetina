@@ -51,6 +51,18 @@ Agent > Tools > Add tool > **Client tool**.
 
 The app validates the id against the case, asks the clinical engine for the predefined result, opens the viewer, and returns only `success: … requested …` or `failure: …` to the agent. The result text never reaches the model. Fallback without voice: notebook > Investigations. NOT verified against a live agent.
 
+For the road trauma journey case add its ids to the enum: `rt_xray_forearm`, `rt_ct_head`, `rt_bloods` (or remove the enum; the app rejects unknown ids and ids that are not available in the current place).
+
+## 5d. Client tool: asking the medical team (journey cases)
+Agent > Tools > Add tool > **Client tool**. Only used by cases whose case information has THE MEDICAL TEAM (today: `road_trauma_journey_001`).
+- Name: `request_team_action` (exact).
+- Description: `Asks a member of the medical team (paramedic, technician, nurse, doctor) to do something the student requested. The app makes the team member answer out loud; you never speak for them.`
+- **Wait for response: ON** (the app returns `success: …`, `blocked: …` or `failure: …`).
+- Parameter `action`: type string, required, enum `scene_safety`, `observations`, `haemorrhage_control`, `photograph_wound`, `splint_arm`, `analgesia`, `iv_access`, `iv_analgesia`, `pre_alert`, `iv_antibiotics`, `tetanus`, `orthopaedic_referral`. Description: `The action id for the place the patient is in now (listed under TEAM ACTION IDS in the case information).`
+- Re-paste `patient_system_prompt.md` (section "Medical team and changing places").
+
+The app checks the id against the current place, asks the clinical engine, speaks the member's line with the system voice above their figure, and logs it in the notebook's Team tab. Team lines are not transcript turns. The team buttons in the control window and the notebook are the fallback without voice. NOT verified against a live agent.
+
 ## 6. Public vs private agent
 - **Public** (simplest for a hackathon): Security > "Enable authentication" OFF. Copy the Agent ID (`agent_...`). Put it either in `visionos/Config/Local.xcconfig` as `ELEVENLABS_AGENT_ID = agent_...` (rebuild) or in the in-app Settings field.
 - **Private**: enable authentication. In the backend `.env` set `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID`. Leave the app's agent ID EMPTY. The app then calls `GET /elevenlabs/conversation-token` on the backend and connects with that token. The API key never ships in the app.

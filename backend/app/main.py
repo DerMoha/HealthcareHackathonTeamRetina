@@ -8,10 +8,11 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from . import evaluation, examination, fitting, studio, studio_routes, ultrasound
+from . import evaluation, examination, fitting, journey, studio, studio_routes, ultrasound
 from .models import (ConversationSummary, DiagnoseRequest, ExamineRequest, ExamineResult, Feedback, Health,
                      InteractionCount, InteractionRequest, FitAck, FitRequest, FittingCheckRequest,
                      FittingCheckResult, GelResult, MeasurementRequest, ScanRequest, ScanResult, MeasurementResult, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
+                     StageRequest, StageResult, TeamActionRequest, TeamActionResult,
                      TokenResponse, TranscriptionResponse, CasePublic)
 from .sessions import SESSIONS, Session, create_session, load_scenarios, now_iso, public_case, resolve_config
 
@@ -114,10 +115,31 @@ def examine(session_id: str, req: ExamineRequest):
 def investigations(session_id: str, req: InvestigationRequest):
     s = _session(session_id)
     _need(s, "investigation", req.investigation_id, "That investigation")
+    blocked = journey.investigation_error(SCENARIOS[s.case_id], s, req.investigation_id)
+    if blocked:
+        raise HTTPException(409, blocked)
     result = examination.investigate(SCENARIOS[s.case_id], s, req.investigation_id)
     if result is None:
         raise HTTPException(404, f"Unknown investigation '{req.investigation_id}'")
     return result
+
+
+@app.post("/sessions/{session_id}/stage", response_model=StageResult)
+def stage(session_id: str, req: StageRequest):
+    s = _session(session_id)
+    try:
+        return journey.advance(SCENARIOS[s.case_id], s, req.stage_id)
+    except journey.JourneyError as e:
+        raise HTTPException(e.status, e.detail)
+
+
+@app.post("/sessions/{session_id}/team-actions", response_model=TeamActionResult)
+def team_actions(session_id: str, req: TeamActionRequest):
+    s = _session(session_id)
+    try:
+        return journey.team_action(SCENARIOS[s.case_id], s, req.action_id)
+    except journey.JourneyError as e:
+        raise HTTPException(e.status, e.detail)
 
 
 @app.post("/sessions/{session_id}/measurements", response_model=MeasurementResult)

@@ -24,23 +24,140 @@ final class ScenarioStage {
     private var bubble: Entity?
     private var bubbleTask: Task<Void, Never>?
     private var speakers: [String: Entity] = [:]
+    /// Journey cases: the place sign and the medical team there. Separate from `root` so a
+    /// Studio scenario rebuild never removes it.
+    private let journeyRoot = Entity()
+    private var journeySpeakers: [String: Entity] = [:]
+    private var journeyNoise = 0.0
+    private var journeyStatus = "no journey"
 
     private static let bystanderSpot: SIMD3<Float> = [0.85, 0, -0.1]   // the patient's left, wearer's right
     private static let helperSpot: SIMD3<Float> = [-1.3, 0, -0.3]      // behind the equipment tray
+    /// Team members stand behind the patient, either side (patient faces +Z, the wearer is in front).
+    private static let teamSpots: [(SIMD3<Float>, Float)] = [([-1.05, 0, -0.45], 0.6), ([1.05, 0, -0.45], -0.6),
+                                                             ([0, 0, -1.25], 0)]
+    private static let teamShirts: [UIColor] = [.systemGreen, .systemYellow, .systemBlue, .systemTeal]
 
     func install(on avatar: PatientAvatar) {
         root.name = "scenario_stage"
         avatar.root.addChild(root)
+        journeyRoot.name = "journey_stage"
+        avatar.root.addChild(journeyRoot)
+        self.avatar = avatar
     }
 
     /// One line for the smoke log and the acknowledgement sent back to the instructor.
     private(set) var status = "no scenario"
 
+    /// Journey case: sign for the current place, the team members there, and its noise.
+    /// `stage` nil (other cases) clears it.
+    func showJourney(_ stage: JourneyStage?, team: [JourneyMember], position: Int, count: Int) {
+        Array(journeyRoot.children).forEach { $0.removeFromParent() }
+        journeySpeakers = [:]
+        guard let stage else {
+            if journeyNoise > 0, !hasScenario { ambient?.stop(); ambient = nil }
+            journeyNoise = 0
+            journeyStatus = "no journey"
+            showInjury(nil)
+            return
+        }
+        journeyRoot.addChild(Self.floor(for: position))
+        let sign = Self.text("Stage \(position + 1) of \(count)  ·  \(stage.label)", size: 0.05, color: .white)
+        sign.position = [0, 2.3, -0.6]
+        journeyRoot.addChild(sign)
+        let setting = Self.text(stage.setting, size: 0.03, color: UIColor(white: 0.85, alpha: 1))
+        setting.position = [0, 2.2, -0.6]
+        journeyRoot.addChild(setting)
+        for (i, member) in team.enumerated() {
+            let (spot, turn) = Self.teamSpots[i % Self.teamSpots.count]
+            let figure = Self.person(shirt: Self.teamShirts[i % Self.teamShirts.count], height: 1.74,
+                                     label: "\(member.name) · \(member.role)")
+            figure.position = spot
+            figure.orientation = simd_quatf(angle: turn, axis: [0, 1, 0])
+            journeyRoot.addChild(figure)
+            journeySpeakers[member.name] = figure
+        }
+        journeyNoise = stage.noise
+        if !hasScenario { setNoise(stage.noise, seed: UInt64(7 + position)) }
+        journeyStatus = "journey=\(stage.id) team=\(team.map(\.name)) noise=\(String(format: "%.2f", stage.noise))"
+        SmokeLog.mark("stage journey \(journeyStatus) noisePlaying=\(ambient?.isPlaying ?? false)")
+    }
+
+    private var hasScenario = false
+
+    // MARK: Injured patient (journey cases)
+
+    /// What the patient's injury looks like now. nil = no visible injury (other cases).
+    struct Injury: Equatable {
+        /// A saline-soaked dressing covers the wound (else it is an open, bleeding wound).
+        var dressed: Bool
+        /// The arm is in a splint from the hand to above the elbow.
+        var splinted: Bool
+    }
+
+    private weak var avatar: PatientAvatar?
+    private var injuryParts: [Entity] = []
+
+    /// Wound on the right forearm, then a dressing over it and a splint, as the team treats it.
+    /// Plain shapes on the forearm and wrist anchors, so they follow the arm in every pose.
+    func showInjury(_ injury: Injury?) {
+        injuryParts.forEach { $0.removeFromParent() }
+        injuryParts = []
+        guard let injury, let avatar else { return }
+        func add(_ mesh: MeshResource, _ color: UIColor, to anchor: String, at offset: SIMD3<Float>, scale: SIMD3<Float> = [1, 1, 1]) {
+            guard let parent = avatar.anchors[anchor] else { return }
+            let part = ModelEntity(mesh: mesh, materials: [SimpleMaterial(color: color, isMetallic: false)])
+            part.position = offset
+            part.scale = scale
+            part.components.remove(CollisionComponent.self) // never blocks an examination pinch
+            parent.addChild(part)
+            injuryParts.append(part)
+        }
+        let blood = UIColor(red: 0.55, green: 0.02, blue: 0.03, alpha: 1)
+        if injury.splinted {
+            add(.generateBox(size: [0.11, 0.42, 0.11], cornerRadius: 0.03), UIColor(red: 0.95, green: 0.55, blue: 0.1, alpha: 1),
+                to: "right_forearm", at: [0, -0.05, 0])
+        } else if injury.dressed {
+            add(.generateCylinder(height: 0.09, radius: 0.047), UIColor(white: 0.96, alpha: 1), to: "right_forearm", at: [0, 0, 0])
+            add(.generateSphere(radius: 0.018), blood, to: "right_forearm", at: [0, 0, 0.044], scale: [1.4, 1, 0.4])
+        } else {
+            // Open wound: a dark bleeding patch on the skin, a fragment showing, blood running towards the hand.
+            add(.generateSphere(radius: 0.03), blood, to: "right_forearm", at: [0, 0, 0.036], scale: [1.2, 1.6, 0.35])
+            add(.generateBox(size: [0.012, 0.03, 0.012], cornerRadius: 0.004), UIColor(white: 0.93, alpha: 1),
+                to: "right_forearm", at: [0, 0.004, 0.045])
+            add(.generateSphere(radius: 0.012), blood, to: "right_wrist", at: [0, 0, 0.03], scale: [1, 2.2, 0.4])
+        }
+        SmokeLog.mark("injury shown dressed=\(injury.dressed) splinted=\(injury.splinted) parts=\(injuryParts.count)")
+    }
+
+    /// Ground of each place: asphalt with lane markings, the ambulance floor, the hospital floor.
+    private static func floor(for position: Int) -> Entity {
+        let e = Entity()
+        let colors: [UIColor] = [UIColor(white: 0.2, alpha: 1), UIColor(white: 0.78, alpha: 1),
+                                 UIColor(red: 0.72, green: 0.8, blue: 0.84, alpha: 1)]
+        let size: SIMD2<Float> = position == 1 ? [2.2, 3.6] : [4.5, 4.5]
+        let ground = ModelEntity(mesh: .generatePlane(width: size.x, depth: size.y),
+                                 materials: [SimpleMaterial(color: colors[min(position, 2)], isMetallic: false)])
+        ground.position = [0, 0.002, 0]
+        e.addChild(ground)
+        if position == 0 { // dashed centre line of the road
+            for i in 0..<5 {
+                let dash = ModelEntity(mesh: .generatePlane(width: 0.12, depth: 0.5),
+                                       materials: [UnlitMaterial(color: UIColor(white: 0.95, alpha: 1))])
+                dash.position = [-1.6, 0.004, -2 + Float(i) * 0.95]
+                e.addChild(dash)
+            }
+        }
+        return e
+    }
+
     func sync(_ scenario: ScenarioRuntime?) {
         Array(root.children).forEach { $0.removeFromParent() }
         speakers = [:]; bubble = nil
+        hasScenario = scenario != nil
         guard let s = scenario else {
-            ambient?.stop(); ambient = nil
+            // A journey keeps the noise of its current place.
+            if journeyNoise > 0 { setNoise(journeyNoise, seed: 7) } else { ambient?.stop(); ambient = nil }
             status = "no scenario"
             return
         }
@@ -89,7 +206,8 @@ final class ScenarioStage {
 
         bubble?.removeFromParent()
         let text = Self.text("\(line.speaker): \u{201C}\(line.text)\u{201D}", size: 0.028, color: .systemYellow)
-        text.position = (speakers[line.speaker]?.position ?? [0, 0, 0]) + [0, 2.0, 0.05]
+        let speaker = speakers[line.speaker] ?? journeySpeakers[line.speaker]
+        text.position = (speaker?.position ?? [0, 0, 0]) + [0, 2.0, 0.05]
         root.addChild(text)
         bubble = text
         bubbleTask?.cancel()
@@ -98,7 +216,7 @@ final class ScenarioStage {
             guard !Task.isCancelled, self?.bubble === text else { return }
             text.removeFromParent()
         }
-        SmokeLog.mark("scene line speaker=\(line.speaker) shown=\(speakers[line.speaker] != nil) text=\"\(line.text)\"")
+        SmokeLog.mark("scene line speaker=\(line.speaker) shown=\(speaker != nil) text=\"\(line.text)\"")
     }
 
     func stop() {

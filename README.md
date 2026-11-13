@@ -116,6 +116,13 @@ cd visionos && xcodebuild -quiet -project MedSimXR.xcodeproj -scheme MedSimXR \
   case. A case that allows only one value shows it locked. The last choice is remembered. Mood and
   appearance change how the patient talks and looks, never the findings or the scoring.
   Launch arguments `-scenario <case_id> -mood <m> -avatar <a>` preselect them.
+- **Continuous journey case** (`road_trauma_journey_001`, "Road accident: Jordan, 34"): a cyclist
+  knocked off by a car. You work with an AI ambulance crew at the roadside, travel with the patient
+  in the ambulance, and hand over to an AI emergency team at the hospital. The control panel and the
+  notebook's **Team** tab show where you are, who is there, a button per thing the team can do there
+  (observations, bleeding control, splint, pain relief, cannula, pre-alert, antibiotics, …) and
+  **Move on** to the next place. You can also ask the team out loud (the voice agent routes it).
+  Every team line and result comes from the case engine; the feedback is scored per place.
 - **Control panel during a session**: Stop, Recenter, status, and a **Debug** toggle (examination and
   scripted-question buttons, last finding). Nothing else.
 - **Notebook** (floats beside the patient, pinch to open): History, Examination, Assessment,
