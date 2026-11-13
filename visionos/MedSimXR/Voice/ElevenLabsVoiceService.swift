@@ -22,6 +22,7 @@ final class ElevenLabsVoiceService: VoiceService {
     private(set) var micStatus: MicStatus = .unknown
     private(set) var isAgentSpeaking = false
     @ObservationIgnored var onTranscript: ((TranscriptTurn) -> Void)?
+    @ObservationIgnored var onAction: ((String) -> String)?
 
     @ObservationIgnored private var conversation: Conversation?
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
@@ -140,7 +141,23 @@ final class ElevenLabsVoiceService: VoiceService {
         config.onAgentResponse = { [weak self] text, eventId in
             Task { @MainActor in self?.emit(.patient, text, key: "a\(eventId)", gen: gen) }
         }
+        config.onUnhandledClientToolCall = { [weak self] call in
+            Task { @MainActor in await self?.handleTool(call, gen: gen) }
+        }
         return config
+    }
+
+    /// Client tool `perform_patient_action(action:)`. The action string is validated by the
+    /// app (PatientBehaviorController); the agent always gets an explicit result back.
+    private func handleTool(_ call: ClientToolCallEvent, gen: Int) async {
+        guard gen == generation, let conversation else { return }
+        var result = "failure: unknown tool \(call.toolName)"
+        if call.toolName == "perform_patient_action" {
+            let action = (try? call.getParameters())?["action"] as? String ?? ""
+            result = onAction?(action) ?? "failure: unavailable"
+        }
+        guard call.expectsResponse else { return conversation.markToolCallCompleted(call.toolCallId) }
+        try? await conversation.sendToolResult(for: call.toolCallId, result: result, isError: !result.hasPrefix("success"))
     }
 
     private func fetchToken() async throws -> String {

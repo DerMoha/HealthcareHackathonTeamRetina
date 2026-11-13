@@ -13,7 +13,7 @@
 
 | Time | Do | Say |
 |---|---|---|
-| 0–15 s | Press **Start Session**. Patient appears seated in the room. | "This is Alex. Not a chatbot on a screen — a patient sitting in the room with you." |
+| 0–15 s | Press **Start Session**. Alex stands by the stool and greets you. Say **"Please have a seat"**: he sits. Later **"Could you stretch out both arms?"** before examining. | "This is Alex. Not a chatbot on a screen — a patient in the room who does what you ask." |
 | 15–35 s | Ask the patient. | "Hello, I'm a medical student. What happened to you?" → Alex describes the bicycle fall. Follow up: "Where exactly does it hurt?" |
 | 35–55 s | "May I examine your wrist?" Then look at the left wrist, pinch (no pain). Look at the right wrist near the thumb, pinch. | Alex pulls the arm back: "Ow! That's exactly where it hurts!" → "I'm sorry, I'll be gentle." |
 | 55–70 s | "Any numbness or tingling?" Pinch the **Notebook** beside Alex. Jot one line under Examination, go to **Assessment**, type or dictate your diagnosis, **Submit diagnosis**. | "Nothing on screen told me what this is. I write down what I found and commit to my own diagnosis." |
@@ -24,6 +24,7 @@
 | Problem | Do |
 |---|---|
 | Patient does not answer / AI status shows an error | Debug mode → tap the scripted question buttons (each shows the question it asks). Alex answers with local audio and the transcript still counts. |
+| Alex does not sit or move when asked | Control panel → **Ask Alex to sit down** (shown when voice is not connected), or Debug mode → the four patient movement buttons. He cannot be examined while standing. |
 | Pinch does not register on the wrist | Debug mode → zone buttons. Same reaction, same scoring. |
 | Engine shows **Offline** | Nothing — keep going. Findings and feedback are identical. |
 | Patient is in the wrong place | **Recenter Patient** while looking where Alex should sit. |

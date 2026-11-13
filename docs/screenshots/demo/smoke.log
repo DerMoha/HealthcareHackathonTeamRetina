@@ -1,29 +1,66 @@
 STEP 01-launch
 immersive opened=true
-placed at SIMD3<Float>(0.3, 0.0, -1.4) tracked=false
+placed at SIMD3<Float>(0.45, 0.0, -1.7) tracked=false
+behavior reset state=standing_idle
 zones rebuilt ["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"]
-avatar usdz joints=53 size=SIMD3<Float>(0.52524173, 1.37687, 0.7801993) minY=0.0
+avatar usdz joints=53 size=SIMD3<Float>(0.52524173, 1.37687, 0.78019935) minY=0.0
+pose standing_idle right_wrist moved=0.54
 immersive scene built zones=3
-session id=b4e8a576cb5b47409025c8800033af5e zones=["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"] engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=0 error=none
+pose standing_idle right_wrist moved=0.54
+session id=b724c9e65c7e4975bcfaaa2cff25ebdc zones=["right_anatomical_snuffbox", "right_distal_forearm", "left_wrist"] engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=0 error=none
 STEP 02-session
+standing examine state=standing_idle engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=0 error=none
+STEP 03-sitting
+behavior standing_idle -> sitting_down
+action sit_down -> success: Alex is sitting down. exams=0 turns=0
+action sit_down -> success: Alex is already seated. exams=0 turns=0
+pose sitting_down right_wrist moved=0.01
+behavior sitting_down -> seated_idle
+pose seated_idle right_wrist moved=0.00
+STEP 03-seated
 asked greeting engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=2 error=none
 audio clip=greeting started=true duration=5.03s
 asked mechanism engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=0 turns=4 error=none
 audio clip=mechanism started=true duration=4.87s
 STEP 03-conversation
+behavior seated_idle -> extending_arms
+action extend_both_arms -> success: Alex is holding both arms out. exams=0 turns=4
+behavior extending_arms -> returning_to_rest
+action relax_arms -> success: Alex is resting his arms. exams=0 turns=4
+behavior returning_to_rest -> extending_arms
+action extend_both_arms -> success: Alex is holding both arms out. exams=0 turns=4
+pose extending_arms right_wrist moved=0.32
+behavior extending_arms -> arms_extended
+pose arms_extended right_wrist moved=0.32
+STEP 04-arms-extended
+behavior arms_extended -> indicating_wrist
+action indicate_right_wrist -> success: Alex is showing his right wrist. exams=0 turns=4
+STEP 04-indicating
+pose indicating_wrist right_wrist moved=0.45
+behavior indicating_wrist -> returning_to_rest
+pose returning_to_rest right_wrist moved=0.31
+behavior returning_to_rest -> arms_extended
+pose arms_extended right_wrist moved=0.31
 examined left_wrist finding=normal pain=0 animation=none speakLocally=true engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=1 turns=5 error=none
 zone flash left_wrist painful=false
 audio clip=left_wrist started=true duration=2.69s
 STEP 04-pain
+behavior arms_extended -> pain_recoil
 examined right_anatomical_snuffbox finding=marked_tenderness pain=8 animation=arm_withdrawal speakLocally=true engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=2 turns=6 error=none
 animation arm_withdrawal
 zone flash right_anatomical_snuffbox painful=true
 audio clip=right_anatomical_snuffbox started=true duration=2.99s
+pose pain_recoil right_wrist moved=0.23
+behavior pain_recoil -> returning_to_rest
+pose returning_to_rest right_wrist moved=0.31
+behavior returning_to_rest -> arms_extended
+pose arms_extended right_wrist moved=0.31
+after recoil state=arms_extended engine=Backend voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=2 turns=6 error=none
 STEP 05-killwindow
 examined right_distal_forearm finding=no_focal_tenderness pain=1 animation=none speakLocally=true engine=Offline voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=7 error=none
 zone flash right_distal_forearm painful=false
 audio clip=right_distal_forearm started=true duration=1.74s
-placed at SIMD3<Float>(0.3, 0.0, -1.4) tracked=false
+placed at SIMD3<Float>(0.45, 0.0, -1.7) tracked=false
 recentered token=1
 pre-diagnosis feedback verdict=not_submitted criteria=[0, 0, 0, 0]
 notebook open=true engine=Offline voice=Error: No agent ID set and backend has no voice token (ElevenLabs not configured) mic=Unknown exams=3 turns=7 error=none
@@ -32,6 +69,8 @@ STEP 07-notebook-examination
 STEP 08-notebook-assessment
 diagnosed score=72/100 verdict=correct categories=["history:12", "examination:40", "communication:10", "reasoning:10"] notes=["mechanism:documented", "onset:documented", "location:unsupported", "associated_symptoms:unsupported", "examined_injured_wrist:documented", "examined_snuffbox:documented", "comparison:documented"] engine=Offline voice=Disconnected mic=Unknown exams=3 turns=7 error=none
 STEP 09-feedback
+behavior reset state=standing_idle
+pose standing_idle right_wrist moved=0.54
 reset feedback=cleared notes=blank engine=Offline voice=Error: No agent ID set and backend unreachable for voice token mic=Unknown exams=0 turns=0 error=none
 STEP 10-reset
 STEP 11-stopped

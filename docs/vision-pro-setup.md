@@ -10,7 +10,7 @@ Requires **visionOS 26.0 or later** on the headset (minimum of the ElevenLabs/Li
 4. `xcodegen`, open `MedSimXR.xcodeproj`, pick the Vision Pro as destination, Run. Trust the developer profile on the headset if asked (Settings > General > VPN & Device Management).
 5. **Backend**: run it bound to `0.0.0.0` (not localhost) on the same Wi-Fi as the headset; allow incoming connections in the macOS firewall.
 6. **Permission prompts**: accept Microphone, Local Network, and Hand Tracking (only needed for fingertip mode) when asked. If you denied one, fix it in Settings > Apps > MedSim XR.
-7. In the app: Start Session. The immersive space opens, the patient appears ~1.4 m ahead. Use Recenter Patient to re-place.
+7. In the app: Start Session. The immersive space opens, the patient appears stool ~1.7 m ahead (he stands ~0.4 m closer). Use Recenter Patient to re-place.
 
 The backend host and agent ID can also be edited in the panel's Settings; they apply on the next Start.
 
@@ -18,7 +18,7 @@ The backend host and agent ID can also be edited in the panel's Settings; they a
 
 - [ ] Microphone captures speech; patient audio is audible and not echoing.
 - [ ] Mixed immersion: real room visible, no full-immersion switch.
-- [ ] Placement: patient on the floor, ~1.4 m ahead, facing you; Recenter re-places correctly after turning/moving.
+- [ ] Placement: patient on the floor, stool ~1.7 m ahead (he stands ~0.4 m closer), facing you; Recenter re-places correctly after turning/moving.
 - [ ] Scale: seated head about 1.3 m; forearm rests on thigh without clipping badly.
 - [ ] Gaze + pinch on each of the 3 zones triggers the right reaction; zones do not overlap; hover highlight shows.
 - [ ] Arm-withdrawal / flinch animation and "Ow!" clip fire on the snuffbox.

@@ -31,6 +31,8 @@ enum SessionPhase: Equatable {
 final class AppModel {
     let engine: any ClinicalEngine
     let voice: any VoiceService
+    /// The patient's body: standing, sitting, arm poses, recoil.
+    let behavior = PatientBehaviorController()
 
     private(set) var phase: SessionPhase = .idle
     private(set) var session: SessionInfo?
@@ -62,6 +64,7 @@ final class AppModel {
         self.engine = engine
         self.voice = voice
         voice.onTranscript = { [weak self] turn in self?.record(turn) }
+        voice.onAction = { [weak self] raw in self?.performPatientAction(raw) ?? "failure: unavailable" }
     }
 
     // MARK: Session
@@ -97,17 +100,28 @@ final class AppModel {
         Task { await voice.setMicMuted(open && phase == .running) }
     }
 
+    /// Body movement requested by the voice agent's client tool or a debug button. Never an
+    /// examination and never a transcript turn, so it cannot earn points.
+    @discardableResult
+    func performPatientAction(_ raw: String) -> String {
+        guard phase == .running else { return "failure: no session is running" }
+        let result = behavior.perform(raw).text
+        SmokeLog.mark("action \(raw) -> \(result) exams=\(examinations.count) turns=\(transcript.count)")
+        return result
+    }
+
     // MARK: Examination
 
     /// Entry point for gaze+pinch, fingertip contact and debug buttons.
     func examine(zoneId: String) async {
-        guard phase == .running else { return }
+        guard phase == .running, behavior.canExamine else { return }
         let now = Date()
         guard now.timeIntervalSince(lastExamineAt) >= Self.examineCooldown else { return }
         lastExamineAt = now
         do {
             let result = try await engine.examine(zoneId: zoneId, action: "palpation")
             examinations.append(result)
+            if result.animation != "none" { behavior.pain(withdrawArm: result.animation == "arm_withdrawal") }
             let live = voice.status == .connected
             reaction = ReactionEvent(
                 animation: result.animation,
@@ -167,6 +181,7 @@ final class AppModel {
         notebookTab = .history
         notebookOpen = false
         lastExamineAt = .distantPast
+        behavior.reset()
         phase = .running
     }
 

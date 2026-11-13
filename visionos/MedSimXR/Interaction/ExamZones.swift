@@ -15,6 +15,7 @@ extension PatientAvatar {
             e.components.set(CollisionComponent(shapes: [.generateSphere(radius: zone.radius)]))
             e.components.set(InputTargetComponent())
             e.components.set(HoverEffectComponent())
+            e.isEnabled = zonesEnabled
             parent.addChild(e)
             zoneEntities.append(e)
         }

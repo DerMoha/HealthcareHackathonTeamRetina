@@ -46,6 +46,7 @@ python -m pytest
 Swift offline engine check, including parity with the backend's golden fixture (macOS):
 ```bash
 bash visionos/scripts/check_offline_engine.sh
+bash visionos/scripts/check_patient_behavior.sh   # patient body state machine
 ```
 
 ## 2. ElevenLabs

@@ -138,3 +138,26 @@ passed`, `parity: 0 field difference(s)`; smoke test passed in three variants
 Known visual limits seen in the screenshots: fingers are slightly splayed, the face is neutral
 and does not move, and the first session start shows the patient about a second late while the
 model loads.
+
+## Voice-driven behaviour pass (2026-11-13)
+
+Scripted `-autoDemo` runs in the visionOS simulator; nobody spoke, pinched or listened.
+
+| Item | Result | How |
+|---|---|---|
+| State machine (transitions, repeats, interruptions, fallback body) | Pass | `visionos/scripts/check_patient_behavior.sh` |
+| Starts standing, examination refused while standing | Pass | smoke log `standing examine … exams=0` |
+| Sit down, feet planted, lands on the stool | Pass | screenshots `03-sitting-*`, `03-seated` |
+| Repeated sit request does not restart | Pass | smoke log |
+| Extend → relax mid-move → extend again | Pass | smoke log `returning_to_rest -> extending_arms` |
+| Arms extended, zones travel with the wrist (0.31 m) | Pass | smoke log `pose arms_extended right_wrist moved=` and red flash on the wrist in `04-pain-*` |
+| Indicate right wrist, returns to previous posture | Pass | `04-indicating` |
+| Painful palpation: recoil, back to arms extended, 1 exam per touch | Pass | smoke log `after recoil state=arms_extended … exams=2` |
+| Movements add no examinations | Pass | smoke log `action … exams=0` |
+| Spoken phrase → action (scripted mock voice) | Pass | `--mock-voice`: `heard "Please have a seat." action=sit_down` |
+| Primitive fallback body: seated, arm poses report failure | Pass | `--procedural` |
+| Live agent calls the client tool; several phrasings | **Not tested** | no ElevenLabs credentials |
+| Agent wording after `invalid_state` | **Not tested** | needs live LLM |
+| Walking into the room | Not built | stretch goal |
+
+Known limits: the standing arm pose is plain (elbows slightly out); fingers do not move; sitting keeps the shins vertical; no offline spoken greeting.

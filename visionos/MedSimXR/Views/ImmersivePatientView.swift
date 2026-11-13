@@ -21,6 +21,8 @@ struct ImmersivePatientView: View {
             avatar.rebuildZones(model.zones)
             avatar.startIdle()
             await avatar.loadOptionalVisuals()
+            model.behavior.attach(animated: avatar.isAnimated) { await avatar.apply($0) }
+            await avatar.apply(model.behavior.machine, snap: true)
             SmokeLog.mark("immersive scene built zones=\(avatar.zoneEntities.count)")
         } attachments: {
             Attachment(id: "notebook") { NotebookView().environment(model) }
@@ -42,6 +44,7 @@ struct ImmersivePatientView: View {
             avatar.rebuildZones(zones)
             SmokeLog.mark("zones rebuilt \(avatar.zoneEntities.map(\.name))")
         }
+        .onChange(of: model.behavior.canExamine, initial: true) { _, can in avatar.zonesEnabled = can }
         .onChange(of: model.reaction?.id) {
             guard let r = model.reaction else { return }
             Task { await avatar.play(animation: r.animation) }

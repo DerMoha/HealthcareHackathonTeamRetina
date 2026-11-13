@@ -58,3 +58,18 @@ If voice cannot be fixed in time: demo with Debug mode scripted questions; every
 - [ ] Kill the backend mid-session → Engine switches to **Offline**, session continues, feedback still appears.
 - [ ] Optional: `ELEVENLABS_API_KEY=… ELEVENLABS_VOICE_ID=… python3 elevenlabs/generate_clips.py`, rebuild → offline lines use the agent's voice instead of the macOS placeholder.
 - [ ] Optional, only if everything above is solid: Settings → Fingertip examination.
+
+## Voice-driven movement (added with the behaviour state machine)
+
+Needs a live ElevenLabs agent with the `perform_patient_action` client tool (elevenlabs/setup.md, step 5b). None of this was run against a live agent.
+
+- [ ] Session start: Alex stands in front of the stool and says hello.
+- [ ] "Please have a seat" (and two other phrasings): Alex acknowledges and sits. Feet stay planted.
+- [ ] "Could you stretch out your arms?": both arms come forward. "You can relax": they go back.
+- [ ] "Which wrist hurts?": he lifts the right wrist and answers in words.
+- [ ] Ask for arms while he is standing: he says he needs to sit first and does not claim to have moved.
+- [ ] Gaze + pinch on the wrist zones with arms extended: the highlight sits on the wrist, not on the thigh where it used to be.
+- [ ] Painful palpation with arms extended: recoil, then arms return to the extended pose; conversation continues without reconnecting.
+- [ ] Zones cannot be pinched while he stands.
+- [ ] Standing distance: his head is about 1 m from you when standing (he steps back onto the stool when sitting). Adjust `Placement.distance` if too close.
+- [ ] No voice: the control panel shows "Ask Alex to sit down"; Debug has all four movements.

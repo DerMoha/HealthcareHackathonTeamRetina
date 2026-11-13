@@ -56,6 +56,16 @@ struct ControlPanelView: View {
                 + "animation=\(model.reaction?.animation ?? "?") speakLocally=\(model.reaction?.speakLocally ?? false) \(state())")
         }
 
+        /// A spoken request: through the scripted voice when it is connected, else the same
+        /// action hook directly (what the debug buttons do).
+        func say(_ text: String, _ action: String) async {
+            if let mock = model.voice as? MockVoiceService, mock.status == .connected {
+                await mock.hear(text)
+            } else {
+                model.performPatientAction(action)
+            }
+        }
+
         await pause(3)
         SmokeLog.mark("STEP 01-launch")
         await pause(3)
@@ -63,10 +73,20 @@ struct ControlPanelView: View {
         if case .opened = await openImmersiveSpace(id: "patient") { immersed = true }
         SmokeLog.mark("immersive opened=\(immersed)")
         await model.startSession()
-        await pause(3)
+        await pause(3.5)
         SmokeLog.mark("session id=\(model.session?.sessionId ?? "none") zones=\(model.zones.map(\.id)) \(state())")
         SmokeLog.mark("STEP 02-session")
         await pause(3)
+
+        // Standing: the wrist cannot be examined yet, and a spoken request is never an examination.
+        await model.examine(zoneId: "right_anatomical_snuffbox")
+        SmokeLog.mark("standing examine state=\(model.behavior.state.rawValue) \(state())")
+        SmokeLog.mark("STEP 03-sitting") // the script takes a burst of screenshots here
+        await say("Please have a seat.", "sit_down")
+        await say("Please sit down.", "sit_down") // repeated command
+        await pause(3)
+        SmokeLog.mark("STEP 03-seated")
+        await pause(2)
 
         for line in model.scriptedDialogue.prefix(2) {
             model.askScripted(line)
@@ -74,13 +94,29 @@ struct ControlPanelView: View {
             await pause(4.5)
         }
         SmokeLog.mark("STEP 03-conversation")
-        await pause(3)
+        await pause(2)
+
+        // Interrupted: relax in the middle of extending, then extend again.
+        await say("Could you stretch out both arms?", "extend_both_arms")
+        await pause(0.3)
+        await say("Actually, relax your arms.", "relax_arms")
+        await pause(0.2)
+        await say("Please hold both arms out for me.", "extend_both_arms")
+        await pause(2)
+        SmokeLog.mark("STEP 04-arms-extended")
+        await pause(2)
+        await say("Which wrist hurts?", "indicate_right_wrist")
+        await pause(0.6)
+        SmokeLog.mark("STEP 04-indicating")
+        await pause(3.5)
 
         await examine("left_wrist")
         await pause(3.5)
         SmokeLog.mark("STEP 04-pain")
         await examine("right_anatomical_snuffbox")
-        await pause(5)
+        await pause(3)
+        SmokeLog.mark("after recoil state=\(model.behavior.state.rawValue) \(state())")
+        await pause(2)
 
         SmokeLog.mark("STEP 05-killwindow") // the script may kill the backend here
         await pause(8)
@@ -145,6 +181,11 @@ struct ControlPanelView: View {
             statusRow(model.voice.micStatus == .live ? "mic.fill" : "mic.slash", "Microphone", model.voice.micStatus.rawValue,
                       color: model.voice.micStatus == .live ? .green : .secondary)
             statusRow("server.rack", "Engine", model.engineModeLabel, color: .secondary)
+            // One-tap fallback when nobody is listening: without it a standing patient cannot be examined.
+            if model.phase == .running, model.behavior.state == .standingIdle, model.voice.status != .connected {
+                Button("Ask Alex to sit down") { model.performPatientAction(PatientAction.sitDown.rawValue) }
+                    .buttonStyle(.bordered)
+            }
         }
         .padding(14)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
@@ -226,6 +267,13 @@ struct ControlPanelView: View {
             ForEach(model.zones) { z in
                 Button(z.label) { Task { await model.examine(zoneId: z.id) } }
                     .buttonStyle(.bordered).disabled(model.phase != .running)
+            }
+            Text("Patient: \(model.behavior.state.rawValue.replacingOccurrences(of: "_", with: " "))").font(.subheadline.bold())
+            ForEach(PatientAction.allCases, id: \.self) { action in
+                Button(action.rawValue.replacingOccurrences(of: "_", with: " ").capitalized) {
+                    model.performPatientAction(action.rawValue)
+                }
+                .buttonStyle(.bordered).disabled(model.phase != .running)
             }
             Text("Ask").font(.subheadline.bold())
             ForEach(model.scriptedDialogue) { line in

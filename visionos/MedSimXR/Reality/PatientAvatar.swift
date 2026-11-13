@@ -13,6 +13,8 @@ final class PatientAvatar {
     private let rightArm = Entity()
     private(set) var anchors: [String: Entity] = [:]
     var zoneEntities: [Entity] = []
+    /// Zones are only targetable while the patient is seated (PatientBehavior.canExamine).
+    var zonesEnabled = true { didSet { zoneEntities.forEach { $0.isEnabled = zonesEnabled } } }
     private var visuals: [ModelEntity] = []
     private var head = Entity()
     private var torso = Entity()
@@ -156,6 +158,17 @@ final class PatientAvatar {
     private var jointIndex: [String: Int] = [:]
     /// Current model-space rotation offsets per joint (short name), applied on top of the rest pose.
     private var jointDelta: [String: simd_quatf] = [:]
+    private var model: Entity?
+    private var parentIndex: [Int?] = []
+    /// Rest-pose joint matrices in the skinned mesh's space, and that space -> avatar root.
+    private var restWorld: [simd_float4x4] = []
+    private var meshToRoot = matrix_identity_float4x4
+    /// Exam anchors ride on these joints, so zones stay on the wrist in every pose.
+    private static let anchorJoints = ["right_wrist": "hand_r", "right_forearm": "lowerarm_r", "left_wrist": "hand_l"]
+    private var anchorRest: [String: simd_float4x4] = [:]
+
+    /// True when the skinned model is in use and can be posed.
+    var isAnimated: Bool { skinned != nil }
 
     /// Swaps the primitive body for the bundled seated human (assets/patient). The model was
     /// exported from Blender: Z up, facing -Y. Anchors come from Patient.json, in avatar space.
@@ -186,12 +199,18 @@ final class PatientAvatar {
             let indexByPath = Dictionary(uniqueKeysWithValues: names.enumerated().map { ($1, $0) })
             var world = [simd_quatf](repeating: simd_quatf(angle: 0, axis: [0, 1, 0]), count: names.count)
             parentRotation = world
+            parentIndex = names.map { _ in nil }
             for (i, path) in names.enumerated() { // parents precede children
                 let parts = path.split(separator: "/")
                 jointIndex[String(parts.last ?? "")] = i
-                if let parent = indexByPath[parts.dropLast().joined(separator: "/")] { parentRotation[i] = world[parent] }
+                parentIndex[i] = indexByPath[parts.dropLast().joined(separator: "/")]
+                if let parent = parentIndex[i] { parentRotation[i] = world[parent] }
                 world[i] = parentRotation[i] * restJoints[i].rotation
             }
+            self.model = model
+            restWorld = forwardKinematics(restJoints)
+            meshToRoot = mesh.transformMatrix(relativeTo: root)
+            for name in Self.anchorJoints.keys { anchorRest[name] = anchors[name]?.transformMatrix(relativeTo: root) }
         }
         let b = model.visualBounds(relativeTo: root)
         SmokeLog.mark("avatar usdz joints=\(restJoints.count) size=\(b.extents) minY=\(b.min.y)")
@@ -220,25 +239,65 @@ final class PatientAvatar {
         }
     }
 
+    private func forwardKinematics(_ joints: [Transform]) -> [simd_float4x4] {
+        var world = joints.map(\.matrix)
+        for i in world.indices { if let parent = parentIndex[i] { world[i] = world[parent] * world[i] } }
+        return world
+    }
+
+    /// Writes `jointDelta` to the skeleton, keeps the feet where they were (the pelvis moves
+    /// instead) and moves the exam anchors with their joints.
+    private func applyJoints() {
+        guard let skinned, let model else { return }
+        var joints = restJoints
+        for (name, delta) in jointDelta {
+            guard let i = jointIndex[name] else { continue }
+            joints[i].rotation = parentRotation[i].inverse * delta * parentRotation[i] * restJoints[i].rotation
+        }
+        skinned.jointTransforms = joints
+        let world = forwardKinematics(joints)
+        var shift = SIMD4<Float>.zero
+        let feet = ["foot_l", "foot_r"].compactMap { jointIndex[$0] }
+        for i in feet { shift += (meshToRoot * (restWorld[i].columns.3 - world[i].columns.3)) / Float(feet.count) }
+        model.position = [shift.x, shift.y, shift.z]
+        var planted = matrix_identity_float4x4
+        planted.columns.3 = [shift.x, shift.y, shift.z, 1]
+        for (anchor, joint) in Self.anchorJoints {
+            guard let i = jointIndex[joint], let rest = anchorRest[anchor] else { continue }
+            anchors[anchor]?.setTransformMatrix(planted * meshToRoot * world[i] * restWorld[i].inverse * meshToRoot.inverse * rest,
+                                                relativeTo: root)
+        }
+    }
+
     /// Eases joints to model-space rotation offsets (Blender axes: X = patient's left, -Y = front, Z = up).
-    private func tweenJoints(_ target: [String: simd_quatf], duration: Double) async {
-        guard let skinned else { return }
+    /// `lean` adds a forward torso lean that peaks mid-way. Stops where it is when cancelled.
+    private func tweenJoints(_ target: [String: simd_quatf], duration: Double, lean: Float = 0) async {
+        guard skinned != nil else { return }
         let start = target.keys.reduce(into: [String: simd_quatf]()) {
             $0[$1] = jointDelta[$1] ?? simd_quatf(angle: 0, axis: [0, 1, 0])
         }
         let frames = max(1, Int(duration * 60))
         for frame in 1...frames {
+            if Task.isCancelled { return }
             let t = Float(frame) / Float(frames)
             let eased = t * t * (3 - 2 * t)
             for (name, goal) in target { jointDelta[name] = simd_slerp(start[name]!, goal, eased) }
-            var joints = restJoints
-            for (name, delta) in jointDelta {
-                guard let i = jointIndex[name] else { continue }
-                joints[i].rotation = parentRotation[i].inverse * delta * parentRotation[i] * restJoints[i].rotation
+            if lean != 0, let spine = jointDelta["spine_01"] {
+                jointDelta["spine_01"] = Self.rot(lean * sin(.pi * t), [1, 0, 0]) * spine
             }
-            skinned.jointTransforms = joints
-            try? await Task.sleep(nanoseconds: 16_000_000)
+            applyJoints()
+            if frame < frames { try? await Task.sleep(nanoseconds: 16_000_000) }
         }
+    }
+
+    /// Moves the body to the behaviour's pose. `snap` skips the animation (first appearance).
+    func apply(_ behavior: PatientBehavior, snap: Bool = false) async {
+        guard isAnimated else { return }
+        await tweenJoints(behavior.pose.mapValues { Self.rot($0, [1, 0, 0]) },
+                          duration: snap ? 0 : behavior.state.duration, lean: snap ? 0 : behavior.lean)
+        guard !Task.isCancelled, let rest = anchorRest["right_wrist"], let wrist = anchors["right_wrist"] else { return }
+        let moved = simd_distance(wrist.position(relativeTo: root), [rest.columns.3.x, rest.columns.3.y, rest.columns.3.z])
+        SmokeLog.mark("pose \(behavior.state.rawValue) right_wrist moved=\(String(format: "%.2f", moved))")
     }
 
     private static func rot(_ degrees: Float, _ axis: SIMD3<Float>) -> simd_quatf {
@@ -272,6 +331,7 @@ final class PatientAvatar {
 
     func stopIdle() { idleTask?.cancel() }
 
+    /// Primitive fallback body only; the skinned model recoils through `apply(_:)`.
     func play(animation: String) async {
         guard animation == "arm_withdrawal" || animation == "flinch" else { return }
         SmokeLog.mark("animation \(animation)")
@@ -289,16 +349,8 @@ final class PatientAvatar {
             pull.translation += [0, 0.03, -0.12]
             rightArm.move(to: pull, relativeTo: rightArm.parent, duration: 0.12, timingFunction: .easeOut)
         }
-        // realistic model: lean back, pull the right elbow back and lift the forearm off the thigh
-        var joints: [String: simd_quatf] = ["spine_01": Self.rot(-7, [1, 0, 0]), "head": Self.rot(-6, [1, 0, 0])]
-        if animation == "arm_withdrawal" {
-            joints["upperarm_r"] = Self.rot(24, [1, 0, 0])
-            joints["lowerarm_r"] = Self.rot(-22, [1, 0, 0])
-        }
-        await tweenJoints(joints, duration: 0.14)
         try? await Task.sleep(nanoseconds: 650_000_000)
         upper.move(to: upperBase, relativeTo: upper.parent, duration: 0.45, timingFunction: .easeInOut)
         rightArm.move(to: armBase, relativeTo: rightArm.parent, duration: 0.45, timingFunction: .easeInOut)
-        await tweenJoints(joints.mapValues { _ in Self.rot(0, [1, 0, 0]) }, duration: 0.45)
     }
 }

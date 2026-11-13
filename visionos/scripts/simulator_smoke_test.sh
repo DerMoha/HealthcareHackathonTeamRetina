@@ -89,9 +89,9 @@ for _ in $(seq 1 480); do   # up to 120 s
       line=$(sed -n "${seen}p" "$LOG")
       echo "  $line"
       case "$line" in
-        "STEP 04-pain")
-          # the flinch peaks within ~0.8 s of the examination that follows this cue
-          for i in 1 2 3 4; do xcrun simctl io "$UDID" screenshot "$OUT/04-pain-$i.png" >/dev/null 2>&1; done ;;
+        "STEP 04-pain"|"STEP 03-sitting")
+          # a burst: the flinch peaks within ~0.8 s, sitting down takes ~1.8 s
+          for i in 1 2 3 4; do xcrun simctl io "$UDID" screenshot "$OUT/${line#STEP }-$i.png" >/dev/null 2>&1; done ;;
         "STEP 05-killwindow")
           xcrun simctl io "$UDID" screenshot "$OUT/05-killwindow.png" >/dev/null 2>&1
           if [ $KILL = 1 ] && [ -n "$BACKEND_PID" ]; then kill -9 "$BACKEND_PID"; BACKEND_PID=""; echo "  (backend killed)"; fi ;;
@@ -129,13 +129,29 @@ expect "notebook opened"                   "^notebook open=true"
 expect "notes checked against the record"  "notes=\[.*examined_snuffbox:documented.*\]"
 expect "unsupported note flagged"          "notes=\[.*associated_symptoms:unsupported.*\]"
 expect "diagnosis scored as correct"       "diagnosed score=[0-9]+/100 verdict=correct"
-expect "reset cleared session and notes"    "reset feedback=cleared notes=blank .*exams=0 turns=0"
+expect "reset cleared session and notes"    "reset feedback=cleared notes=blank .*exams=0 turns=[01] "
+expect "new encounter starts the body over"  "^behavior reset state=(standing_idle|seated_idle)"
+if [ $PROCEDURAL = 1 ]; then
+  expect "fallback body: arm pose fails honestly" "^action extend_both_arms -> failure"
+else
+  expect "no examination while standing"     "^standing examine state=standing_idle .*exams=0 "
+  expect "sat down on request"               "^behavior sitting_down -> seated_idle"
+  expect "repeated sit request is a no-op"   "^action sit_down -> success: Alex is already seated"
+  expect "movement is not an examination"    "^action extend_both_arms -> success.* exams=0 "
+  expect "interrupted extension recovered"   "^behavior returning_to_rest -> extending_arms"
+  expect "arms extended"                     "^behavior extending_arms -> arms_extended"
+  expect "zones followed the wrist"          "^pose arms_extended right_wrist moved=0\.[1-9]"
+  expect "indicated the wrist, then returned" "^behavior indicating_wrist -> returning_to_rest"
+  expect "recoil from the examination pose"  "^behavior arms_extended -> pain_recoil"
+  expect "examination pose restored, one exam recorded per touch" "^after recoil state=arms_extended .*exams=2 "
+fi
 reject "no engine errors"                  "error=[^n]"
 if [ $MOCK_VOICE = 1 ]; then
   expect "scripted voice connected, mic live" "^session .*voice=Connected mic=Live"
   expect "exam reaction left to the agent"    "examined right_anatomical_snuffbox .*speakLocally=false"
   expect "pain clip played instantly"         "audio clip=ouch started=true"
   expect "notebook mutes the microphone"      "^notebook open=true .*mic=Muted"
+  [ $PROCEDURAL = 1 ] || expect "spoken request triggered the action" "^heard \"Please have a seat.\" action=sit_down result=success"
 fi
 if [ $KILL = 1 ]; then
   expect "fell back to offline after kill" "examined right_distal_forearm .*engine=Offline .*exams=3 "

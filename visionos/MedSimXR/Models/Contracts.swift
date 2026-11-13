@@ -203,6 +203,9 @@ protocol VoiceService: AnyObject {
     /// Called on the main actor for every finalized learner/patient utterance.
     /// Must NOT be called for bracketed examination stage directions.
     var onTranscript: ((TranscriptTurn) -> Void)? { get set }
+    /// Called when the agent's client tool `perform_patient_action` fires, with the raw
+    /// `action` string. Returns the tool result ("success: …", "invalid_state: …", "failure: …").
+    var onAction: ((String) -> String)? { get set }
 
     /// Connects and passes `caseContext` as dynamic variable `case_context`.
     func start(caseContext: String) async

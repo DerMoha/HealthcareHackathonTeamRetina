@@ -90,6 +90,7 @@ final class MockVoiceService: VoiceService {
     private(set) var micStatus: MicStatus = .unknown
     private(set) var isAgentSpeaking = false
     @ObservationIgnored var onTranscript: ((TranscriptTurn) -> Void)?
+    @ObservationIgnored var onAction: ((String) -> String)?
     @ObservationIgnored private let scripted: Bool
 
     init(scripted: Bool = false) { self.scripted = scripted }
@@ -100,6 +101,29 @@ final class MockVoiceService: VoiceService {
         try? await Task.sleep(nanoseconds: 600_000_000)
         status = .connected
         micStatus = .live
+        onTranscript?(TranscriptTurn(role: .patient, text: "Hello, doctor."))
+    }
+
+    /// Deterministic stand-in for the live agent hearing the learner: the phrase is recorded as
+    /// learner speech and, if it asks for a movement, the same action hook the client tool uses fires.
+    func hear(_ text: String) async {
+        guard scripted, status == .connected else { return }
+        onTranscript?(TranscriptTurn(role: .learner, text: text))
+        let phrases: [(String, [String])] = [
+            ("sit_down", ["sit", "seat"]), ("extend_both_arms", ["stretch", "hold", "extend"]),
+            ("relax_arms", ["relax", "rest your"]), ("indicate_right_wrist", ["which wrist", "show me", "where"]),
+        ]
+        let lower = text.lowercased()
+        var reply = "Okay."
+        if let action = phrases.first(where: { $0.1.contains { lower.contains($0) } })?.0 {
+            let result = onAction?(action) ?? "failure: unavailable"
+            SmokeLog.mark("heard \"\(text)\" action=\(action) result=\(result)")
+            reply = result.hasPrefix("success") ? "Of course." : "Sorry, I can't do that right now."
+        }
+        isAgentSpeaking = true
+        try? await Task.sleep(nanoseconds: 150_000_000)
+        onTranscript?(TranscriptTurn(role: .patient, text: reply))
+        isAgentSpeaking = false
     }
 
     func setMicMuted(_ muted: Bool) async {

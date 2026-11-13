@@ -22,6 +22,7 @@
 		41AD297898C27AB4EFECBB1A /* FingertipExaminer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C294E97270F41EF68340CFAC /* FingertipExaminer.swift */; };
 		45883C3FCB36D3A3F7708CE9 /* OfflineClinicalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E01D899BCF7FED4BE9771CAE /* OfflineClinicalEngine.swift */; };
 		459B23FC441D501F6C5AA983 /* ElevenLabsVoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010C4E1EF27A8CCED80291E9 /* ElevenLabsVoiceService.swift */; };
+		4F2607BE348446FF53F53F84 /* PatientBehavior.swift in Sources */ = {isa = PBXBuildFile; fileRef = F82E1498E3EB5ABC0CF5A628 /* PatientBehavior.swift */; };
 		638950D355C4B2A3F8152287 /* wrist_trauma_001.json in Resources */ = {isa = PBXBuildFile; fileRef = CB6B263C048F155DE6E6A502 /* wrist_trauma_001.json */; };
 		69AFADE54BECA84E4EE361C0 /* permission.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 5AA46EA955BF17CD85554A2D /* permission.m4a */; };
 		6AE62016437F65B972D32412 /* greeting.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 41987FE7A5AF451369BD2C62 /* greeting.m4a */; };
@@ -39,6 +40,7 @@
 		BAB62293E9693B4C029B5A5F /* location.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D5FA3ED3B156DCAED6F9F289 /* location.m4a */; };
 		BBB730040571EB343A90CB83 /* Patient.usdz in Resources */ = {isa = PBXBuildFile; fileRef = DAC227FB2E23D5588C500963 /* Patient.usdz */; };
 		C58D6A32827F0E9D044A117E /* numbness.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 8FAB4E7C3261A194949DF12A /* numbness.m4a */; };
+		CAA2E484EF14CE8B6C028B36 /* PatientBehaviorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DD6071FB9A69FE5CA9A0B74 /* PatientBehaviorController.swift */; };
 		D94BFB74632487EE524140D3 /* ouch.m4a in Resources */ = {isa = PBXBuildFile; fileRef = F92D79924D92B2B6DE8BBF1A /* ouch.m4a */; };
 		E056F5B5AD983F47572264A6 /* MedSimXRApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87ED0E452FE02E813528F56E /* MedSimXRApp.swift */; };
 		F2FCD2EC23CEA09C76DF3977 /* ElevenLabs in Frameworks */ = {isa = PBXBuildFile; productRef = F90D86F30FBC30CCC90AB615 /* ElevenLabs */; };
@@ -60,6 +62,7 @@
 		85B90974265C58FFFAB6E33D /* Mocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mocks.swift; sourceTree = "<group>"; };
 		870FD8DD945440A47FF1F123 /* left_wrist.m4a */ = {isa = PBXFileReference; path = left_wrist.m4a; sourceTree = "<group>"; };
 		87ED0E452FE02E813528F56E /* MedSimXRApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedSimXRApp.swift; sourceTree = "<group>"; };
+		8DD6071FB9A69FE5CA9A0B74 /* PatientBehaviorController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientBehaviorController.swift; sourceTree = "<group>"; };
 		8FAB4E7C3261A194949DF12A /* numbness.m4a */ = {isa = PBXFileReference; path = numbness.m4a; sourceTree = "<group>"; };
 		9BC2A7B7B970B168F87EA0C7 /* SmokeLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeLog.swift; sourceTree = "<group>"; };
 		9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -78,6 +81,7 @@
 		E6310C1B6E1AB9690C75362D /* severity.m4a */ = {isa = PBXFileReference; path = severity.m4a; sourceTree = "<group>"; };
 		E75741D34388289151EF4590 /* FallbackClinicalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FallbackClinicalEngine.swift; sourceTree = "<group>"; };
 		EF5A25A3DADF9B4063BE901C /* ReactionPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReactionPlayer.swift; sourceTree = "<group>"; };
+		F82E1498E3EB5ABC0CF5A628 /* PatientBehavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientBehavior.swift; sourceTree = "<group>"; };
 		F92D79924D92B2B6DE8BBF1A /* ouch.m4a */ = {isa = PBXFileReference; path = ouch.m4a; sourceTree = "<group>"; };
 		FB4FF19E7D6B4AD2ECB4AF67 /* MedSimXR.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MedSimXR.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC9C9B36CB6529DAFB8E3273 /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
@@ -191,6 +195,7 @@
 				768CDF0F9495A8A476DC168D /* AppConfig.swift */,
 				B46355DA7F1620E7187A59E3 /* Contracts.swift */,
 				85B90974265C58FFFAB6E33D /* Mocks.swift */,
+				F82E1498E3EB5ABC0CF5A628 /* PatientBehavior.swift */,
 				9BC2A7B7B970B168F87EA0C7 /* SmokeLog.swift */,
 			);
 			path = Models;
@@ -229,6 +234,7 @@
 			children = (
 				9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */,
 				87ED0E452FE02E813528F56E /* MedSimXRApp.swift */,
+				8DD6071FB9A69FE5CA9A0B74 /* PatientBehaviorController.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -357,6 +363,8 @@
 				B44DA5C871277FB6E11C2230 /* NotebookView.swift in Sources */,
 				45883C3FCB36D3A3F7708CE9 /* OfflineClinicalEngine.swift in Sources */,
 				2B18EB1CC30A4B01DF40F97C /* PatientAvatar.swift in Sources */,
+				4F2607BE348446FF53F53F84 /* PatientBehavior.swift in Sources */,
+				CAA2E484EF14CE8B6C028B36 /* PatientBehaviorController.swift in Sources */,
 				A7E433B84AC1FC6322978380 /* Placement.swift in Sources */,
 				1A25FBC26C309092877AF002 /* ReactionPlayer.swift in Sources */,
 				280B93C210F798420183AF8B /* SmokeLog.swift in Sources */,

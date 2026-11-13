@@ -204,3 +204,12 @@ Defined in `visionos/MedSimXR/Models/Contracts.swift`:
 - `ClinicalEngine` — implemented by `BackendClinicalEngine` (HTTP), `OfflineClinicalEngine` (bundled scenario JSON, same rules), `FallbackClinicalEngine` (backend first, offline on network failure).
 - `VoiceService` — implemented by `ElevenLabsVoiceService` and `MockVoiceService`. `setMicMuted(_:)` is note-taking mode: the notebook mutes the microphone while it is open so dictated notes are not heard by the patient.
 - `AppModel` (`App/AppModel.swift`) owns both and is the only object views talk to.
+
+## Patient body actions (client tool)
+
+Not a backend endpoint: handled entirely in the headset app.
+
+- ElevenLabs client tool `perform_patient_action(action)`; `action` ∈ `sit_down | extend_both_arms | relax_arms | indicate_right_wrist`.
+- `VoiceService.onAction: (String) -> String` receives the raw string. `AppModel.performPatientAction` validates it against `PatientAction` and returns `success: …`, `invalid_state: …` or `failure: …`.
+- States (`PatientBehavior`): `standing_idle → sitting_down → seated_idle ⇄ extending_arms → arms_extended`, plus `indicating_wrist`, `pain_recoil`, `returning_to_rest`. Examination is accepted only when seated (`canExamine`).
+- An action never creates an examination event or a transcript turn. `pain_recoil` is entered only from a real `/examine` result whose `animation` is not `none`.

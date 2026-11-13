@@ -2,16 +2,16 @@ import ARKit
 import QuartzCore
 import RealityKit
 
-/// Places the patient ~1.4 m in front of the wearer using the ARKit device pose.
+/// Places the stool ~1.7 m in front (the standing patient is ~0.4 m closer) of the wearer using the ARKit device pose.
 @MainActor
 final class Placement {
     private let session = ARKitSession()
     private let world = WorldTrackingProvider()
     private var started = false
-    static let distance: Float = 1.4
+    static let distance: Float = 1.7
     /// Metres to the wearer's right: just enough that the patient's head does not cover the
     /// control window, which opens straight ahead and further away.
-    static let lateral: Float = 0.3
+    static let lateral: Float = 0.45
 
     /// Fallback when tracking is unavailable (simulator, denied, not yet tracking).
     static let fallback = place(head: .zero, forward: [0, 0, -1])
