@@ -265,7 +265,7 @@ final class ScenarioStage {
 
         bubble?.removeFromParent()
         if SmokeLog.pitch { return } // the pitch conversation card shows the line instead
-        let text = Self.text("\(line.speaker): \u{201C}\(line.text)\u{201D}", size: 0.028, color: .systemYellow)
+        let text = Self.bubbleText("\(line.speaker): \u{201C}\(line.text)\u{201D}")
         let speaker = speakers[line.speaker] ?? journeySpeakers[line.speaker]
         text.position = (speaker?.position ?? [0, 0, 0]) + [0, 2.0, 0.05]
         root.addChild(text)
@@ -374,6 +374,32 @@ final class ScenarioStage {
     }
 
     /// Centred text that always reads from the front of the room.
+    /// A spoken line above its speaker: wrapped to a short column, on a dark plate, turned to the wearer.
+    /// The holder's origin is the bottom centre, so long lines grow upwards instead of across the room.
+    private static func bubbleText(_ string: String) -> Entity {
+        var lines: [String] = [], current = ""
+        for word in string.split(separator: " ") {
+            if !current.isEmpty, current.count + word.count + 1 > 38 { lines.append(current); current = "" }
+            current += current.isEmpty ? String(word) : " " + word
+        }
+        if !current.isEmpty { lines.append(current) }
+        let mesh = MeshResource.generateText(lines.joined(separator: "\n"), extrusionDepth: 0.001,
+                                             font: .systemFont(ofSize: 0.028, weight: .semibold))
+        let b = mesh.bounds, pad: Float = 0.025
+        let model = ModelEntity(mesh: mesh, materials: [UnlitMaterial(color: .systemYellow)])
+        model.position = [-(b.min.x + b.extents.x / 2), pad - b.min.y, 0.002]
+        var plateMaterial = UnlitMaterial(color: UIColor(white: 0.05, alpha: 1))
+        plateMaterial.blending = .transparent(opacity: 0.7)
+        let plate = ModelEntity(mesh: .generatePlane(width: b.extents.x + 2 * pad, height: b.extents.y + 2 * pad, cornerRadius: 0.02),
+                                materials: [plateMaterial])
+        plate.position = [0, (b.extents.y + 2 * pad) / 2, 0]
+        let holder = Entity()
+        holder.addChild(plate)
+        holder.addChild(model)
+        holder.components.set(BillboardComponent())
+        return holder
+    }
+
     private static func text(_ string: String, size: CGFloat, color: UIColor) -> Entity {
         let mesh = MeshResource.generateText(string, extrusionDepth: 0.001, font: .systemFont(ofSize: size, weight: .semibold))
         let model = ModelEntity(mesh: mesh, materials: [UnlitMaterial(color: color)])
