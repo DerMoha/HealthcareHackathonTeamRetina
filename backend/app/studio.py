@@ -462,6 +462,11 @@ SEEDS = [
         tools=["measuring_tape", "wrist_support_small", "wrist_support_large"],
         learning_objectives=["consent_and_empathy", "systematic_examination", "safe_plan_without_imaging",
                              "communication_under_pressure"])),
+    ("scn_demo_trail", ScenarioConfig(
+        template_id="trail_trauma_journey_001", title="Forest trail with hikers (standard)", environment="daytime",
+        difficulty="standard", crowdedness="moderate", bystander="calm_relative", seed=303,
+        tools=["xray_forearm", "ct_head", "bloods"],
+        learning_objectives=["scene_safety", "team_working", "reassess_on_move", "handover", "imaging_reasoning"])),
 ]
 
 
@@ -478,7 +483,7 @@ class Library:
         if path.is_file():
             return json.loads(path.read_text(encoding="utf-8"))
         data = {}
-        for sid, config in SEEDS:  # two variants of the same case, published as experimental
+        for sid, config in SEEDS:  # two wrist variants and the forest-trail journey, published as experimental
             if template(config.template_id) and template(config.template_id)["case_id"] in self.cases:
                 d = generate(config, self.cases, scenario_id=sid)
                 d.review.state = "experimental"
