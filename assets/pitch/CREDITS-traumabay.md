@@ -1,0 +1,12 @@
+# Pitch assets (traumabay)
+
+Files in visionos/MedSimXR/Resources/Pitch/. Added by visionos/scripts/pitch_assets.py.
+
+- `traumabay_ibl.hdr`: Surgery by Oliksiy Yakovlyev, https://polyhaven.com/a/surgery, CC0 1.0, fetched 2026-11-14
+- `traumabay_floor_*.jpg`: Large Grey Tiles by Rob Tuytel, https://polyhaven.com/a/large_grey_tiles, CC0 1.0, fetched 2026-11-14
+- `traumabay_wall_*.jpg`: Painted Plaster Wall by Amal Kumar, https://polyhaven.com/a/painted_plaster_wall, CC0 1.0, fetched 2026-11-14
+- `traumabay_scrub_*.jpg`: Denim Fabric by Rob Tuytel, https://polyhaven.com/a/denim_fabric, CC0 1.0, fetched 2026-11-14
+- `traumabay_clock.usdz`: Wall Clock by PierreB3D, https://polyhaven.com/a/wall_clock, CC0 1.0, fetched 2026-11-14
+- `traumabay_medbox.usdz`: Medical Box by Ulan Cabanilla, https://polyhaven.com/a/medical_box, CC0 1.0, fetched 2026-11-14
+- `traumabay_bin.usdz`: Metal Trash Can by GurJas Studios, https://polyhaven.com/a/metal_trash_can, CC0 1.0, fetched 2026-11-14
+- `traumabay_shelves.usdz`: Steel Frame Shelves 01 by James Ray Cock, https://polyhaven.com/a/steel_frame_shelves_01, CC0 1.0, fetched 2026-11-14
