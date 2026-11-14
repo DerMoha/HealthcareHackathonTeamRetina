@@ -6,7 +6,7 @@ import UIKit
 /// trolley with a blue sterile drape, textured neoprene braces lying on it with printed size
 /// cards, a body measuring tape and a box of gloves, lit by a hospital HDRI with contact shadows.
 /// Textures come from Resources/Pitch/props_* (CC0, see assets/pitch/CREDITS-props.md) and are
-/// never loaded outside pitch mode.
+/// never loaded outside pitch mode, except the trolley, which stands the tray on the floor of the realistic rooms.
 @MainActor
 enum PropsLook {
     // MARK: Materials and light

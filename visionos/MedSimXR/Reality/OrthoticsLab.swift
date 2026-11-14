@@ -248,6 +248,11 @@ final class OrthoticsLab {
         let board = ModelEntity(mesh: .generateBox(size: [pitch * Float(count) + 0.04, 0.012, 0.2], cornerRadius: 0.006),
                                 materials: [Self.fabric(UIColor(white: 0.2, alpha: 1), roughness: 0.6)])
         tray.addChild(board)
+        if AppConfig.realisticRooms { // the dressed rooms have a floor and furniture: stand the board on a dressing trolley
+            let trolley = PropsLook.trolley(width: pitch * Float(count) + 0.1, depth: 0.3, height: tray.position.y - 0.012)
+            trolley.position.y = -0.012
+            tray.addChild(trolley)
+        }
 
         if tape { add(Self.tapeMeasure(), name: Self.tapeName, label: "Tape", at: [slot(0) - 0.02, 0.022, 0]) }
         for (i, size) in orthotics.sizes.enumerated() {

@@ -226,6 +226,7 @@ struct ImmersivePatientView: View {
         avatar.furnitureHidden = kind.bringsSeat
         place.show(kind, seat: avatar.seatHeight, cast: Self.cast(model))
         stage.setPlace(place.dressed ? kind : nil)
+        model.stageStatus = stage.status
     }
 
     /// Who a dressed place shows: the journey members of the current stage (none outside a journey), as

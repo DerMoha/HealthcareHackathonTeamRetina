@@ -57,19 +57,14 @@ final class ScenarioStage {
     private(set) var status = "no scenario"
 
     /// The place the people are in now: `kind` when it is a dressed place, nil for a procedural one.
-    /// Moves the bystander and helper to the new place's spots; rebuilds only when the kind of people
-    /// changes (stand-ins vs posed avatars).
+    /// A change re-places the companions (each place has its own free spots and outfits) and the team's names.
     func setPlace(_ kind: EnvironmentSet.Kind?) {
         let kind = SmokeLog.pitch ? nil : kind // pitch shots: the stage as it always was
         guard kind != dressed else { return }
-        let rebuild = (kind == nil) != (dressed == nil)
+        let wasDressed = dressed != nil
         dressed = kind
         if let j = journey { showJourney(j.stage, team: j.team, position: j.position, count: j.count) }
-        if rebuild { sync(scenario) } else if let kind {
-            let spots = PitchDressing.spots(kind)
-            if let name = scenario?.bystander?.name { speakers[name]?.position = spots.bystander }
-            if let t = scenario?.teammate, t.present { speakers[t.name]?.position = spots.helper }
-        }
+        if scenario != nil, kind != nil || wasDressed { sync(scenario) }
     }
 
     /// Journey case: sign for the current place, the team members there, and its noise.
@@ -210,8 +205,7 @@ final class ScenarioStage {
 
         if let b = s.bystander, let place = dressed {
             let anxious = b.mood == "anxious"
-            let outdoors = place == .roadside || place == .forest
-            let figure = Self.dressedPerson("Patient", outfit: outdoors ? "driver" : "bystander_m",
+            let figure = Self.dressedPerson("Patient", outfit: PitchDressing.outfits(place).bystander,
                                             at: PitchDressing.spots(place).bystander, pose: anxious ? PitchCrowd.worried : PitchCrowd.relaxed,
                                             label: "\(b.name) · \(b.roleLabel)\(anxious ? " · anxious" : "")")
             root.addChild(figure)
@@ -226,7 +220,7 @@ final class ScenarioStage {
             speakers[b.name] = figure
         }
         if s.teammate.present, let place = dressed {
-            let figure = Self.dressedPerson("Patient_female", outfit: "bystander_f2", at: PitchDressing.spots(place).helper,
+            let figure = Self.dressedPerson("Patient_female", outfit: PitchDressing.outfits(place).helper, at: PitchDressing.spots(place).helper,
                                             pose: PitchCrowd.armsFolded, label: "\(s.teammate.name) · \(s.teammate.roleLabel)")
             root.addChild(figure)
             speakers[s.teammate.name] = figure

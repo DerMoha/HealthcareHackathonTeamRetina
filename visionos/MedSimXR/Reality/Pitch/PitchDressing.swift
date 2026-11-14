@@ -61,6 +61,15 @@ enum PitchDressing {
         }
     }
 
+    /// Outfits (PitchCrowd) for a Studio bystander and helper that no one else in the place wears.
+    static func outfits(_ kind: EnvironmentSet.Kind) -> (bystander: String, helper: String) {
+        switch kind {
+        case .roadside: ("driver", "hiker_f")          // the onlooker in "driver" steps aside (Cast.speaker)
+        case .forest: ("driver", "bystander_f2")
+        default: ("bystander_m", "bystander_f2")
+        }
+    }
+
     /// Where a Studio scenario's bystander and helper stand in each dressed place: clear of the furniture,
     /// the crew and the panels beside the patient, and in the wearer's view.
     static func spots(_ kind: EnvironmentSet.Kind) -> (bystander: SIMD3<Float>, helper: SIMD3<Float>) {
@@ -69,8 +78,8 @@ enum PitchDressing {
         case .antenatal: ([1.35, 0, -0.45], [-1.6, 0, -0.6])
         case .roadside: (PitchRoadside.speakerSpot(forest: false), [-1.7, 0, -0.85])
         case .forest: (PitchRoadside.speakerSpot(forest: true), [-1.7, 0, -0.85])
-        case .ambulance: ([1.3, 0, 0.1], [0.75, 0, -0.45])
-        case .traumaBay: ([1.95, 0, 0.35], [-1.6, 0, -1.3])
+        case .ambulance: ([1.45, 0, 0.6], [-1.55, 0, 1.45])   // past the stretcher's foot end; by the bulkhead, clear of Lena
+        case .traumaBay: ([1.95, 0, 0.35], [-1.75, 0, 0.3])
         case .roadsideNight: ([0.85, 0, -0.1], [-1.3, 0, -0.3])
         }
     }
