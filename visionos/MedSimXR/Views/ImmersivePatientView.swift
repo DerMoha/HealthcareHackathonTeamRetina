@@ -50,6 +50,11 @@ struct ImmersivePatientView: View {
             us.build(model.ultrasound)
             us.setEnabled(model.phase == .running)
             if us.arrange(recumbent: avatar.isRecumbent) { model.recenter() }
+            if SmokeLog.pitch, let n = us.notebook { // pitch (uinotebook): the notebook ~1 m from the fixed camera, nearly square to it
+                let (p, s): (SIMD3<Float>, Float) = avatar.isRecumbent ? ([0.36, 1.45, 0.6], 1.0)
+                    : AppConfig.launchArgument("-scenario")?.contains("journey") == true ? ([0.72, 1.42, 0.85], 1.12) : ([0.64, 1.22, 0.55], 1.12)
+                n.transform = Transform(scale: .init(repeating: s), rotation: simd_quatf(angle: 0.1, axis: [0, 1, 0]), translation: p)
+            }
             if let caption = attachments.entity(for: "pitchCaption") {
                 // Beside the head on the wearer's right; above the couch for a reclining patient.
                 caption.position = avatar.isRecumbent ? [0.2, 1.75, 0.2] : [0.8, 1.5, 0.3]
@@ -163,6 +168,13 @@ struct ImmersivePatientView: View {
             }
         }
         .onChange(of: model.selectedTool) { _, tool in lab.select(tool); us.select(tool) }
+        .onChange(of: model.phase) { _, phase in // pitch (uinotebook): the larger debrief, more central
+            guard SmokeLog.pitch, phase == .feedback, let n = us.notebook else { return }
+            let journey = AppConfig.launchArgument("-scenario")?.contains("journey") == true
+            n.transform = Transform(scale: .init(repeating: avatar.isRecumbent ? 0.85 : journey ? 0.9 : 1), rotation: simd_quatf(angle: 0.1, axis: [0, 1, 0]),
+                                    translation: avatar.isRecumbent ? [0.44, 1.53, 0.55] : journey ? [0.71, 1.47, 0.85] : [0.6, 1.25, 0.55])
+            panels.markHomes()
+        }
         .onChange(of: model.labCommand) { _, command in
             if let command { lab.run(command); model.selectedTool = nil }
         }

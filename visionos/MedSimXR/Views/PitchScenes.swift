@@ -183,9 +183,11 @@ struct PitchDemo: View {
         model.notes.management = "Thumb spica splint and analgesia."
         model.notes.followUp = "MRI of the wrist, or fracture clinic review in 10 days."
         await shot("wrist-06-notebook")
+        await pause(3) // the screenshot can lag the STEP line under load
 
         await model.submitDiagnosis()
         await shot("wrist-07-feedback")
+        await pause(3) // the screenshot can lag the STEP line under load
 
         model.startReplay()
         await pause(1)
@@ -224,6 +226,9 @@ struct PitchDemo: View {
             + "Posterior placenta. Liquor normal."
         model.notes.assessment = "All measurements in keeping with 20 weeks. Explained the findings to Sarah."
         model.diagnosis = "Normal singleton intrauterine pregnancy, about 20 weeks, posterior placenta, normal liquor"
+        model.notebookTab = .examination
+        await shot("us-04b-notebook")
+        await pause(3) // the screenshot can lag the STEP line under load
         await model.submitDiagnosis()
         await shot("us-05-feedback")
     }
@@ -279,6 +284,7 @@ struct PitchDemo: View {
         model.setNotebookOpen(true)
         model.notebookTab = .team
         await shot("rt-07-team-log")
+        await pause(3) // the screenshot can lag the STEP line under load
         model.notes.history = "34-year-old cyclist knocked off by a car. Helmet, no head injury, no neck pain. Penicillin allergy."
         model.notes.examination = "Bleeding wound over a deformed right distal forearm. Hand pink, sensation intact after the splint."
         model.notes.interpretation = "Displaced fractures of the radius and ulna with soft tissue gas."
