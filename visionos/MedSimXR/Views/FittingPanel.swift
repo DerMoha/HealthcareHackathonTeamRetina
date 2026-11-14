@@ -8,24 +8,41 @@ struct FittingPanel: View {
 
     var body: some View {
         if model.phase == .running, !SmokeLog.pitch || Pitch.shared.showFitting, let orthotics = model.session?.case.orthotics, !orthotics.sizes.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
+                header
                 if !model.behavior.canExamine {
-                    Label("Equipment: once the patient is seated", systemImage: "ruler").font(.callout)
+                    Label("Equipment: once the patient is seated", systemImage: "ruler").font(.callout).foregroundStyle(.secondary)
                 } else {
                     selection(orthotics)
-                    if !model.measurements.isEmpty {
-                        Text(model.measurements.map { "\($0.kind == "circumference" ? "Wrist" : "Forearm") \(String(format: "%.1f", $0.valueCm)) cm" }
-                            .joined(separator: "  ·  "))
-                            .font(.callout.monospacedDigit().bold())
-                    }
+                    measurements(orthotics)
+                    sizes(orthotics)
                     if let fit = model.fit { adjust(fit, orthotics) }
                     checks
                 }
             }
-            .padding(16)
-            .frame(width: 340, alignment: .leading)
-            .glassBackgroundEffect()
+            .padding(22)
+            .frame(width: 420, alignment: .leading)
+            .glassBackgroundEffect(in: .rect(cornerRadius: 32))
         }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "hand.raised.fingers.spread.fill")
+                .font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
+                .frame(width: 40, height: 40)
+                .background(LinearGradient(colors: [.teal, .teal.opacity(0.6)], startPoint: .top, endPoint: .bottom), in: .rect(cornerRadius: 12))
+            Text("Wrist support fitting").font(.headline)
+            Spacer()
+            if model.fit != nil {
+                Text("ON THE ARM").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(.teal)
+                    .padding(.horizontal, 10).padding(.vertical, 5).background(.teal.opacity(0.18), in: .capsule)
+            }
+        }
+    }
+
+    private func section(_ title: String) -> some View {
+        Text(title).font(.caption2.weight(.semibold)).tracking(1.2).foregroundStyle(.secondary)
     }
 
     @ViewBuilder
@@ -33,45 +50,119 @@ struct FittingPanel: View {
         if let tool = model.selectedTool {
             let name = tool == OrthoticsLab.tapeName ? "Tape"
                 : (orthotics.sizes.first { OrthoticsLab.orthosisPrefix + $0.id == tool }?.label ?? "") + " support"
-            HStack {
-                Label("\(name) selected", systemImage: "hand.point.up.left.fill").font(.callout.bold()).foregroundStyle(.teal)
+            HStack(alignment: .center, spacing: 10) {
+                Image(systemName: "hand.point.up.left.fill").foregroundStyle(.teal)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(name) selected").font(.callout.bold())
+                    Text("Pinch the patient's right forearm to use it there.").font(.caption).foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button("Cancel") { model.selectedTool = nil }.controlSize(.small)
             }
-            Text("Pinch the patient's right forearm to use it there.").font(.caption).foregroundStyle(.secondary)
+            .padding(12)
+            .background(.teal.opacity(0.14), in: .rect(cornerRadius: 14))
         } else if model.fit == nil {
             Label("Pinch an item on the tray", systemImage: "ruler").font(.callout).foregroundStyle(.secondary)
         }
     }
 
+    private func measurements(_ orthotics: Orthotics) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            section("MEASUREMENTS")
+            HStack(spacing: 10) {
+                ForEach(orthotics.measurements) { info in
+                    let value = model.measurements.first { $0.measurementId == info.id }?.valueCm
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(info.kind == "circumference" ? "Wrist" : "Forearm").font(.caption).foregroundStyle(.secondary)
+                        HStack(alignment: .firstTextBaseline, spacing: 3) {
+                            Text(value.map { String(format: "%.1f", $0) } ?? "–")
+                                .font(.system(size: 30, weight: .semibold, design: .rounded).monospacedDigit())
+                            Text("cm").font(.callout).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.white.opacity(0.07), in: .rect(cornerRadius: 14))
+                }
+            }
+        }
+    }
+
+    /// The tray's sizes; pinching one selects it, like pinching it on the tray.
+    private func sizes(_ orthotics: Orthotics) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            section("SIZE")
+            HStack(spacing: 8) {
+                ForEach(orthotics.sizes) { size in
+                    let on = model.fit?.size == size.id
+                    Button { model.selectedTool = OrthoticsLab.orthosisPrefix + size.id } label: {
+                        VStack(spacing: 2) {
+                            Text(size.label).font(.callout.weight(.semibold))
+                            Text(size.wristCm.map { String(format: "%g", $0) }.joined(separator: "–") + " cm")
+                                .font(.caption2.monospacedDigit()).foregroundStyle(on ? .white.opacity(0.85) : .secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered).buttonBorderShape(.roundedRectangle(radius: 12))
+                    .tint(on ? .teal : nil)
+                }
+            }
+        }
+    }
+
     private func adjust(_ fit: OrthosisFit, _ orthotics: Orthotics) -> some View {
-        let label = orthotics.sizes.first { $0.id == fit.size }?.label ?? fit.size
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("\(label) support on · straps \(fit.tightness)").font(.callout.bold())
-            HStack {
-                Button { Task { await model.adjustFit { $0.offsetCm -= 1 } } } label: { Image(systemName: "arrow.down") }
+        VStack(alignment: .leading, spacing: 12) {
+            section("STRAPS")
+            HStack(spacing: 8) {
+                Button { Task { await model.stepTightness(-1) } } label: { Image(systemName: "minus") }
+                    .accessibilityLabel("Loosen").disabled(fit.tightness == orthotics.tightness.first)
+                HStack(spacing: 4) {
+                    ForEach(orthotics.tightness, id: \.self) { level in
+                        Text(level.capitalized).font(.caption.weight(.semibold))
+                            .frame(maxWidth: .infinity).padding(.vertical, 7)
+                            .background(level == fit.tightness ? AnyShapeStyle(.teal) : AnyShapeStyle(.white.opacity(0.06)), in: .capsule)
+                            .foregroundStyle(level == fit.tightness ? .white : .secondary)
+                    }
+                }
+                Button { Task { await model.stepTightness(1) } } label: { Image(systemName: "plus") }
+                    .accessibilityLabel("Tighten").disabled(fit.tightness == orthotics.tightness.last)
+            }
+            section("POSITION")
+            HStack(spacing: 8) {
+                Button { Task { await model.adjustFit { $0.offsetCm -= 1 } } } label: { Label("Hand", systemImage: "arrow.down") }
                     .accessibilityLabel("Move toward the hand")
-                Button { Task { await model.adjustFit { $0.offsetCm += 1 } } } label: { Image(systemName: "arrow.up") }
+                Button { Task { await model.adjustFit { $0.offsetCm += 1 } } } label: { Label("Elbow", systemImage: "arrow.up") }
                     .accessibilityLabel("Move toward the elbow")
                 Button { Task { await model.adjustFit { $0.orientation = $0.orientation == "thumb_radial" ? "thumb_ulnar" : "thumb_radial" } } }
                     label: { Image(systemName: "arrow.triangle.2.circlepath") }.accessibilityLabel("Turn the support around")
-                Button("Loosen") { Task { await model.stepTightness(-1) } }.disabled(fit.tightness == orthotics.tightness.first)
-                Button("Tighten") { Task { await model.stepTightness(1) } }.disabled(fit.tightness == orthotics.tightness.last)
+                Spacer(minLength: 0)
+                Button(role: .destructive) { Task { await model.setFit(nil) } } label: { Label("Take off", systemImage: "xmark").foregroundStyle(Color(red: 1, green: 0.5, blue: 0.5)) }
             }
-            Button("Take off", role: .destructive) { Task { await model.setFit(nil) } }
         }
         .buttonStyle(.bordered).controlSize(.small)
     }
 
     private var checks: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Button { Task { await model.fittingCheck("comfort") } } label: { Label("Ask how it feels", systemImage: "bubble.left") }
-                Button { Task { await model.fittingCheck("neurovascular") } } label: { Label("Check fingers", systemImage: "hand.raised") }
+        VStack(alignment: .leading, spacing: 10) {
+            section("CHECKS")
+            HStack(spacing: 8) {
+                Button { Task { await model.fittingCheck("comfort") } } label: {
+                    Label("Ask how it feels", systemImage: "bubble.left.fill").frame(maxWidth: .infinity)
+                }
+                Button { Task { await model.fittingCheck("neurovascular") } } label: {
+                    Label("Check fingers", systemImage: "hand.raised.fill").frame(maxWidth: .infinity)
+                }
             }
             .buttonStyle(.bordered).controlSize(.small)
-            if let check = model.lastCheck {
-                Text(check.finding ?? "\u{201C}\(check.patientResponse)\u{201D}").font(.caption).foregroundStyle(.secondary).lineLimit(3)
+            if let check = model.lastCheck, !SmokeLog.pitch { // pitch: the conversation card carries the answer
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: check.check == "comfort" ? "quote.opening" : "waveform.path.ecg")
+                        .foregroundStyle(check.comfortable ? .teal : .orange)
+                    Text(check.finding ?? check.patientResponse).font(.callout).lineLimit(3)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.white.opacity(0.06), in: .rect(cornerRadius: 14))
             }
         }
     }

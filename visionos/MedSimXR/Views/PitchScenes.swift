@@ -23,26 +23,151 @@ final class Pitch {
     var showFitting = false
 }
 
-/// The subtitle card above the patient.
+/// The live conversation card beside the patient: who speaks (initials, role colour), what they
+/// say, who is talking right now, and the learner's open mic. Journey stages add the people
+/// around the patient cutting in, so the stress of the place reads in a still picture.
 struct PitchCaption: View {
+    @Environment(AppModel.self) private var model: AppModel?
     private let pitch = Pitch.shared
 
+    private static let teal = Color(red: 0.2, green: 0.85, blue: 0.8)
+    private static let orange = Color(red: 1, green: 0.6, blue: 0.2)
+    private static let bystander = Color(red: 1, green: 0.36, blue: 0.42)
+
+    /// Who cuts in at each journey stage, after a learner and patient exchange or a crew line.
+    private static let interruptions: [String: Pitch.Line] = [
+        "scene": Pitch.Line(speaker: "Driver", text: "I didn't see him, he came out of nowhere! Is he going to be OK?"),
+        "ambulance": Pitch.Line(speaker: "Ambulance driver", text: "Hold on, sharp bend! Four minutes to the hospital."),
+    ]
+
+    private var lines: [Pitch.Line] {
+        var lines = pitch.caption
+        if let stage = model?.currentStage?.id, let extra = Self.interruptions[stage], !lines.isEmpty, lines.count < 3,
+           stage != "scene" || lines.contains(where: \.learner) {
+            lines.append(extra)
+        }
+        return lines
+    }
+
     var body: some View {
-        if !pitch.caption.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(pitch.caption, id: \.self) { line in
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(line.speaker)
-                            .font(.headline)
-                            .foregroundStyle(line.learner ? .teal : .orange)
-                            .frame(width: 110, alignment: .trailing)
-                        Text(line.text).font(.title3)
+        let lines = lines
+        if !lines.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                ForEach(Array(lines.enumerated()), id: \.element) { i, line in
+                    row(line, latest: i == lines.count - 1)
+                        .padding(.top, i == 0 ? 0 : 18)
+                }
+                listening.padding(.top, 22)
+            }
+            .padding(.horizontal, 30).padding(.top, 24).padding(.bottom, 26)
+            .frame(width: 770, alignment: .leading)
+            .background(Color(red: 0.06, green: 0.08, blue: 0.1).opacity(0.55), in: .rect(cornerRadius: 40))
+            .glassBackgroundEffect(in: .rect(cornerRadius: 40))
+            .frame(width: 930, alignment: .leading) // nudged towards the patient: the wide card stays in frame
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 7) {
+                Circle().fill(.red).frame(width: 12, height: 12).shadow(color: .red, radius: 5)
+                Text("LIVE").font(.system(size: 17, weight: .heavy)).tracking(1.6)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .background(.red.opacity(0.22), in: .capsule)
+            Text("Voice conversation").font(.system(size: 22, weight: .semibold))
+            Spacer()
+            Label("Hands-free", systemImage: "waveform").font(.system(size: 18, weight: .medium)).foregroundStyle(.secondary)
+        }
+        .foregroundStyle(.white)
+        .padding(.bottom, 20)
+    }
+
+    /// The learner's open mic: always listening, no button to press.
+    private var listening: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "mic.fill").font(.system(size: 20, weight: .semibold)).foregroundStyle(.black.opacity(0.8))
+                .frame(width: 40, height: 40).background(Self.teal, in: .circle)
+            Text("Listening to you").font(.system(size: 21, weight: .semibold)).foregroundStyle(Self.teal)
+            Waveform(tint: Self.teal, bars: 22, height: 26)
+            Spacer(minLength: 0)
+            Text("Just talk").font(.system(size: 18, weight: .medium)).foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 10)
+        .background(Self.teal.opacity(0.12), in: .capsule)
+        .overlay(Capsule().strokeBorder(Self.teal.opacity(0.35), lineWidth: 1.5))
+    }
+
+    private func row(_ line: Pitch.Line, latest: Bool) -> some View {
+        let who = speaker(line)
+        return HStack(alignment: .top, spacing: 18) {
+            SpeakerBadge(name: who.name, tint: who.tint, size: 64, symbol: line.learner ? "stethoscope" : nil)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .center, spacing: 10) {
+                    Text(who.name).font(.system(size: 25, weight: .bold)).foregroundStyle(who.tint)
+                    Text(who.role.uppercased()).font(.system(size: 15, weight: .bold)).tracking(1.2)
+                        .foregroundStyle(.white.opacity(0.6))
+                    if who.interrupts {
+                        Label("CUTS IN", systemImage: "exclamationmark.bubble.fill").font(.system(size: 14, weight: .heavy)).tracking(1)
+                            .foregroundStyle(.white).padding(.horizontal, 9).padding(.vertical, 4)
+                            .background(who.tint.opacity(0.85), in: .capsule)
+                    }
+                    if let pain = model?.reaction, pain.painLevel > 0, pain.text == line.text {
+                        Label("PAIN \(pain.painLevel)/10", systemImage: "bolt.heart.fill").font(.system(size: 14, weight: .heavy)).tracking(1)
+                            .foregroundStyle(.white).padding(.horizontal, 9).padding(.vertical, 4)
+                            .background(Self.orange.opacity(0.85), in: .capsule)
+                    }
+                    Spacer(minLength: 8)
+                    if latest, !line.learner {
+                        Text("SPEAKING").font(.system(size: 13, weight: .heavy)).tracking(1.2).foregroundStyle(who.tint)
+                        Waveform(tint: who.tint, bars: 9, height: 26)
                     }
                 }
+                Text(line.text)
+                    .font(.system(size: 31, weight: latest ? .semibold : .medium))
+                    .foregroundStyle(.white.opacity(latest ? 1 : 0.8))
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.horizontal, 26).padding(.vertical, 18)
-            .frame(width: 560, alignment: .leading)
-            .glassBackgroundEffect()
+        }
+        .padding(who.interrupts ? 14 : 0)
+        .background {
+            if who.interrupts {
+                RoundedRectangle(cornerRadius: 22).fill(who.tint.opacity(0.14))
+                    .overlay(alignment: .leading) { Capsule().fill(who.tint).frame(width: 5).padding(.vertical, 12) }
+            }
+        }
+    }
+
+    /// Learner teal, patient orange, each crew member their own colour, bystanders red.
+    private func speaker(_ line: Pitch.Line) -> (name: String, role: String, tint: Color, interrupts: Bool) {
+        if line.learner { return ("You", "Medical student", Self.teal, false) }
+        if line.speaker == (model?.session?.case.patient.name ?? line.speaker) { return (line.speaker, "Patient", Self.orange, false) }
+        if let journey = model?.journey, let member = journey.team.first(where: { $0.name == line.speaker }) {
+            let title = ["Paramedic": "Paramedic", "Emergency nurse": "Nurse", "Emergency medical technician": "EMT"][member.role]
+            return (title.map { "\($0) \(member.name)" } ?? member.name, member.role, journey.tint(member), false)
+        }
+        return (line.speaker, line.speaker.hasPrefix("Ambulance") ? "Crew" : "Bystander", Self.bystander, true)
+    }
+
+    /// Bars of a voice level meter: this voice is live.
+    private struct Waveform: View {
+        var tint: Color
+        var bars: Int
+        var height: CGFloat
+        var body: some View {
+            TimelineView(.animation) { context in
+                let t = context.date.timeIntervalSinceReferenceDate
+                HStack(spacing: 3.5) {
+                    ForEach(0..<bars, id: \.self) { i in
+                        let base = 0.35 + 0.65 * abs(sin(Double(i) * 1.7 + 0.4))
+                        Capsule().fill(tint)
+                            .frame(width: 4.5, height: 4 + (height - 4) * base * (0.55 + 0.45 * abs(sin(t * 5 + Double(i) * 0.9))))
+                    }
+                }
+                .frame(height: height)
+            }
         }
     }
 }
