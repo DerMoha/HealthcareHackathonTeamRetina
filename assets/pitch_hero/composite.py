@@ -169,11 +169,11 @@ def p_notebook_clinic():
 
 def p_score_clinic():
     p = Panel(560, 300, 40)
-    score_ring(p, 150, 150, 100, 0.86, GREEN, 18, "86", "of 100")
+    score_ring(p, 150, 150, 100, 0.78, GREEN, 18, "78", "of 100")
     p.text((280, 52), "OSCE debrief", 30, "Bold")
     p.chip(280, 98, "Pass", 24, GREEN, 60)
     y = 150
-    for k, v in (("History", "7/8"), ("Examination", "6/7"), ("Communication", "5/6")):
+    for k, v in (("History", "13/20"), ("Examination", "17/25"), ("Communication", "13/15")):
         p.text((280, y), k, 24, fill=DIM); f = font(24, "Semibold"); tw = p.d.textlength(v, font=f)
         leader(p, 290 + p.d.textlength(k, font=font(24)), 510 - tw, y + 17, 10); p.d.text((520 - tw, y), v, font=f, fill=WHITE); y += 36
     return p
