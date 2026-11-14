@@ -39,10 +39,26 @@ enum SessionPhase: Equatable {
     case idle, running, feedback
 }
 
-enum SummaryState: Equatable {
-    case idle, waiting
-    case ready(String)
-    case failed(String)
+/// The last dictation, as the notebook's AI tidy left it. Kept so the learner can undo it.
+struct NoteTidy: Equatable {
+    enum Status: Equatable { case pending, tidied, kept(String) }
+    var field: String
+    var raw: String
+    var text: String
+    var status: Status
+}
+
+/// The debrief's AI comparison of the learner's notes with the conversation.
+enum NotesReviewState: Equatable {
+    case idle, loading
+    case ready(NotesReview)
+    case unavailable(String)
+}
+
+/// Why the patient conversation is paused. Both save ElevenLabs credits: a connected
+/// conversation is billed per minute even while the microphone is muted.
+enum VoicePause: String {
+    case idle, notebook
 }
 
 /// What the learner picked on the dashboard. Nil fields mean "the case's default". With
@@ -122,6 +138,24 @@ final class AppModel {
     private(set) var notebookOpen = false
     /// Tap-to-dictate for the notebook's notes.
     let dictation = NoteDictation()
+    /// The last dictation and what the AI tidy made of it (one level of undo).
+    private(set) var lastTidy: NoteTidy?
+    private(set) var notesReview = NotesReviewState.idle
+
+    /// Credit savers: the conversation pauses after `idleLimit` without speech, and after
+    /// `notebookLimit` with the notebook open (it resumes when the notebook closes).
+    private(set) var voicePause: VoicePause?
+    /// The learner ended the conversation; nothing resumes it in this encounter.
+    private(set) var consultationEnded = false
+    /// Connected conversation time in this encounter, and the plan's balance when last read.
+    private(set) var voiceSeconds: TimeInterval = 0
+    private(set) var credits: VoiceCredits?
+    static let idleLimit = AppConfig.seconds("-idleLimit") ?? 120
+    static let notebookLimit = AppConfig.seconds("-notebookLimit") ?? 60
+    static let resumeLine = "Yes, doctor?"
+    @ObservationIgnored private var lastVoiceActivity = Date()
+    @ObservationIgnored private var notebookOpenedAt: Date?
+    @ObservationIgnored private var watchdog: Task<Void, Never>?
 
     /// Results the learner has received, latest order of each investigation.
     private(set) var investigationResults: [InvestigationResult] = []
@@ -159,14 +193,6 @@ final class AppModel {
     private var lastFitComplaint: String?
     /// Quiet time after the last adjustment before the patient speaks up unprompted.
     static let fitReactionDelay: TimeInterval = 1.3
-
-    /// The ElevenLabs post-call summary of the consultation. Only a draft: it reaches the
-    /// notes when the learner inserts it, so the documentation feedback stays theirs.
-    private(set) var summaryState = SummaryState.idle
-    @ObservationIgnored private var summaryTask: Task<Void, Never>?
-    /// How long to wait for ElevenLabs to finish its analysis, and how often to ask.
-    static let summaryTimeout: TimeInterval = 90
-    static let summaryPollInterval: TimeInterval = 3
 
     /// Replay steps: one per examination, then the support placement.
     var replayStepCount: Int { examEvents.count + 1 }
@@ -298,10 +324,14 @@ final class AppModel {
     }
 
     private func startVoice(_ info: SessionInfo) async {
-        await voice.start(caseContext: info.case.voiceContext, voiceId: info.config.flatMap { AppConfig.voiceId(for: $0.avatar) })
+        lastVoiceActivity = Date()
+        await voice.start(caseContext: info.case.voiceContext, voiceId: info.config.flatMap { AppConfig.voiceId(for: $0.avatar) },
+                          resumeLine: nil)
+        await refreshCredits()
     }
 
     func stopSession() async {
+        watchdog?.cancel()
         await voice.stop()
         endScenario()
         phase = .idle
@@ -321,13 +351,150 @@ final class AppModel {
     /// Opening the notebook is note-taking mode: the patient's microphone is muted so that
     /// dictated notes are not heard as speech to the patient.
     func setNotebookOpen(_ open: Bool) {
+        if open != notebookOpen { notebookOpenedAt = open ? Date() : nil }
         notebookOpen = open
         if !open {
             viewing = nil
             // Stops recording before the patient's microphone opens again; the transcript still lands.
             Task { await dictation.stop() }
+            if voicePause == .notebook { Task { await resumeVoice() } }
         }
         Task { await voice.setMicMuted(open && phase == .running) }
+    }
+
+    // MARK: Credit savers
+
+    /// Runs while an encounter is running: counts connected time and pauses an idle conversation.
+    private func startWatchdog() {
+        watchdog?.cancel()
+        voiceSeconds = 0
+        lastVoiceActivity = Date()
+        watchdog = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard let self, !Task.isCancelled, self.phase == .running else { return }
+                await self.tick()
+            }
+        }
+    }
+
+    private func tick() async {
+        guard voice.status == .connected else { return }
+        voiceSeconds += 1
+        let now = Date()
+        if voice.isAgentSpeaking || dictation.state != .idle { lastVoiceActivity = now }
+        if notebookOpen, let opened = notebookOpenedAt, now.timeIntervalSince(opened) >= Self.notebookLimit {
+            await pauseVoice(.notebook)
+        } else if !notebookOpen, now.timeIntervalSince(lastVoiceActivity) >= Self.idleLimit {
+            await pauseVoice(.idle)
+        }
+    }
+
+    func pauseVoice(_ reason: VoicePause) async {
+        guard phase == .running, voicePause == nil, voice.status == .connected else { return }
+        voicePause = reason
+        await voice.stop()
+        SmokeLog.mark("voice paused reason=\(reason.rawValue) voiceSeconds=\(Int(voiceSeconds)) turns=\(transcript.count)")
+        await refreshCredits()
+    }
+
+    /// Continues a paused conversation in a new ElevenLabs conversation that is told what was said.
+    func resumeVoice() async {
+        guard phase == .running, voicePause != nil, !consultationEnded, let info = session else { return }
+        let reason = voicePause
+        voicePause = nil
+        lastVoiceActivity = Date()
+        await voice.start(caseContext: resumeContext(info), voiceId: info.config.flatMap { AppConfig.voiceId(for: $0.avatar) },
+                          resumeLine: Self.resumeLine)
+        if notebookOpen { await voice.setMicMuted(true) }
+        SmokeLog.mark("voice resumed after=\(reason?.rawValue ?? "?") voice=\(voice.status.label) turns=\(transcript.count)")
+    }
+
+    /// The case facts plus the conversation so far, so a resumed agent does not start over.
+    func resumeContext(_ info: SessionInfo) -> String {
+        let lines = transcript.suffix(30).map { "\($0.role == .learner ? "Student" : "You"): \($0.text)" }
+        guard !lines.isEmpty else { return info.case.voiceContext }
+        return info.case.voiceContext + "\n\nCONVERSATION SO FAR (the consultation was briefly paused; continue it, "
+            + "do not greet again and do not repeat what you already said):\n" + lines.joined(separator: "\n")
+    }
+
+    func refreshCredits() async {
+        if let c = await NotesClient.credits() {
+            credits = c
+            SmokeLog.mark("credits remaining=\(c.creditsRemaining)/\(c.creditsLimit) tier=\(c.tier)")
+        }
+    }
+
+    // MARK: Dictation
+
+    /// Text of a note by the id the notebook uses for it.
+    func noteText(_ id: String) -> String {
+        switch id {
+        case "history": notes.history
+        case "examination": notes.examination
+        case "assessment": notes.assessment
+        case "interpretation": notes.interpretation
+        case "management": notes.management
+        case "followUp": notes.followUp
+        case "diagnosis": diagnosis
+        default: ""
+        }
+    }
+
+    func setNoteText(_ id: String, _ text: String) {
+        switch id {
+        case "history": notes.history = text
+        case "examination": notes.examination = text
+        case "assessment": notes.assessment = text
+        case "interpretation": notes.interpretation = text
+        case "management": notes.management = text
+        case "followUp": notes.followUp = text
+        case "diagnosis": diagnosis = text
+        default: break
+        }
+    }
+
+    /// A finished dictation: the words go into the note at once, then the AI tidy replaces them
+    /// if the learner has not changed them meanwhile. The diagnosis line is never tidied.
+    func dictated(_ words: String, into id: String) async {
+        let raw = words.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty, phase == .running else { return }
+        let existing = noteText(id)
+        if id == "diagnosis" {
+            let space = existing.last.map { $0.isWhitespace ? "" : " " } ?? ""
+            setNoteText(id, existing + space + raw)
+            return
+        }
+        let trimmed = existing.trimmingCharacters(in: .whitespacesAndNewlines)
+        setNoteText(id, trimmed.isEmpty ? raw : trimmed + "\n" + raw)
+        let entry = NoteTidy(field: id, raw: raw, text: raw, status: .pending)
+        lastTidy = entry
+        let result = await NotesClient.tidy(raw, field: id)
+        guard lastTidy == entry else { return } // a newer dictation or a reset took over
+        guard let result, result.source == "ai", result.text != raw else {
+            lastTidy?.status = .kept(result?.note ?? "AI tidy unavailable: kept your words as dictated.")
+            SmokeLog.mark("tidy note=\(id) source=\(result?.source ?? "none") note=\"\(result?.note ?? "unreachable")\"")
+            return
+        }
+        let current = noteText(id)
+        guard let range = current.range(of: raw, options: .backwards) else {
+            lastTidy?.status = .kept("You edited the note, so the AI tidy was not applied.")
+            return
+        }
+        setNoteText(id, current.replacingCharacters(in: range, with: result.text))
+        lastTidy = NoteTidy(field: id, raw: raw, text: result.text, status: .tidied)
+        SmokeLog.mark("tidy note=\(id) source=ai raw=\"\(raw)\" tidy=\"\(result.text.replacingOccurrences(of: "\n", with: " | "))\"")
+    }
+
+    /// Puts the learner's own words back in place of the AI tidy.
+    func undoTidy() {
+        guard let t = lastTidy, t.status == .tidied else { return }
+        let current = noteText(t.field)
+        if let range = current.range(of: t.text, options: .backwards) {
+            setNoteText(t.field, current.replacingCharacters(in: range, with: t.raw))
+        }
+        lastTidy = nil
+        SmokeLog.mark("tidy undone note=\(t.field)")
     }
 
     /// Body movement requested by the voice agent's client tool or a debug button. Never an
@@ -622,52 +789,17 @@ final class AppModel {
         reaction = ReactionEvent(animation: "none", painLevel: 0, text: line.patient, clip: line.id, speakLocally: true)
     }
 
-    // MARK: Consultation summary
+    // MARK: Consultation
 
-    /// Ends the conversation with the patient and waits for ElevenLabs' post-call summary.
-    /// The session keeps running: examinations and notes still work, the patient then
-    /// speaks locally. Calling it again after a failure only retries the fetch.
-    func endConsultation() {
-        guard phase == .running, summaryState != .waiting else { return }
-        summaryState = .waiting
-        summaryTask?.cancel()
-        summaryTask = Task { [weak self] in
-            guard let self else { return }
-            await self.voice.stop()
-            let deadline = Date().addingTimeInterval(Self.summaryTimeout)
-            while !Task.isCancelled {
-                do {
-                    if let text = try await self.voice.fetchSummary() {
-                        guard !Task.isCancelled else { return }
-                        self.summaryState = .ready(text)
-                        SmokeLog.mark("summary ready chars=\(text.count)")
-                        return
-                    }
-                } catch {
-                    guard !Task.isCancelled else { return }
-                    self.summaryState = .failed(error.localizedDescription)
-                    return
-                }
-                if Date() >= deadline {
-                    self.summaryState = .failed("ElevenLabs has not finished the summary yet. Try again in a minute.")
-                    return
-                }
-                try? await Task.sleep(nanoseconds: UInt64(Self.summaryPollInterval * 1_000_000_000))
-            }
-        }
-    }
-
-    /// The learner accepts the draft: it is appended to their history notes, where they can edit it.
-    func insertSummary() {
-        guard case .ready(let text) = summaryState else { return }
-        let existing = notes.history.trimmingCharacters(in: .whitespacesAndNewlines)
-        notes.history = existing.isEmpty ? text : existing + "\n\n" + text
-        summaryState = .idle
-    }
-
-    func discardSummary() {
-        summaryTask?.cancel()
-        summaryState = .idle
+    /// Ends the conversation with the patient for good (saves credits). The session keeps
+    /// running: examinations and notes still work, the patient then speaks locally.
+    func endConsultation() async {
+        guard phase == .running, !consultationEnded else { return }
+        consultationEnded = true
+        voicePause = nil
+        await voice.stop()
+        SmokeLog.mark("consultation ended voiceSeconds=\(Int(voiceSeconds)) turns=\(transcript.count)")
+        await refreshCredits()
     }
 
     // MARK: Diagnosis / feedback
@@ -678,12 +810,33 @@ final class AppModel {
         await run {
             self.feedback = try await self.engine.diagnose(diagnosis, notes: self.notes)
             self.phase = .feedback
+            self.watchdog?.cancel()
+            self.voicePause = nil
             await self.voice.stop()
+            self.loadNotesReview()
             self.companionTask?.cancel()
             self.coachTask?.cancel()
             if self.scenario != nil, let id = self.session?.sessionId {
                 self.debrief = await ScenarioClient.debrief(sessionId: id)
             }
+        }
+    }
+
+    /// After submission: the AI compares the notes with the conversation (debrief only, not scored).
+    func loadNotesReview() {
+        guard phase == .feedback, let caseId = session?.case.caseId else { return }
+        notesReview = .loading
+        let (notes, diagnosis, turns) = (self.notes, self.diagnosis, transcript)
+        Task { [weak self] in
+            let review = await NotesClient.review(caseId: caseId, diagnosis: diagnosis, notes: notes, transcript: turns)
+            guard let self, self.phase == .feedback, self.notesReview == .loading else { return }
+            if let review, review.source == "ai" {
+                self.notesReview = .ready(review)
+            } else {
+                self.notesReview = .unavailable(review?.note ?? "The AI comparison needs the backend, which is not reachable.")
+            }
+            SmokeLog.mark("notes review source=\(review?.source ?? "unreachable") captured=\(review?.captured.count ?? 0) "
+                + "missed=\(review?.missed.count ?? 0) inaccurate=\(review?.inaccurate.count ?? 0)")
         }
     }
 
@@ -702,6 +855,12 @@ final class AppModel {
         feedback = nil
         reaction = nil
         dictation.cancel()
+        dictation.resetCounters()
+        lastTidy = nil
+        notesReview = .idle
+        voicePause = nil
+        consultationEnded = false
+        notebookOpenedAt = nil
         notes = ClinicalNotes()
         diagnosis = ""
         notebookTab = .history
@@ -724,11 +883,10 @@ final class AppModel {
         sessionStart = Date()
         fitReactionTask?.cancel()
         lastFitComplaint = nil
-        summaryTask?.cancel()
-        summaryState = .idle
         lastExamineAt = .distantPast
         behavior.reset()
         phase = .running
+        startWatchdog()
         startScenario()
     }
 
@@ -813,6 +971,7 @@ final class AppModel {
 
     private func record(_ turn: TranscriptTurn) {
         guard phase == .running else { return }
+        lastVoiceActivity = Date()
         transcript.append(turn)
         Task { await engine.recordInteraction(turn) }
     }

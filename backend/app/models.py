@@ -372,3 +372,55 @@ class ConversationSummary(BaseModel):
 
 class TranscriptionResponse(BaseModel):
     text: str
+
+
+# --- Notebook AI (notes_ai.py): drafts for the learner, never a source of points ---
+
+class TidyRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+    field: str = ""  # which note, e.g. "history"; only shapes the wording
+
+
+class TidyResult(BaseModel):
+    text: str
+    source: Literal["ai", "raw"]  # raw = the dictation came back unchanged
+    note: str = ""
+
+
+class ReviewTurn(BaseModel):
+    role: Literal["learner", "patient"]
+    text: str
+
+
+class NotesReviewRequest(BaseModel):
+    case_id: str = ""
+    diagnosis: str = ""
+    notes: Notes = Notes()
+    transcript: list[ReviewTurn] = Field(default_factory=list, max_length=400)
+
+
+class ReviewPoint(BaseModel):
+    point: str
+    quote: str  # verbatim from the transcript
+
+
+class InaccuratePoint(BaseModel):
+    note: str        # what the learner wrote
+    quote: str       # what was actually said, verbatim
+    correction: str
+
+
+class NotesReview(BaseModel):
+    source: Literal["ai", "unavailable"]
+    captured: list[ReviewPoint] = []
+    missed: list[ReviewPoint] = []
+    inaccurate: list[InaccuratePoint] = []
+    note: str = ""
+
+
+class ElevenLabsUsage(BaseModel):
+    tier: str
+    credits_used: int
+    credits_limit: int
+    credits_remaining: int
+    resets_at: datetime | None = None

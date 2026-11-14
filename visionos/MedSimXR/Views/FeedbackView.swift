@@ -36,6 +36,7 @@ struct FeedbackView: View {
                     list("Missed", f.missed, "exclamationmark.circle.fill", .orange)
                     list("Relevant findings", f.relevantFindings, "stethoscope", .teal)
                     documentation(f.documentation)
+                    notesReview
                     list("Next steps", f.nextSteps, "arrow.right.circle.fill", .blue)
 
                     Button { Task { await model.reset() } } label: {
@@ -153,6 +154,59 @@ struct FeedbackView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /// The AI's comparison of the notes with the conversation. Not scored.
+    @ViewBuilder
+    private var notesReview: some View {
+        switch model.notesReview {
+        case .idle:
+            EmptyView()
+        case .loading:
+            section("Your notes vs. the conversation") {
+                HStack(spacing: 8) { ProgressView(); Text("Comparing your notes with the conversation…").foregroundStyle(.secondary) }
+            }
+        case .unavailable(let reason):
+            section("Your notes vs. the conversation") {
+                Label(reason, systemImage: "info.circle").font(.callout).foregroundStyle(.secondary)
+            }
+        case .ready(let r):
+            section("Your notes vs. the conversation") {
+                reviewPoints("Captured", r.captured, "checkmark.circle.fill", .green)
+                reviewPoints("Not in your notes", r.missed, "pencil.slash", .orange)
+                if !r.inaccurate.isEmpty {
+                    Text("Noted differently").font(.subheadline.bold())
+                    ForEach(r.inaccurate, id: \.self) { item in
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.correction).font(.callout.weight(.medium))
+                                Text("You wrote: \(item.note)").font(.caption)
+                                Text("Said: \u{201C}\(item.quote)\u{201D}").font(.caption).foregroundStyle(.secondary)
+                            }
+                        } icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red) }
+                    }
+                }
+                if r.captured.isEmpty && r.missed.isEmpty && r.inaccurate.isEmpty {
+                    Text("No clinically relevant facts were found in the conversation.").font(.callout).foregroundStyle(.secondary)
+                }
+                Label(r.note, systemImage: "sparkles").font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func reviewPoints(_ title: String, _ items: [NotesReview.Point], _ icon: String, _ color: Color) -> some View {
+        if !items.isEmpty {
+            Text(title).font(.subheadline.bold())
+            ForEach(items, id: \.self) { item in
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.point).font(.callout.weight(.medium))
+                        Text("\u{201C}\(item.quote)\u{201D}").font(.caption).foregroundStyle(.secondary)
+                    }
+                } icon: { Image(systemName: icon).foregroundStyle(color) }
             }
         }
     }

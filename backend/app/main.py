@@ -1,6 +1,7 @@
 """FastAPI app: routes only; logic lives in sessions/examination/evaluation."""
 import os
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -8,11 +9,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from . import evaluation, examination, fitting, studio, studio_routes, ultrasound
+from . import evaluation, examination, fitting, notes_ai, studio, studio_routes, ultrasound
 from .models import (ConversationSummary, DiagnoseRequest, ExamineRequest, ExamineResult, Feedback, Health,
                      InteractionCount, InteractionRequest, FitAck, FitRequest, FittingCheckRequest,
                      FittingCheckResult, GelResult, MeasurementRequest, ScanRequest, ScanResult, MeasurementResult, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
-                     TokenResponse, TranscriptionResponse, CasePublic)
+                     TokenResponse, TranscriptionResponse, CasePublic, ElevenLabsUsage, NotesReview,
+                     NotesReviewRequest, TidyRequest, TidyResult)
 from .sessions import SESSIONS, Session, create_session, load_scenarios, now_iso, public_case, resolve_config
 
 VERSION = "0.1.0"
@@ -267,3 +269,38 @@ async def transcribe(request: Request):
     if r.status_code != 200:
         raise HTTPException(502, f"ElevenLabs rejected the transcription request (HTTP {r.status_code}).")
     return TranscriptionResponse(text=(r.json().get("text") or "").strip())
+
+
+@app.get("/elevenlabs/usage", response_model=ElevenLabsUsage)
+def elevenlabs_usage():
+    """Credits used and left on the ElevenLabs plan, for the app's debug card. Reading it costs
+    no credits. Needs ELEVENLABS_API_KEY with the "User: read" permission."""
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        raise HTTPException(503, "ElevenLabs is not configured: set ELEVENLABS_API_KEY.")
+    try:
+        r = httpx.get("https://api.elevenlabs.io/v1/user/subscription", headers={"xi-api-key": key}, timeout=10)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Could not reach ElevenLabs ({type(e).__name__}).")
+    if r.status_code in (401, 403):
+        raise HTTPException(502, "The ElevenLabs key may not read the subscription (enable 'User: read' on the key).")
+    if r.status_code != 200:
+        raise HTTPException(502, f"ElevenLabs rejected the usage request (HTTP {r.status_code}).")
+    body = r.json()
+    used, limit = int(body.get("character_count") or 0), int(body.get("character_limit") or 0)
+    reset = body.get("next_character_count_reset_unix")
+    return ElevenLabsUsage(tier=str(body.get("tier") or "unknown"), credits_used=used, credits_limit=limit,
+                           credits_remaining=max(0, limit - used),
+                           resets_at=datetime.fromtimestamp(reset, timezone.utc) if reset else None)
+
+
+@app.post("/notes/tidy", response_model=TidyResult)
+def notes_tidy(req: TidyRequest):
+    """One dictation, tidied by the model; the raw text comes back when that is not possible."""
+    return notes_ai.tidy(req)
+
+
+@app.post("/notes/review", response_model=NotesReview)
+def notes_review(req: NotesReviewRequest):
+    """The learner's notes against the conversation, for the debrief. Never scored."""
+    return notes_ai.review(req)

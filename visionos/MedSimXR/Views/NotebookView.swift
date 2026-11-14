@@ -60,9 +60,9 @@ struct NotebookView: View {
                     Label("Note-taking mode: the patient cannot hear you while the notebook is open.", systemImage: "mic.slash.fill")
                         .font(.caption).foregroundStyle(.orange)
                 }
+                ConsultationBar()
                 switch model.notebookTab {
                 case .history:
-                    summaryDraft
                     editor($model.notes.history, "What did the patient tell you?", id: "history")
                 case .examination:
                     if model.isUltrasound {
@@ -146,7 +146,7 @@ struct NotebookView: View {
             HStack {
                 Text(prompt).font(.subheadline).foregroundStyle(.secondary)
                 Spacer()
-                DictateButton(id: id, text: text)
+                DictateButton(id: id)
             }
             TextEditor(text: text)
                 .scrollContentBackground(.hidden)
@@ -164,56 +164,9 @@ struct NotebookView: View {
                     }
                 }
             if active { DictationStatus() }
+            if model.lastTidy?.field == id { TidyStatus() }
         }
         .frame(maxHeight: .infinity)
-    }
-
-    /// ElevenLabs' post-call summary of the conversation. Shown as a draft; only the learner
-    /// puts it into the notes, so the documentation feedback still reflects their own notes.
-    @ViewBuilder
-    private var summaryDraft: some View {
-        switch model.summaryState {
-        case .idle:
-            if model.phase == .running, model.voice.status == .connected {
-                VStack(alignment: .leading, spacing: 4) {
-                    Button { model.endConsultation() } label: {
-                        Label("End consultation and draft a summary", systemImage: "text.bubble")
-                    }
-                    .buttonStyle(.bordered)
-                    Text("Ends the conversation with the patient. ElevenLabs then drafts a summary for you to review.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-        case .waiting:
-            HStack(spacing: 8) {
-                ProgressView()
-                Text("ElevenLabs is summarising the conversation…").foregroundStyle(.secondary)
-                Spacer()
-                Button("Cancel") { model.discardSummary() }
-            }
-        case .ready(let text):
-            VStack(alignment: .leading, spacing: 8) {
-                Label("AI-generated draft. Check it against what the patient said before you use it.",
-                      systemImage: "sparkles")
-                    .font(.caption).foregroundStyle(.orange)
-                ScrollView { Text(text).font(.callout).frame(maxWidth: .infinity, alignment: .leading) }
-                    .frame(maxHeight: 150)
-                HStack {
-                    Button("Insert into history notes") { model.insertSummary() }
-                        .buttonStyle(.borderedProminent).tint(.teal)
-                    Button("Discard") { model.discardSummary() }
-                }
-            }
-            .padding(12)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        case .failed(let reason):
-            HStack(spacing: 8) {
-                Label(reason, systemImage: "exclamationmark.triangle.fill").font(.footnote).foregroundStyle(.orange)
-                Spacer()
-                Button("Try again") { model.endConsultation() }
-                Button("Dismiss") { model.discardSummary() }
-            }
-        }
     }
 
     /// One-line field (diagnosis) with a compact Dictate button.
@@ -221,7 +174,7 @@ struct NotebookView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 TextField(prompt, text: text).textFieldStyle(.roundedBorder)
-                DictateButton(id: "diagnosis", text: text, compact: true)
+                DictateButton(id: "diagnosis", compact: true)
             }
             if model.dictation.isActive("diagnosis") { DictationStatus() }
         }
@@ -269,9 +222,14 @@ struct NotebookView: View {
         }
     }
 
+    /// The full conversation, for reference. Not selectable, so it cannot be copied into the notes;
+    /// the debrief compares the notes with it.
     private var conversation: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
+                Label("For reference only. Your notes are what you chose to write down; the debrief compares them with this conversation.",
+                      systemImage: "info.circle")
+                    .font(.caption).foregroundStyle(.secondary)
                 if model.transcript.isEmpty {
                     Text("Nothing said yet.").foregroundStyle(.secondary)
                 }
@@ -285,7 +243,60 @@ struct NotebookView: View {
                     }
                 }
             }
+            .textSelection(.disabled)
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// End the conversation for good, or resume one that was paused to save credits.
+private struct ConsultationBar: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if model.phase == .running, !model.consultationEnded {
+            if let pause = model.voicePause {
+                HStack(spacing: 8) {
+                    Label(pause == .notebook
+                          ? "Conversation paused to save credits. It continues when you close the notebook."
+                          : "Conversation paused after a quiet spell, to save credits.",
+                          systemImage: "pause.circle.fill")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    if pause == .idle { Button("Resume") { Task { await model.resumeVoice() } } }
+                }
+            } else if model.voice.status == .connected {
+                HStack {
+                    Spacer()
+                    Button { Task { await model.endConsultation() } } label: {
+                        Label("End consultation", systemImage: "phone.down.fill")
+                    }
+                    .buttonStyle(.bordered)
+                    .help("Ends the conversation with the patient. Notes, examination and diagnosis still work.")
+                }
+            }
+        }
+    }
+}
+
+/// What the AI tidy did to the last dictation into this note, with Undo.
+private struct TidyStatus: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        switch model.lastTidy?.status {
+        case .pending:
+            Label("Tidying your words…", systemImage: "sparkles").font(.caption).foregroundStyle(.secondary)
+        case .tidied:
+            HStack(spacing: 8) {
+                Label("Tidied by AI. Check it still says what you meant.", systemImage: "sparkles")
+                    .font(.caption).foregroundStyle(.teal)
+                Button("Undo") { model.undoTidy() }.font(.caption)
+            }
+        case .kept(let note):
+            Label(note, systemImage: "text.quote").font(.caption).foregroundStyle(.secondary)
+        case nil:
+            EmptyView()
         }
     }
 }
@@ -294,7 +305,6 @@ struct NotebookView: View {
 private struct DictateButton: View {
     @Environment(AppModel.self) private var model
     let id: String
-    @Binding var text: String
     var compact = false
 
     var body: some View {
@@ -304,8 +314,7 @@ private struct DictateButton: View {
         Button {
             Task {
                 await dictation.toggle(id) { words in
-                    let needsSpace = !(text.last?.isWhitespace ?? true)
-                    text += (needsSpace ? " " : "") + words
+                    Task { await model.dictated(words, into: id) }
                 }
             }
         } label: {
@@ -334,12 +343,23 @@ private struct DictationStatus: View {
     var body: some View {
         let dictation = model.dictation
         if dictation.state == .recording, let start = dictation.startedAt {
-            TimelineView(.periodic(from: start, by: 1)) { context in
-                let seconds = max(0, Int(context.date.timeIntervalSince(start)))
-                Label("Listening \(seconds / 60):\(String(format: "%02d", seconds % 60)). Tap Stop when you are done. The patient cannot hear you.",
-                      systemImage: "waveform")
-                    .symbolEffect(.variableColor.iterative)
-                    .font(.caption).foregroundStyle(.red)
+            VStack(alignment: .leading, spacing: 6) {
+                TimelineView(.periodic(from: start, by: 1)) { context in
+                    let seconds = max(0, Int(context.date.timeIntervalSince(start)))
+                    Label("Listening \(seconds / 60):\(String(format: "%02d", seconds % 60)). Tap Stop when you are done. The patient cannot hear you.",
+                          systemImage: "waveform")
+                        .symbolEffect(.variableColor.iterative)
+                        .font(.caption).foregroundStyle(.red)
+                }
+                if dictation.engine == .live {
+                    Text(dictation.partial.isEmpty ? "Speak now…" : dictation.partial)
+                        .font(.callout)
+                        .foregroundStyle(dictation.partial.isEmpty ? .tertiary : .primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                        .animation(.default, value: dictation.partial)
+                }
             }
         } else if dictation.state == .transcribing {
             Label("Writing your words into the note…", systemImage: "text.badge.plus")

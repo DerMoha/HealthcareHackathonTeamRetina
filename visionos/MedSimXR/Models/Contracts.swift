@@ -648,8 +648,10 @@ protocol VoiceService: AnyObject {
 
     /// Connects and passes `caseContext` as dynamic variable `case_context`.
     /// `voiceId` (optional) overrides the agent's TTS voice for this conversation; the agent
-    /// must allow voice overrides (elevenlabs/setup.md).
-    func start(caseContext: String, voiceId: String?) async
+    /// must allow voice overrides (elevenlabs/setup.md). `resumeLine` continues a paused
+    /// consultation: the patient opens with it instead of the agent's greeting (needs the
+    /// first-message override; without it the agent greets as usual).
+    func start(caseContext: String, voiceId: String?, resumeLine: String?) async
     func stop() async
     /// Note-taking mode: while muted the agent must not hear the learner (dictated notes).
     func setMicMuted(_ muted: Bool) async
@@ -657,12 +659,8 @@ protocol VoiceService: AnyObject {
     func sendContext(_ text: String) async
     /// Forwards `ExaminationResult.voiceContext`; the agent must speak a reaction.
     func sendExaminationEvent(_ text: String) async
-    /// After `stop()`: the voice provider's generated summary of the conversation(s) since the
-    /// last `start`. nil while it is still being generated; throws when none can be had.
-    /// A draft for the learner only; it never reaches the notes or the scoring by itself.
-    func fetchSummary() async throws -> String?
 }
 
 extension VoiceService {
-    func start(caseContext: String) async { await start(caseContext: caseContext, voiceId: nil) }
+    func start(caseContext: String) async { await start(caseContext: caseContext, voiceId: nil, resumeLine: nil) }
 }

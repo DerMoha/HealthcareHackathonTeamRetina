@@ -34,9 +34,8 @@ final class ElevenLabsVoiceService: VoiceService {
     @ObservationIgnored private var wantActive = false
     @ObservationIgnored private var reconnectUsed = false
     @ObservationIgnored private var emitted = Set<String>()
-    /// ElevenLabs conversation ids since the last `start`, oldest first (a reconnect adds one).
-    /// Kept after `stop()` so the post-call summary can be fetched.
-    @ObservationIgnored private var conversationIds: [String] = []
+    /// Resumed conversation: the patient's opening line instead of the agent's greeting.
+    @ObservationIgnored private var firstMessage: String?
 
     private static let connectTimeout: TimeInterval = 10
 
@@ -49,11 +48,11 @@ final class ElevenLabsVoiceService: VoiceService {
 
     // MARK: VoiceService
 
-    func start(caseContext: String, voiceId: String?) async {
+    func start(caseContext: String, voiceId: String?, resumeLine: String?) async {
         await stop()
         self.caseContext = caseContext
-        conversationIds = []
         self.voiceId = voiceId
+        firstMessage = resumeLine
         wantActive = true
         reconnectUsed = false
         status = .connecting
@@ -113,6 +112,12 @@ final class ElevenLabsVoiceService: VoiceService {
             observe(conv, gen: gen)
         } catch {
             guard gen == generation, wantActive else { return }
+            if firstMessage != nil {
+                // The agent may not allow a first-message override (elevenlabs/setup.md): resume
+                // with its normal greeting rather than not at all.
+                firstMessage = nil
+                return await connect()
+            }
             wantActive = false
             status = .failed(error.localizedDescription)
         }
@@ -147,7 +152,8 @@ final class ElevenLabsVoiceService: VoiceService {
 
     private func makeConfig(gen: Int) -> ConversationConfig {
         // A per-avatar voice from Settings; the agent must allow voice overrides (elevenlabs/setup.md).
-        var config = ConversationConfig(ttsOverrides: voiceId.map { TTSOverrides(voiceId: $0) },
+        var config = ConversationConfig(agentOverrides: firstMessage.map { AgentOverrides(firstMessage: $0) },
+                                        ttsOverrides: voiceId.map { TTSOverrides(voiceId: $0) },
                                         dynamicVariables: ["case_context": caseContext])
         config.onUserTranscript = { [weak self] text, eventId in
             Task { @MainActor in self?.emit(.learner, text, key: "u\(eventId)", gen: gen) }
@@ -157,13 +163,6 @@ final class ElevenLabsVoiceService: VoiceService {
         }
         config.onUnhandledClientToolCall = { [weak self] call in
             Task { @MainActor in await self?.handleTool(call, gen: gen) }
-        }
-        config.onConversationMetadata = { [weak self] metadata in
-            let id = metadata.conversationId
-            Task { @MainActor in
-                guard let self, gen == self.generation, !self.conversationIds.contains(id) else { return }
-                self.conversationIds.append(id)
-            }
         }
         return config
     }
@@ -202,48 +201,6 @@ final class ElevenLabsVoiceService: VoiceService {
             throw VoiceError("No agent ID set and backend has no voice token (ElevenLabs not configured)")
         }
         return token
-    }
-
-    // MARK: Post-call summary
-
-    /// ElevenLabs generates the summary only after a conversation has ended. The backend
-    /// fetches it with the API key; the app never holds the key.
-    func fetchSummary() async throws -> String? {
-        struct SummaryResponse: Decodable { let status: String; let summary: String? }
-        guard !conversationIds.isEmpty else {
-            throw VoiceError("No voice conversation was recorded, so there is nothing to summarise.")
-        }
-        var parts: [String] = []
-        for id in conversationIds {
-            let url = AppConfig.backendURL
-                .appendingPathComponent("elevenlabs/conversations")
-                .appendingPathComponent(id)
-                .appendingPathComponent("summary")
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 10
-            let data: Data
-            let response: URLResponse
-            do {
-                (data, response) = try await URLSession.shared.data(for: request)
-            } catch {
-                throw VoiceError("Backend unreachable, so the summary could not be fetched")
-            }
-            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-            if code == 503 { throw VoiceError("Summary unavailable: ElevenLabs is not configured on the backend") }
-            guard code == 200, let body = try? JSONDecoder().decode(SummaryResponse.self, from: data) else {
-                throw VoiceError("The backend could not fetch the summary (HTTP \(code))")
-            }
-            switch body.status {
-            case "pending": return nil
-            case "failed": throw VoiceError("ElevenLabs could not process the conversation")
-            default:
-                if let text = body.summary?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
-                    parts.append(text)
-                }
-            }
-        }
-        guard !parts.isEmpty else { throw VoiceError("ElevenLabs returned no summary for this conversation") }
-        return parts.joined(separator: "\n\n")
     }
 
     // MARK: Observation

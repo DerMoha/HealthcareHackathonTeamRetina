@@ -3,5 +3,6 @@ uvicorn[standard]>=0.30
 pydantic>=2.7
 httpx>=0.27
 pytest>=8.0
-# optional, only for AI drafting in MedSim Studio (deterministic fallback without it):
-# anthropic>=2.8
+# Notebook AI (dictation tidy, notes review) on Amazon Bedrock; also MedSim Studio drafting.
+# Both fall back to deterministic behaviour when it is missing or has no credentials.
+anthropic[bedrock]>=2.8

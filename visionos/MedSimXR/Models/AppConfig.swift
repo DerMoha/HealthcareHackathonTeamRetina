@@ -17,6 +17,9 @@ enum AppConfig {
         return args[i + 1]
     }
 
+    /// A numeric launch argument, e.g. `-idleLimit 5` (smoke tests shorten the credit savers).
+    static func seconds(_ name: String) -> TimeInterval? { launchArgument(name).flatMap(TimeInterval.init) }
+
     /// `-dashboardOnly` with `-autoDemo`: show the dashboard and stop, no session.
     static var dashboardOnly: Bool { ProcessInfo.processInfo.arguments.contains("-dashboardOnly") }
 

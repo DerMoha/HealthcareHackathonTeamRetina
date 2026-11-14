@@ -485,6 +485,15 @@ struct ControlPanelView: View {
             statusRow(model.voice.micStatus == .live ? "mic.fill" : "mic.slash", "Microphone", model.voice.micStatus.rawValue,
                       color: model.voice.micStatus == .live ? .green : .secondary)
             statusRow("server.rack", "Engine", model.engineModeLabel, color: .secondary)
+            statusRow("gauge.with.dots.needle.33percent", "Voice usage", usageLabel, color: creditColor)
+            if model.voicePause != nil, !model.consultationEnded, model.phase == .running {
+                HStack {
+                    Text(model.voicePause == .notebook ? "Paused while the notebook is open" : "Paused after a quiet spell")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Resume") { Task { await model.resumeVoice() } }.buttonStyle(.bordered)
+                }
+            }
             // One-tap fallback when nobody is listening: without it a standing patient cannot be examined.
             if model.phase == .running, model.behavior.state == .standingIdle, model.voice.status != .connected {
                 Button("Ask Alex to sit down") { model.performPatientAction(PatientAction.sitDown.rawValue) }
@@ -501,6 +510,21 @@ struct ControlPanelView: View {
         case .connecting, .failed: .orange
         case .disconnected: .secondary
         }
+    }
+
+    /// Connected minutes this encounter (plus Scribe seconds, if any) and the plan's balance.
+    private var usageLabel: String {
+        let s = Int(model.voiceSeconds)
+        var parts = ["\(s / 60):\(String(format: "%02d", s % 60)) talk"]
+        if model.dictation.scribeSeconds > 0 { parts.append("\(Int(model.dictation.scribeSeconds)) s Scribe") }
+        if let c = model.credits { parts.append("\(c.creditsRemaining)/\(c.creditsLimit) credits left") }
+        return parts.joined(separator: " · ")
+    }
+
+    private var creditColor: Color {
+        guard let c = model.credits, c.creditsLimit > 0 else { return .secondary }
+        let left = Double(c.creditsRemaining) / Double(c.creditsLimit)
+        return left < 0.15 ? .red : left < 0.35 ? .orange : .secondary
     }
 
     /// A failed voice connection is not fatal: the patient keeps talking through local clips.
