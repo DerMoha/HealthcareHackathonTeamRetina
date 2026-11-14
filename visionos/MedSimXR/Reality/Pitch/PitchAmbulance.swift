@@ -330,17 +330,12 @@ enum PitchAmbulance {
             UIBezierPath(rect: CGRect(x: 30, y: 80, width: 140, height: 40)).fill()
         }, at: [0, 0.11, 0.152])
         PitchKit.contactShadow(bag, at: .zero, size: [0.55, 0.3])
-        // Portable oxygen cylinder (white shoulder, CD size) strapped against the cabinet.
-        cyl(e, 0.5, 0.05, pbr(UIColor(white: 0.97, alpha: 1), 0.3), at: [-1.5, 0.25, zB + 0.33])
-        cyl(e, 0.1, 0.035, pbr(UIColor(white: 0.25, alpha: 1), 0.4), at: [-1.5, 0.55, zB + 0.33])
-        box(e, [0.12, 0.03, 0.02], pbr(UIColor(red: 0.1, green: 0.55, blue: 0.25, alpha: 1), 0.6), at: [-1.5, 0.38, zB + 0.38])
-        PitchKit.contactShadow(e, at: [-1.5, 0, zB + 0.33], size: [0.12, 0.12])
     }
 
     // MARK: Crew
 
-    /// EMT Lena in the attendant's seat (variant switch).
-    static let withEMT = false
+    /// EMT Lena in the attendant's seat (false: the empty seat with its harness).
+    static let withEMT = true
 
     /// The bundled seated female avatar (origin on the floor, seat 0.371 m, faces +Z) in paramedic green.
     private static func emt(_ e: Entity, at p: SIMD3<Float>) {
@@ -365,21 +360,6 @@ enum PitchAmbulance {
         for c in e.children { if let f = skinned(c) { return f } }
         return nil
     }
-
-    /// Opacity map for the smoked locker fronts: a light tint with two diagonal reflection streaks.
-    private static let glassOpacity: TextureResource? = {
-        let fmt = UIGraphicsImageRendererFormat(); fmt.scale = 1
-        let img = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256), format: fmt).image { _ in
-            UIColor(white: 0.38, alpha: 1).setFill(); UIBezierPath(rect: CGRect(x: 0, y: 0, width: 256, height: 256)).fill()
-            UIColor(white: 0.62, alpha: 1).setFill()
-            for (x, w) in [(CGFloat(40), CGFloat(34)), (110, 12)] {
-                let p = UIBezierPath(); p.move(to: CGPoint(x: x + 90, y: 0)); p.addLine(to: CGPoint(x: x + 90 + w, y: 0))
-                p.addLine(to: CGPoint(x: x + w, y: 256)); p.addLine(to: CGPoint(x: x, y: 256)); p.close(); p.fill()
-            }
-        }
-        guard let cg = img.cgImage else { return nil }
-        return try? TextureResource(image: cg, options: .init(semantic: .raw))
-    }()
 
     // MARK: Screens and pictures
 
