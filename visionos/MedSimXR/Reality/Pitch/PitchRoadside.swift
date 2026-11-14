@@ -512,7 +512,10 @@ enum PitchRoadside {
     /// on the trail that sign itself says "On the trail").
     private static func chip(_ set: Entity, _ text: String) {
         let e = ModelEntity(mesh: .generatePlane(width: 0.6, height: 0.6 * 110 / 900), materials: [chipMaterial(text)])
-        e.position = [0, 2.42, -0.6]
+        // A tab on top of the stage sign (pitch: x -0.35, scale 0.8, top edge near y 2.45), right-aligned with it,
+        // and square on to the wearer like the sign, so the two never cut through each other.
+        e.position = [0.0, 2.5, -0.6]
+        e.components.set(BillboardComponent())
         set.addChild(e)
         chipEntity = e
     }
