@@ -74,7 +74,7 @@ final class UltrasoundScene {
         root.addChild(regionRoot)
         root.addChild(couchExtras)
         root.addChild(cable)
-        if SmokeLog.pitch { buildHand() }
+        if SmokeLog.pitch && Self.pitchHand { buildHand() }
         gelRoot.isEnabled = false
         root.addChild(gelRoot)
         root.isEnabled = false
@@ -222,7 +222,7 @@ final class UltrasoundScene {
         if probe.parent !== avatar.root { probe.stopAllAnimations(); probe.setParent(avatar.root, preservingWorldTransform: true) }
         let pose = Transform(scale: [1, 1, 1], rotation: Self.orientation(normal: hit.normal, turns: scans), translation: hit.position)
         probe.move(to: pose, relativeTo: avatar.root, duration: 0.25)
-        if SmokeLog.pitch { layCable(from: pose); layArm(from: pose) }
+        if SmokeLog.pitch { layCable(from: pose); if Self.pitchHand { layArm(from: pose) } }
     }
 
     func showGel(_ on: Bool) { gelRoot.isEnabled = on }
@@ -244,7 +244,7 @@ final class UltrasoundScene {
     /// turned a little towards the side the region is on.
     /// Pitch shots: the sidecar points sit at the hem of the crop top; slide them down the bump onto bare skin.
     private static func skinPoint(_ p: SIMD3<Float>) -> SIMD3<Float> {
-        SmokeLog.pitch ? p + SIMD3<Float>(0, -0.41, 0.91) * 0.06 : p
+        SmokeLog.pitch ? p + SIMD3<Float>(0, -0.41, 0.91) * Self.pitchSlide : p
     }
 
     private static func skinNormal(_ sidecar: SIMD3<Float>?, at p: SIMD3<Float>) -> SIMD3<Float> {
@@ -275,6 +275,10 @@ final class UltrasoundScene {
 
     /// Probe turn about its handle so the hand's forearm (+X in probe space) points to the wearer's right side.
     private static let handYaw: Float = -0.35
+    /// Pitch shots: `-pitchHand off` (or env PITCH_HAND=off) leaves the probe without the learner's gloved hand.
+    static let pitchHand = (AppConfig.launchArgument("-pitchHand") ?? ProcessInfo.processInfo.environment["PITCH_HAND"]) != "off"
+    /// How far the probe slides from the scan points (at the crop-top hem) down the bump, towards the navel.
+    private static let pitchSlide: Float = Float(ProcessInfo.processInfo.environment["PITCH_SLIDE"] ?? "") ?? 0.28
     /// Where the glove model's cuff stub ends, and its direction (probe space; see scripts/pitch_glove_antenatal2.py).
     private static let cuffEnd: SIMD3<Float> = [0.088, 0.080, 0.030] + simd_normalize(SIMD3<Float>(1, -0.35, 0.45)) * 0.06
     private static let cuffDir = simd_normalize(SIMD3<Float>(1, -0.35, 0.45))
