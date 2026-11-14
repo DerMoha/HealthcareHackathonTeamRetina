@@ -377,16 +377,23 @@ struct PitchDemo: View {
     }
 
     private func journey() async {
+        _ = model.performPatientAction(PatientAction.sitDown.rawValue) // on the crew's response bag from the start
+        await pause(3)
         await ask("rt_greeting")
+        pitch.caption.append(Pitch.Line(speaker: PitchCrowd.bystander, text: PitchCrowd.forest
+                                               ? "Is he going to be OK?! He went straight over the bars!" : "Is he going to be OK?! He went right over the bonnet!"))
         await shot("rt-01-roadside")
+        await pause(15) // the crowded street renders late in the simulator; keep its caption up for the shot
         await team("scene_safety")
         await history(["rt_mechanism", "rt_head_neck"])
         await team("haemorrhage_control")
         await team("observations")
+        pitch.caption += [Pitch.Line(speaker: PitchCrowd.forest ? "Hiker" : "Driver", text: PitchCrowd.forest
+                                     ? "He hit that root at full speed, I saw it all!" : "He came out of nowhere, I couldn't stop!"),
+                          Pitch.Line(speaker: PitchCrowd.bystander, text: "Why aren't you doing anything? Get him to hospital!")]
         await shot("rt-02-crew")
+        await pause(15)
         await team("photograph_wound")
-        _ = model.performPatientAction(PatientAction.sitDown.rawValue)
-        await pause(3)
         await history(["rt_permission"])
         await model.examine(zoneId: "rt_forearm_wound", source: .script)
         await pause(3)
@@ -397,6 +404,7 @@ struct PitchDemo: View {
         await pause(3)
         await ask("rt_allergies")
         await shot("rt-03-splinted")
+        await pause(15)
 
         await history(["rt_explain_transfer"])
         await model.advanceStage()
