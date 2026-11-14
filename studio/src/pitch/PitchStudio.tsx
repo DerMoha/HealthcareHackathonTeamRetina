@@ -101,9 +101,9 @@ function Shell({ active, title, crumb, children, actions }: { active: string; ti
 /* ---------- generator ---------- */
 type Env = { id: string; name: string; pic: string; note: string }
 const ENVS: Env[] = [
-  { id: 'clinic', name: 'Clinic room', pic: shot('wrist-02-conversation'), note: 'Outpatient, X-ray on site' },
-  { id: 'scan', name: 'Antenatal scan room', pic: shot('us-01-greeting'), note: 'Ultrasound, couch, monitor' },
-  { id: 'road', name: 'Roadside', pic: shot('rt-01-roadside'), note: 'Urban junction, traffic' },
+  { id: 'clinic', name: 'Clinic room', pic: img('webstudio-cover-wrist-talk.jpg'), note: 'Outpatient, X-ray on site' },
+  { id: 'scan', name: 'Antenatal scan room', pic: img('webstudio-cover-us-card.jpg'), note: 'Ultrasound, couch, monitor' },
+  { id: 'road', name: 'Roadside', pic: img('webstudio-cover-rt-splint.jpg'), note: 'Urban junction, traffic' },
   { id: 'forest', name: 'Forest trail', pic: img('webstudio-forest-trail.jpg'), note: 'Remote, 40 min to road' },
   { id: 'amb', name: 'Ambulance', pic: shot('rt-04-ambulance'), note: 'Moving, noise, monitor' },
   { id: 'resus', name: 'Resus bay', pic: shot('rt-05-resus'), note: 'Trauma team, imaging' },
@@ -118,22 +118,22 @@ type Gen = {
 }
 const GEN: Record<'a' | 'b', Gen> = {
   a: {
-    title: 'Cyclist versus car: roadside to resus', cover: shot('rt-01-roadside'), envs: ['road', 'amb', 'resus'],
+    title: 'Cyclist versus car: roadside to resus', cover: img('webstudio-cover-rt-crew.jpg'), envs: ['road', 'amb', 'resus'],
     crowd: 6, stress: 4, time: 'Dusk', weather: 'Rain',
     persona: { init: 'J', name: 'Jordan', age: 34, sex: 'Male', mood: 'Frightened', lang: 'English', line: 'Bicycle courier, hit by a car pulling out. Deformed right forearm, bleeding wound.' },
     team: [['Sam', 'Paramedic', 'crew'], ['Lena', 'Technician', 'crew'], ['Dr Omar', 'ED consultant', 'crew'], ['Priya', 'Trauma nurse', 'crew']],
     diff: 'Final-year', protocol: 'cabcde',
     objectives: [['Scene safety and <C>ABCDE primary survey', true], ['Control catastrophic haemorrhage', true], ['Splint and reassess neurovascular status', true], ['ATMIST pre-alert and handover', true], ['Analgesia choice and dosing', false]],
-    minutes: 24, items: 32, scheme: [['<C> Catastrophic bleed', 4], ['A Airway, C-spine', 3], ['B Breathing', 4], ['C Circulation', 5], ['D Disability', 3], ['E Exposure', 3], ['ATMIST handover', 6], ['Team and bystanders', 4]], crowdLabel: 'Driver, two pedestrians, a shop owner, a cyclist friend, a man filming',
+    minutes: 24, items: 32, scheme: [['<C> Haemorrhage', 4], ['A Airway, C-spine', 3], ['B Breathing', 4], ['C Circulation', 5], ['D Disability', 3], ['E Exposure', 3], ['ATMIST handover', 6], ['Team and bystanders', 4]], crowdLabel: 'Driver, two pedestrians, a shop owner, a cyclist friend, a man filming',
     stressLabel: 'about every 15 s',
     disruptors: [['Bystanders question your decisions', true], ['Driver keeps apologising', true], ['Phone camera filming you', true], ['Siren and traffic noise', true]],
     face: ['The driver insists Jordan "just needs to stand up"', 'A bystander films and asks why you are not moving him', 'Sam asks for your call on the tourniquet at 02:10', 'Pre-alert to resus by radio, ATMIST format'],
   },
   b: {
-    title: 'Mid-pregnancy scan: Sarah, 20 weeks', cover: shot('us-02-head-bpd'), envs: ['scan'],
+    title: 'Mid-pregnancy scan: Sarah, 20 weeks', cover: img('webstudio-cover-us-hero.jpg'), envs: ['scan'],
     crowd: 1, stress: 1, time: 'Day', weather: 'Clear',
-    persona: { init: 'S', name: 'Sarah', age: 31, sex: 'Female', mood: 'Nervous', lang: 'English', line: 'Primary school teacher, first pregnancy, 20+2 weeks. Partner Daniel is with her.' },
-    team: [['Ruth', 'Sonographer', 'crew'], ['Daniel', 'Partner', 'by']],
+    persona: { init: 'S', name: 'Sarah', age: 31, sex: 'Female', mood: 'Nervous', lang: 'English', line: 'Primary school teacher, first pregnancy, 20 weeks. Partner Daniel is with her.' },
+    team: [['Ruth', 'Sonographer', 'crew']],
     diff: 'Year 3', protocol: 'anomaly',
     objectives: [['Consent and explain the scan in plain words', true], ['Obtain the standard mid-trimester views', true], ['Biometry: HC, AC, FL within range', true], ['Placental site and liquor', true], ['Break uncertain news kindly', false]],
     minutes: 18, items: 26, scheme: [['Consent, explanation', 5], ['Head and brain', 4], ['Face and spine', 3], ['Heart views', 4], ['Abdomen, kidneys', 4], ['Limbs, femur', 2], ['Placenta, liquor', 2], ['Report in notebook', 2]], crowdLabel: 'Partner in the room',
@@ -218,7 +218,7 @@ function Generator() {
                 </dl>
               </section>
               <section className="card">
-                <div className="card-h"><h3>Team</h3><span className="hint">{g.team.length} people</span></div>
+                <div className="card-h"><h3>Team</h3><span className="hint">{g.team.length} {g.team.length === 1 ? 'person' : 'people'}</span></div>
                 <ul className="team">{g.team.map(([n, r, k]) => <li key={n}><span className={`av av-sm av-${k}`}>{n.replace('Dr ', '')[0]}</span><b>{n}</b><small>{r}</small></li>)}</ul>
               </section>
             </div>
@@ -260,6 +260,38 @@ function Generator() {
     </Shell>
   )
 }
+
+/* Forearm radiograph (AP + lateral): cortex drawn as a light outer stroke over a darker medullary canal. */
+const Bone = ({ d, w }: { d: string; w: number }) => <><path d={d} stroke="#e8eff1" strokeWidth={w} fill="none" strokeLinecap="round" /><path d={d} stroke="#7d8b8f" strokeWidth={w * 0.42} fill="none" strokeLinecap="round" /></>
+function XrView({ x, lat }: { x: number; lat?: boolean }) {
+  const o = lat ? 3 : 0
+  return (
+    <g transform={`translate(${x} 0)`} filter="url(#xb)">
+      <path d="M11 0 Q30 -2 49 0 Q47 50 45 96 L16 96 Q13 50 11 0z" fill="#7d8a8e" opacity=".32" />
+      <path d="M24 -2 L36 -2 Q37 6 41 11 Q42 16 37 17 Q33 14 30 16 Q26 14 22 17 Q18 15 19 11 Q23 6 24 -2z" fill="#e3eaec" /><path d="M27 -2 L33 -2 Q33 6 31 10 Q29 6 27 -2z" fill="#8f9da1" />
+      <Bone d={`M${25 + o} 19 Q${23 + o} 32 ${24 + o} 46`} w={5.6} />
+      <Bone d={`M${28 + o} 49 Q${25 + o} 64 ${24 + o * 0.5} 79`} w={6.4} />
+      <Bone d={`M${36 - o} 18 Q${37 - o} 31 ${36 - o} 45`} w={5} />
+      <Bone d={`M${39 - o} 47 Q${38 - o} 64 ${35 - o} 79`} w={4.4} />
+      <path d={`M${21 + o} 46 l3 2 l3 -2.5 l3 2`} stroke="#0b0f10" strokeWidth="1.1" fill="none" />
+      <path d={`M${33 - o} 45 l2.5 2 l3 -2`} stroke="#0b0f10" strokeWidth="1" fill="none" />
+      <path d={`M${18 + o} 80 Q${26 + o * 0.5} 77 ${40 - o} 81 L${41 - o} 85 Q29 88 ${17 + o} 84z`} fill="#e6edef" />
+      {[0, 1, 2, 3].map(i => <ellipse key={i} cx={21 + i * 6} cy={89} rx={3} ry={2.6} fill="#d5dee1" />)}
+      {[0, 1, 2, 3].map(i => <path key={`m${i}`} d={`M${20 + i * 6.5} 92 L${18 + i * 7.5} 100`} stroke="#d5dee1" strokeWidth="3" />)}
+    </g>
+  )
+}
+const Xray = () => (
+  <svg className="xr" viewBox="0 0 120 96" aria-label="Forearm radiograph, AP and lateral">
+    <defs><filter id="xb"><feGaussianBlur stdDeviation=".45" /></filter><radialGradient id="xg" cx="50%" cy="45%" r="75%"><stop offset="0" stopColor="#1d2427" /><stop offset="1" stopColor="#030405" /></radialGradient></defs>
+    <rect width="120" height="96" fill="url(#xg)" />
+    <XrView x={0} /><XrView x={60} lat />
+    <line x1="60" y1="4" x2="60" y2="92" stroke="#000" strokeWidth="1.2" />
+    <text x="5" y="10" fill="#f2f5f6" fontSize="7" fontWeight="700" fontFamily="Arial, sans-serif">L</text>
+    <text x="4" y="92" fill="#cdd6d9" fontSize="4.6" fontFamily="Arial, sans-serif">AP</text>
+    <text x="64" y="92" fill="#cdd6d9" fontSize="4.6" fontFamily="Arial, sans-serif">LAT</text>
+  </svg>
+)
 
 /* ---------- AI author ---------- */
 type Step = { tool: string; label: string; detail: string; state: 'done' | 'run' | 'wait'; ms?: string }
@@ -330,7 +362,7 @@ function AuthorBody({ b }: { b: boolean }) {
               <h4>People</h4>
               <ul className="cast">
                 <li><span className="av av-sm av-pt">M</span><b>Mia, 27</b><small>Patient · in pain, scared about her arm</small></li>
-                <li><span className="av av-sm av-crew">T</span><b>Tom</b><small>Mountain rescue · carries the kit</small></li>
+                <li><span className="av av-sm av-crew">T</span><b>Tom and Ana</b><small>Mountain rescue · arrive at 04:00 with the kit</small></li>
                 {b
                   ? <li className="new"><span className="av av-sm av-by">K</span><b>Karin</b><small>Off-duty nurse · questions your splint</small><em>new</em></li>
                   : <li><span className="av av-sm av-by">K</span><b>Karin</b><small>Hiker · keeps asking for a helicopter</small></li>}
@@ -347,7 +379,7 @@ function AuthorBody({ b }: { b: boolean }) {
             </div>
             <div className="dr-block">
               <h4>Imaging</h4>
-              <div className="imaging"><svg className="xr" viewBox="0 0 76 60" aria-label="Forearm radiograph"><defs><radialGradient id="xg" cx="50%" cy="50%" r="70%"><stop offset="0" stopColor="#2a3236" /><stop offset="1" stopColor="#050708" /></radialGradient></defs><rect width="76" height="60" fill="url(#xg)" /><path d="M6 20 Q30 16 36 18 L40 21 Q60 20 72 16" stroke="#d9e2e4" strokeWidth="5" fill="none" strokeLinecap="round" opacity=".9" /><path d="M6 36 Q28 33 34 35 M39 31 Q58 34 72 32" stroke="#cfd9dc" strokeWidth="6" fill="none" strokeLinecap="round" opacity=".85" /><path d="M4 12 Q38 6 74 9 L74 50 Q38 55 4 47z" fill="#9fb0b5" opacity=".12" /></svg><p><b>Forearm AP + lateral</b>Displaced midshaft radius and ulna. Available after handover at the trailhead.</p></div>
+              <div className="imaging"><Xray /><p><b>Forearm AP + lateral</b>Displaced midshaft radius and ulna</p></div>
               <h4>Mark scheme · &lt;C&gt;ABCDE + ATMIST</h4>
               <table className="ms">
                 <tbody>
@@ -451,12 +483,12 @@ function Publish() {
 /* ---------- marketplace ---------- */
 type Item = { t: string; inst: string; cover: string; proto: string; rating: number; n: number; dl: string; mins: number; kind: string; reviewed: boolean; tags: string }
 const ITEMS: Item[] = [
-  { t: 'Wrist injury after a bicycle fall', inst: 'Northgate Medical School', cover: shot('wrist-02-conversation'), proto: 'OSCE mark scheme', rating: 4.8, n: 212, dl: '3.4k', mins: 15, kind: 'Clinic', reviewed: true, tags: 'History · Exam · X-ray' },
-  { t: 'Mid-pregnancy scan, 20 weeks', inst: 'St Brigid’s Simulation Centre', cover: shot('us-03-heart'), proto: 'Anomaly-scan checklist', rating: 4.9, n: 168, dl: '2.1k', mins: 18, kind: 'Antenatal', reviewed: true, tags: 'Ultrasound · Consent' },
+  { t: 'Wrist injury after a bicycle fall', inst: 'Northgate Medical School', cover: img('webstudio-cover-wrist-pain.jpg'), proto: 'OSCE mark scheme', rating: 4.8, n: 212, dl: '3.4k', mins: 15, kind: 'Clinic', reviewed: true, tags: 'History · Exam · X-ray' },
+  { t: 'Mid-pregnancy scan, 20 weeks', inst: 'St Brigid’s Simulation Centre', cover: img('webstudio-cover-us-card.jpg'), proto: 'Anomaly-scan checklist', rating: 4.9, n: 168, dl: '2.1k', mins: 18, kind: 'Antenatal', reviewed: true, tags: 'Ultrasound · Consent' },
   { t: 'Open forearm fracture on a forest trail', inst: 'Northgate Medical School', cover: img('webstudio-forest-mossy.jpg'), proto: '<C>ABCDE + ATMIST', rating: 4.7, n: 41, dl: '612', mins: 25, kind: 'Wilderness', reviewed: true, tags: 'Pre-hospital · Crowd' },
   { t: 'Older adult fall at home, daughter on the phone', inst: 'Lakeside University Hospital', cover: img('webstudio-home.jpg'), proto: 'OSCE mark scheme', rating: 4.6, n: 97, dl: '1.3k', mins: 20, kind: 'Home visit', reviewed: true, tags: 'Frailty · Family' },
-  { t: 'Splint fitting in the orthotics lab', inst: 'Harbourview College of Allied Health', cover: shot('wrist-05-orthotics-lab'), proto: 'OSCE mark scheme', rating: 4.5, n: 63, dl: '840', mins: 12, kind: 'Clinic', reviewed: false, tags: 'Procedure · Orthotics' },
-  { t: 'Resus handover: polytrauma, team of four', inst: 'Lakeside University Hospital', cover: shot('rt-05-resus'), proto: '<C>ABCDE + ATMIST', rating: 4.8, n: 134, dl: '1.9k', mins: 22, kind: 'Resus', reviewed: true, tags: 'Teamwork · Handover' },
+  { t: 'Splint fitting in the orthotics lab', inst: 'Harbourview College of Allied Health', cover: img('webstudio-cover-wrist-splint.jpg'), proto: 'OSCE mark scheme', rating: 4.5, n: 63, dl: '840', mins: 12, kind: 'Clinic', reviewed: false, tags: 'Procedure · Orthotics' },
+  { t: 'Cyclist down: splint and ATMIST pre-alert', inst: 'Lakeside University Hospital', cover: img('webstudio-cover-rt-splint.jpg'), proto: '<C>ABCDE + ATMIST', rating: 4.8, n: 134, dl: '1.9k', mins: 22, kind: 'Pre-hospital', reviewed: true, tags: 'Teamwork · Handover' },
 ]
 
 function Stars({ r }: { r: number }) {
@@ -486,7 +518,7 @@ function Marketplace() {
       {v === 'a' ? (
         <div className="mkt">
           <div className="feat">
-            <div className="feat-pic" style={{ backgroundImage: `url(${shot('rt-01-roadside')})` }} />
+            <div className="feat-pic" style={{ backgroundImage: `url(${img('webstudio-cover-rt-crew.jpg')})` }} />
             <div className="feat-t">
               <span className="pill">Featured journey · 3 places</span>
               <h2>Cyclist versus car: roadside to resus</h2>
@@ -505,10 +537,10 @@ function Marketplace() {
         <div className="detail">
           <div className="dt-main">
             <div className="dt-media">
-              <div className="dt-hero" style={{ backgroundImage: `url(${shot('us-02-head-bpd')})` }}>
+              <div className="dt-hero" style={{ backgroundImage: `url(${img('webstudio-cover-us-hero.jpg')})` }}>
                 <span className="badge-proto solid">Anomaly-scan checklist</span>
               </div>
-              <div className="dt-thumbs">{['us-01-greeting', 'us-03-heart', 'us-04-overview', 'us-05-feedback'].map(s => <div key={s} style={{ backgroundImage: `url(${shot(s)})` }} />)}</div>
+              <div className="dt-thumbs">{['us-probe', 'us-monitor', 'us-checklist'].map(s => <div key={s} style={{ backgroundImage: `url(${img(`webstudio-cover-${s}.jpg`)})` }} />)}</div>
               <div className="dt-reviews">
                 <blockquote>“Students finally practise talking while they scan. The partner’s questions are exactly what happens in clinic.”<cite>Midwifery lecturer, Lakeside University</cite></blockquote>
                 <blockquote>“The checklist debrief maps straight onto our sonography logbook.”<cite>Ultrasound tutor, Harbourview College</cite></blockquote>
@@ -527,8 +559,8 @@ function Marketplace() {
             <h3>Send to Vision Pro</h3>
             <p className="sub">Choose the headsets for Tuesday’s antenatal teaching block.</p>
             <ul className="devs">
-              <li className="on"><span className="cb"><I n="check" s={12} /></span><I n="goggles" s={22} /><div><b>Sim Lab 2 · Bay A</b><small>Downloading 72%</small><div className="bar"><i style={{ width: '72%' }} /></div></div></li>
-              <li className="on"><span className="cb"><I n="check" s={12} /></span><I n="goggles" s={22} /><div><b>Sim Lab 2 · Bay B</b><small>Installed · ready to play</small></div><span className="ready">Ready</span></li>
+              <li className="on"><span className="cb"><I n="check" s={12} /></span><I n="goggles" s={22} /><div><b>Sim Lab 2 · Bay A</b><small>Free · installs in about 1 min</small></div><span className="ready">Ready</span></li>
+              <li className="on"><span className="cb"><I n="check" s={12} /></span><I n="goggles" s={22} /><div><b>Sim Lab 2 · Bay B</b><small>In session · Jordan · installs after this run</small></div><span className="queued">Queued</span></li>
               <li><span className="cb" /><I n="goggles" s={22} /><div><b>Skills Hub · 3</b><small>Charging 64% · sends when on Wi-Fi</small></div></li>
             </ul>
             <div className="send-meta">
