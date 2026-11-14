@@ -35,10 +35,12 @@ struct PitchCaption: View {
     private static let bystander = Color(red: 1, green: 0.36, blue: 0.42)
 
     /// Who cuts in at each journey stage, after a learner and patient exchange or a crew line.
-    private static let interruptions: [String: Pitch.Line] = [
-        "scene": Pitch.Line(speaker: "Driver", text: "I didn't see him, he came out of nowhere! Is he going to be OK?"),
+    private static var interruptions: [String: Pitch.Line] { [
+        "scene": PitchCrowd.forest
+            ? Pitch.Line(speaker: "Hiker", text: "We heard him crash and came running! Is he going to be OK?")
+            : Pitch.Line(speaker: "Driver", text: "I didn't see him, he came out of nowhere! Is he going to be OK?"),
         "ambulance": Pitch.Line(speaker: "Ambulance driver", text: "Hold on, sharp bend! About fifteen minutes out."),
-    ]
+    ] }
     /// The learner and patient exchange that leads a stage's crew lines, so every stage shows you talking.
     private static let openers: [String: [Pitch.Line]] = [
         "ambulance": [Pitch.Line(speaker: "You", text: "Jordan, how's the pain now, out of ten?", learner: true),
