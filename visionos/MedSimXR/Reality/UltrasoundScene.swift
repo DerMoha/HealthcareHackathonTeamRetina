@@ -94,7 +94,7 @@ final class UltrasoundScene {
         let faint = Self.overlay(.white, SmokeLog.pitch ? 0 : 0.07) // pitch shots: no visible hit spheres
         for region in regions {
             guard let anchor = avatar.anchors[region.attachTo] else { continue }
-            let position = anchor.position(relativeTo: avatar.root)
+            let position = Self.skinPoint(anchor.position(relativeTo: avatar.root))
             let normal = Self.skinNormal(avatar.anchorNormals[region.attachTo], at: position)
             let zone = ModelEntity(mesh: .generateSphere(radius: region.radius), materials: [faint])
             zone.name = region.id
@@ -235,13 +235,18 @@ final class UltrasoundScene {
 
     private func regionPose(_ id: String) -> (position: SIMD3<Float>, normal: SIMD3<Float>)? {
         guard let avatar, let region = regions.first(where: { $0.id == id }), let anchor = avatar.anchors[region.attachTo] else { return nil }
-        let position = anchor.position(relativeTo: avatar.root)
+        let position = Self.skinPoint(anchor.position(relativeTo: avatar.root))
         return (position, Self.skinNormal(avatar.anchorNormals[region.attachTo], at: position))
     }
 
     /// The sidecar's belly normals do not fit the pitch patient's smaller bump (some point at the wearer, so the
     /// probe lay sideways and the gel stood up in the air). Pitch shots use the inclined front of the belly instead,
     /// turned a little towards the side the region is on.
+    /// Pitch shots: the sidecar points sit at the hem of the crop top; slide them down the bump onto bare skin.
+    private static func skinPoint(_ p: SIMD3<Float>) -> SIMD3<Float> {
+        SmokeLog.pitch ? p + SIMD3<Float>(0, -0.41, 0.91) * 0.06 : p
+    }
+
     private static func skinNormal(_ sidecar: SIMD3<Float>?, at p: SIMD3<Float>) -> SIMD3<Float> {
         guard SmokeLog.pitch else { return sidecar ?? [0, 1, 0] }
         return simd_normalize(SIMD3<Float>(max(-0.3, min(0.3, p.x * 5)), 0.91, 0.41))
