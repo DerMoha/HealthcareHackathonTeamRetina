@@ -438,7 +438,10 @@ def write_panels(panels, path):
             co = world_to_camera_view(sc, cam, Vector(v))
             quad.append([round(co.x * W, 2), round((1 - co.y) * H, 2)])
         depth = (Vector(p["corners"][0]) - cam.location).length
-        out.append(dict({k: v for k, v in p.items() if k != "corners"}, quad=quad, depth=round(depth, 3)))
+        extra = {}
+        if p.get("anchor"):  # speaker point for the bubble's leader line
+            co = world_to_camera_view(sc, cam, Vector(p["anchor"])); extra["anchor"] = [round(co.x * W, 2), round((1 - co.y) * H, 2)]
+        out.append(dict({k: v for k, v in p.items() if k not in ("corners", "anchor")}, quad=quad, depth=round(depth, 3), **extra))
     json.dump({"width": W, "height": H, "panels": out}, open(path, "w"), indent=1)
 
 
@@ -463,7 +466,7 @@ def screen_panels(specs):
     fr = cam.data.view_frame(scene=sc)  # local corners at some depth
     fx = max(abs(v.x) for v in fr); fy = max(abs(v.y) for v in fr); fz = abs(fr[0].z)
     out = []
-    for name, sx, sy, dist, w, h in specs:
+    for name, sx, sy, dist, w, h, *anchor in specs:
         p = cam.matrix_world @ (Vector((sx * fx, sy * fy, -fz)) * (dist / fz))
-        out.append(dict(name=name, corners=panel_quad(p, w, h, cam.matrix_world.translation)))
+        out.append(dict(name=name, corners=panel_quad(p, w, h, cam.matrix_world.translation), anchor=anchor[0] if anchor else None))
     return out

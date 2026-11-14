@@ -39,6 +39,7 @@ for x, y in ((-1.2, -1.2), (1.2, -1.2), (-1.2, 0.8), (1.2, 0.8)):
 # window light from camera-right (window off frame on the right wall)
 H.area_light("window", (X1 - 0.1, -0.6, 1.6), 2.4, 520, color=(0.86, 0.92, 1.0), target=(0, -0.2, 1.0), size_y=1.6)
 H.area_light("fill", (-1.0, -3.0, 2.0), 2.0, 70, color=(1.0, 0.93, 0.85), target=(0, 0, 1.0))
+H.area_light("face_key", (0.9, -1.5, 1.9), 0.6, 45, color=(1.0, 0.8, 0.6), target=(0, 0, 1.25))  # warm key for contrast on Alex
 
 # ---- patient
 root, rig, body = H.patient("Patient")
@@ -86,7 +87,7 @@ def shot(name, cam, target, lens, specs, fstop=4.0, focus=None):
 
 
 shot("hero-01-clinic", (0.62, -2.45, 1.6), (0.0, 0, 1.15), 32, [
-    ("conversation", -0.56, 0.5, 1.9, 0.64, 0.355),
+    ("conversation", -0.6, 0.5, 1.9, 0.58, 0.322),
     ("score", -0.62, -0.12, 1.9, 0.38, 0.2),
     ("notebook", 0.62, 0.05, 1.7, 0.5, 0.61),
 ], focus=2.5)

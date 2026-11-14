@@ -47,29 +47,21 @@ H.plane("edge_line", (0.12, 80), (-2.6, 20, 0.002), paint)
 root, rig, body = H.patient("Patient")
 P.guard_right_wrist(rig)
 bag_red = H.pbr("bag", "Fabric030", scale=6, tint=(0.75, 0.08, 0.06), rough_mul=0.9)
-H.box("bag", (0.62, 0.36, 0.44), (0, -0.02, 0.22), bag_red, bevel=0.05, segments=6)
-H.box("bag_strap", (0.64, 0.06, 0.02), (0, -0.02, 0.442), H.plain("strap", (0.05, 0.05, 0.05), rough=0.7), bevel=0.005)
+H.box("bag", (0.62, 0.36, 0.44), (0, -0.02, 0.22), bag_red, bevel=0.09, segments=8)
+strap = H.plain("strap", (0.04, 0.04, 0.045), rough=0.7)
 refl = H.plain("refl", (0.85, 0.85, 0.85), rough=0.2, metal=0.6)
-H.box("bag_band", (0.63, 0.37, 0.04), (0, -0.02, 0.15), refl, bevel=0.01)
-H.box("bag2", (0.5, 0.3, 0.3), (0.75, -0.45, 0.15), H.pbr("bag2", "Fabric030", scale=6, tint=(0.08, 0.35, 0.18)), bevel=0.04, rot=(0, 0, 0.5))
-H.cylinder("o2", 0.05, 0.6, (0.62, -0.2, 0.05), H.plain("o2c", (0.95, 0.95, 0.95), rough=0.25), rot=(math.pi / 2, 0, 1.3))
-H.gltf("medical_box", (-0.7, -0.5, 0), rot_z=30)
+H.box("bag_band", (0.6, 0.365, 0.025), (0, -0.02, 0.16), refl, bevel=0.008)
+H.box("bag_pocket", (0.46, 0.05, 0.2), (0, -0.215, 0.2), bag_red, bevel=0.03, segments=4)
+H.box("bag_zip", (0.44, 0.012, 0.012), (0, -0.242, 0.29), strap, bevel=0.003)
+for x in (-0.36, 0.36):  # carry straps down the ends
+    H.box("bag_strap", (0.02, 0.07, 0.4), (x * 0.86, -0.02, 0.22), strap, bevel=0.004)
+H.gltf("medical_box", (-0.75, -0.45, 0), rot_z=30)
 
-# ---- his bicycle lying on the road behind him
-frame_m = H.plain("bike", (0.05, 0.25, 0.6), rough=0.25, metal=0.3, coat=1.0)
+# ---- his cycle helmet, knocked off, on the road
+dome = [(0.0, 0.17)] + [(0.16 * math.sin(math.radians(a)), 0.17 * math.cos(math.radians(a))) for a in range(12, 91, 6)] + [(0.15, 0.0)]
+hm = H.lathe("helmet", dome[::-1], (0.95, -0.9, 0.0), H.plain("helmet", (0.92, 0.92, 0.9), rough=0.3, coat=1))
+hm.scale = (1.0, 1.35, 0.85); hm.rotation_euler = (0, math.radians(18), 0.7)
 tyre = H.pbr("tyre", "Rubber004", scale=4)
-bx, by = 0.9, 1.9
-for wx in (-0.52, 0.52):
-    bpy.ops.mesh.primitive_torus_add(major_radius=0.33, minor_radius=0.018, location=(bx + wx, by, 0.02), major_segments=64, minor_segments=12)
-    t = bpy.context.object; t.data.materials.append(tyre); t.rotation_euler = (0, 0, 0.35)
-    for p in t.data.polygons: p.use_smooth = True
-for a, b in (((-0.52, 0), (0.0, 0.0)), ((0.0, 0.0), (0.12, 0.5)), ((-0.52, 0), (0.12, 0.5)), ((0.12, 0.5), (0.55, 0.42)), ((0.55, 0.42), (0.52, 0.0)), ((0.0, 0.0), (0.05, 0.62))):
-    A, B = Vector((bx + a[0], by + a[1] * 0.25, 0.04)), Vector((bx + b[0], by + b[1] * 0.25 + 0.02, 0.04))
-    c = H.cylinder("tube", 0.016, (B - A).length, (A + B) / 2, frame_m, verts=16, bevel=0)
-    c.rotation_euler = (B - A).to_track_quat("Z", "Y").to_euler()
-H.box("saddle", (0.25, 0.1, 0.05), (bx + 0.05, by + 0.18, 0.04), H.plain("saddle", (0.03, 0.03, 0.03), rough=0.5))
-H.cylinder("helmet", 0.13, 0.1, (bx - 1.2, by - 0.6, 0.05), H.plain("helmet", (0.95, 0.85, 0.1), rough=0.3, coat=1))
-
 # ---- the car that hit him: dark estate, stopped askew, hazards on
 paint_car = H.plain("carpaint", (0.12, 0.13, 0.15), rough=0.25, metal=0.6, coat=1.0)
 glass = H.plain("carglass", (0.02, 0.02, 0.03), rough=0.05, metal=0.2, coat=1.0)
@@ -110,6 +102,8 @@ for i, x in enumerate((-0.75, -0.25, 0.25, 0.75)):
 for x in (-1.16, 1.16):  # grille / side strobes
     pl = H.point_light("blue_low", (x * 0.8, -2.95, 0.75), 1500, color=blue, radius=0.05); pl.parent = amb
     s = H.box("strobe", (0.18, 0.03, 0.06), (x * 0.8, -2.9, 0.75), H.plain("strobe", blue, emission=blue, estrength=15)); s.parent = amb
+H.point_light("rim_blue", (-0.7, 1.1, 1.7), 420, color=blue, radius=0.1).data.specular_factor = 0.0  # no glint in the windscreen
+H.spot_light("strobe_pool", (-1.2, 3.2, 2.0), 9000, (0.6, -0.8, 0), color=blue, angle=40, radius=0.05)
 H.spot_light("scene_lamp", (-1.2, 2.6, 2.4), 450, (0, 0, 0.8), color=(1.0, 0.93, 0.82), angle=55, radius=0.25)
 
 # ---- traffic cones, debris, barriers
@@ -130,8 +124,8 @@ P.stand(frig, froot, arms="phone", head_turn=-20)
 froot.location.x, froot.location.y = -2.2, 1.6; froot.rotation_euler.z = math.radians(54)
 mroot, mrig, mbody = H.patient("Patient")
 P.tint_clothes(mbody, (0.07, 0.07, 0.08), mix=0.7)
-P.stand(mrig, mroot, head_turn=10)
-mroot.location.x, mroot.location.y = 1.9, 2.9; mroot.rotation_euler.z = math.radians(-33)
+P.stand(mrig, mroot, arms="phone", head_turn=0)
+mroot.location.x, mroot.location.y = 2.2, 3.4; mroot.rotation_euler.z = math.radians(155)
 bpy.context.view_layer.update()
 
 
@@ -143,12 +137,12 @@ def shot(name, cam, target, lens, specs, fstop=2.8, focus=None):
 
 shot("hero-02-roadside", (0.55, -3.1, 1.55), (0.15, 1.0, 1.05), 32, [
     ("title", 0.0, 0.72, 3.4, 1.7, 0.34),
-    ("bystander", -0.55, 0.2, 2.2, 0.66, 0.24),
-    ("patient_rt", 0.5, 0.25, 2.2, 0.62, 0.2),
-    ("abcde", 0.66, -0.45, 1.9, 0.42, 0.33),
+    ("bystander", -0.43, 0.28, 2.2, 0.66, 0.24, (-2.12, 1.5, 1.22)),
+    ("patient_rt", 0.42, 0.2, 2.2, 0.62, 0.2, (0.12, -0.1, 1.02)),
+    ("abcde", 0.66, -0.43, 1.9, 0.42, 0.47),
 ], focus=3.0)
-shot("hero-02-roadside-b", (-2.4, -2.2, 0.85), (0.4, 1.4, 1.1), 28, [
+shot("hero-02-roadside-b", (-1.0, -2.7, 0.8), (0.3, 3.0, 1.15), 28, [
     ("title", 0.0, 0.72, 3.4, 1.9, 0.38),
-    ("bystander", -0.6, 0.15, 2.2, 0.72, 0.26),
-    ("patient_rt", -0.4, -0.45, 2.0, 0.66, 0.22),
-], focus=2.6)
+    ("bystander", -0.5, 0.3, 2.4, 0.72, 0.26, (-2.12, 1.5, 1.22)),
+    ("patient_rt", 0.69, -0.3, 2.0, 0.66, 0.22, (0.2, -0.08, 0.98)),
+], focus=2.9)

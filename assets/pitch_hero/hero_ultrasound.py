@@ -72,18 +72,23 @@ H.cylinder("gel_cap", 0.012, 0.04, (mx + 0.24, my + 0.18, 1.1), H.plain("cap", (
 # probe on the abdomen (normal from the avatar's anchors), cable to the machine
 pc = av(meta["anchors"]["abdomen_right"]) * 0.4 + av(meta["anchors"]["abdomen_center"]) * 0.6
 n = av(meta["normals"]["abdomen_center"]).normalized()
-probe = H.box("probe", (0.055, 0.03, 0.15), pc + n * 0.075, H.plain("probe", (0.92, 0.92, 0.93), rough=0.25, coat=0.6), bevel=0.012, segments=5)
-probe.rotation_euler = n.to_track_quat("Z", "Y").to_euler()
+# probe resting flat in a gel pool along her right flank, cable slack down to the machine
+tg = (Vector((-1, 0, 0)) - n * n.x).normalized()
+from mathutils import Matrix
+probe = H.box("probe", (0.055, 0.032, 0.15), pc + n * 0.03 + tg * 0.02, H.plain("probe", (0.92, 0.92, 0.93), rough=0.25, coat=0.6), bevel=0.012, segments=5)
+probe.rotation_euler = Matrix((n.cross(tg), n, tg)).transposed().to_euler()
+gelpool = H.lathe("gelpool", [(0.07, 0.0), (0.065, 0.006), (0.04, 0.011), (0.0, 0.013)], pc - n * 0.004, H.plain("gelp", (0.72, 0.84, 0.95), rough=0.04, coat=1.0))
+gelpool.rotation_euler = n.to_track_quat("Z", "Y").to_euler(); gelpool.scale = (1.3, 0.9, 1.0)
 cab = bpy.data.curves.new("cable", "CURVE"); cab.dimensions = "3D"; cab.bevel_depth = 0.006
-sp = cab.splines.new("BEZIER"); pts = [pc + n * 0.15, Vector((-0.35, -0.35, 0.75)), Vector((mx + 0.2, my - 0.2, 0.7)), Vector((mx + 0.25, my - 0.05, 0.9))]
+sp = cab.splines.new("BEZIER"); pts = [pc + n * 0.03 + tg * 0.1, pc + n * 0.02 + tg * 0.2 - Vector((0, 0, 0.08)), Vector((-0.42, -0.3, 0.55)), Vector((mx + 0.2, my - 0.25, 0.62)), Vector((mx + 0.25, my - 0.05, 0.9))]
 sp.bezier_points.add(len(pts) - 1)
 for bp, p in zip(sp.bezier_points, pts): bp.co = p; bp.handle_left_type = bp.handle_right_type = "AUTO"
 co = H.link(bpy.data.objects.new("cable", cab)); cab.materials.append(dark)
 
 # ---- wall screen for the mother (mirror of the scan), cabinet, clock, plant
-ws = bpy.data.objects.new("wallscreen", None); H.link(ws); ws.location = (1.4, Y1 - 0.04, 1.65)
-o = H.box("ws_body", (1.0, 0.04, 0.6), (0, 0, 0), dark, bevel=0.01); o.parent = ws
-o = H.plane("ws_img", (0.96, 0.6), (0, -0.022, 0), H.image_emit("screen2", os.path.join(H.OUT, "us_screen.png"), strength=1.2, gloss_coat=0.0, rough=0.6), rot=(math.radians(90), 0, 0)); o.parent = ws
+ws = bpy.data.objects.new("wallscreen", None); H.link(ws); ws.location = (1.25, Y1 - 0.04, 1.6)
+o = H.box("ws_body", (1.34, 0.04, 0.86), (0, 0, 0), dark, bevel=0.01); o.parent = ws
+o = H.plane("ws_img", (1.3, 0.8125), (0, -0.022, 0), H.image_emit("screen2", os.path.join(H.OUT, "us_screen.png"), strength=1.2, gloss_coat=0.0, rough=0.6), rot=(math.radians(90), 0, 0)); o.parent = ws
 H.gltf("drawer_cabinet", (-2.2, 1.62, 0), rot_z=180, scale=0.75)
 H.gltf("wall_clock", (-1.7, Y1 - 0.005, 2.0), rot_z=180)
 H.gltf("potted_plant_04", (2.2, 0.2, 0), rot_z=20)
@@ -110,11 +115,11 @@ def shot(name, cam, target, lens, specs, fstop=3.2, focus=None):
     H.render(name)
 
 
-shot("hero-03-ultrasound", (0.9, -2.6, 1.6), (-0.35, 0.05, 1.1), 30, [
-    ("checklist", 0.64, 0.0, 1.8, 0.5, 0.66),
-    ("patient_us", -0.05, 0.68, 2.4, 0.66, 0.2),
-], focus=2.75)
+shot("hero-03-ultrasound", (0.55, -2.05, 1.55), (-0.4, 0.1, 1.15), 28, [
+    ("checklist", 0.66, -0.02, 1.5, 0.42, 0.553),
+    ("patient_us", -0.02, 0.72, 2.0, 0.6, 0.183, av(meta["anchors"]["head"]) + Vector((0, 0.02, 0.09))),
+], focus=2.3)
 shot("hero-03-ultrasound-b", (-1.9, -1.55, 1.5), (-0.3, 0.2, 1.1), 38, [
     ("checklist", 0.64, 0.0, 1.8, 0.44, 0.58),
-    ("patient_us", 0.1, 0.7, 2.4, 0.6, 0.183),
+    ("patient_us", 0.1, 0.7, 2.4, 0.6, 0.183, av(meta["anchors"]["head"]) + Vector((0, 0.02, 0.09))),
 ], fstop=2.8, focus=2.0)

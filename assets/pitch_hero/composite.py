@@ -122,7 +122,15 @@ def check_row(p, x, y, w, label, value, state, size=30):
     p.text((x + size + 20, y), label, size, "Medium")
     if value:
         f = font(size, "Semibold"); tw = p.d.textlength(value, font=f)
+        leader(p, x + size + 34 + p.d.textlength(label, font=font(size, "Medium")), x + w - tw - 14, y + size * 0.72)
         p.d.text((x + w - tw, y), value, font=f, fill=DIM)
+
+
+def leader(p, x0, x1, y, step=12):
+    """Dotted leader so a right-aligned value stays tied to its label once the panel is in perspective."""
+    x = x0
+    while x < x1:
+        p.d.ellipse((x, y - 2, x + 4, y + 2), fill=(255, 255, 255, 70)); x += step
 
 
 # ------------------------------------------------------------------ panel content
@@ -166,7 +174,8 @@ def p_score_clinic():
     p.chip(280, 98, "Pass", 24, GREEN, 60)
     y = 150
     for k, v in (("History", "7/8"), ("Examination", "6/7"), ("Communication", "5/6")):
-        p.text((280, y), k, 24, fill=DIM); f = font(24, "Semibold"); p.d.text((520 - p.d.textlength(v, font=f), y), v, font=f, fill=WHITE); y += 36
+        p.text((280, y), k, 24, fill=DIM); f = font(24, "Semibold"); tw = p.d.textlength(v, font=f)
+        leader(p, 290 + p.d.textlength(k, font=font(24)), 510 - tw, y + 17, 10); p.d.text((520 - tw, y), v, font=f, fill=WHITE); y += 36
     return p
 
 
@@ -180,7 +189,7 @@ def p_title_roadside():
         p.d.rounded_rectangle((x, 228, x + 300, 238), 5, fill=(*col, 255 if i == 0 else 60))
         p.text((x, 248), s, 26, "Semibold", fill=(*col, 255) if i == 0 else FAINT); x += 330
     p.text((1100, 70), "Cyclist vs car, 40 km/h", 30, "Semibold", fill=DIM)
-    p.text((1100, 114), "Dusk · wet road · 2 bystanders", 28, fill=DIM)
+    p.text((1100, 114), "Dusk · wet road · bystanders", 28, fill=DIM)
     return p
 
 
@@ -200,9 +209,10 @@ def p_patient_roadside():
 
 
 def p_abcde():
-    p = Panel(660, 520, 40); header(p, "Primary survey", TEAL, "ABCDE")
+    p = Panel(660, 580, 40); header(p, "Primary survey", TEAL, "<C>ABCDE")
     y = 132
-    for label, val, st in (("Catastrophic haemorrhage", "none", "ok"), ("Airway + C-spine", "talking, collar", "ok"),
+    for label, val, st in (("Catastrophic haemorrhage", "none", "ok"), ("Airway", "patent, talking", "ok"),
+                           ("C-spine", "not cleared", "part"),
                            ("Breathing", "RR 24, SpO₂ 95 %", "ok"), ("Circulation", "HR 118, CRT 3 s", "part"),
                            ("Disability", "", "todo"), ("Exposure", "", "todo")):
         check_row(p, 44, y, 580, label, val, st, 27); y += 60
@@ -213,7 +223,7 @@ def p_checklist_us():
     p = Panel(760, 1000); header(p, "Anomaly scan checklist", TEAL, "20+0 wks")
     y = 132
     for label, val, st in (("Head shape + BPD", "46.1 mm", "ok"), ("Cavum septi pellucidi", "seen", "ok"), ("Cerebellum + cisterna magna", "seen", "ok"),
-                           ("Face + lips", "", "ok"), ("Four-chamber heart", "seen", "ok"), ("Outflow tracts", "", "part"),
+                           ("Face + lips", "seen", "ok"), ("Four-chamber heart", "seen", "ok"), ("Outflow tracts", "", "part"),
                            ("Spine (sagittal + coronal)", "", "todo"), ("Abdominal wall + cord insertion", "", "todo"),
                            ("Kidneys + bladder", "", "todo"), ("Femur length", "", "todo"), ("Placenta + amniotic fluid", "", "todo")):
         check_row(p, 44, y, 672, label, val, st, 28); y += 62
@@ -283,10 +293,30 @@ def composite(name):
         out = Image.composite(glass, out, m)
         c = warp(p.im, quad, frame.size)
         out.paste(c, (0, 0), c)
+        if pm.get("anchor"):
+            speaker_line(out, quad, [pm["anchor"][0] * sx, pm["anchor"][1] * sy], SPEAKER[pm["name"]], frame.width / 3840)
     os.makedirs(DOCS, exist_ok=True)
     dst = os.path.join(DOCS, name + ".jpg")
     out.save(dst, quality=92, subsampling=0)
     print("WROTE", dst, out.size)
+
+
+SPEAKER = {"bystander": VIOLET, "patient_rt": ORANGE, "patient_us": ORANGE, "conversation": ORANGE}
+
+
+def speaker_line(out, quad, a, col, k):
+    """Leader from the panel edge (nearest edge midpoint) to the speaker, drawn 3x supersampled."""
+    mids = [((quad[i][0] + quad[(i + 1) % 4][0]) / 2, (quad[i][1] + quad[(i + 1) % 4][1]) / 2) for i in range(4)]
+    m = min(mids, key=lambda q: (q[0] - a[0]) ** 2 + (q[1] - a[1]) ** 2)
+    x0, y0 = min(m[0], a[0]) - 40, min(m[1], a[1]) - 40; x1, y1 = max(m[0], a[0]) + 40, max(m[1], a[1]) + 40
+    S = 3; lay = Image.new("RGBA", (int((x1 - x0) * S), int((y1 - y0) * S)), (0, 0, 0, 0)); d = ImageDraw.Draw(lay)
+    P = lambda q: ((q[0] - x0) * S, (q[1] - y0) * S)
+    d.line((P(m), P(a)), fill=(*col, 210), width=int(5 * k * S))
+    for (q, r) in ((m, 9), (a, 14)):
+        cx, cy = P(q); r *= k * S
+        d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(*col, 255), outline=(255, 255, 255, 230), width=int(3 * k * S))
+    lay = lay.resize((int(x1 - x0), int(y1 - y0)), Image.LANCZOS)
+    out.paste(lay, (int(x0), int(y0)), lay)
 
 
 def us_screen():
