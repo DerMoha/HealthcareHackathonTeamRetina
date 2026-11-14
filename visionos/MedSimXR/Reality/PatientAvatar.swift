@@ -316,6 +316,7 @@ final class PatientAvatar {
                 forearmLength = simd_distance(point(e), point(w))
             }
             for name in Self.anchorJoints.keys { anchorRest[name] = anchors[name]?.transformMatrix(relativeTo: root) }
+            if SmokeLog.pitch, sidecar.couch != nil { posePitchCouch() }
         }
         let b = model.visualBounds(relativeTo: root)
         SmokeLog.mark("avatar usdz joints=\(restJoints.count) size=\(b.extents) minY=\(b.min.y)")
@@ -338,7 +339,7 @@ final class PatientAvatar {
         skinned = nil
         model = nil
         restJoints = []; parentRotation = []; parentIndex = []; restWorld = []
-        jointIndex = [:]; jointDelta = [:]; anchorRest = [:]
+        jointIndex = [:]; jointDelta = [:]; anchorRest = [:]; pitchPose = [:]
         meshToRoot = matrix_identity_float4x4
         loadedModel = nil
     }
@@ -429,6 +430,27 @@ final class PatientAvatar {
         }
     }
 
+    /// Pitch shots only: joint offsets for the scan-couch pose, kept on top of every behaviour pose.
+    private var pitchPose: [String: simd_quatf] = [:]
+
+    /// Pitch shots: Sarah's left hand rests up on her collarbone instead of across her lower chest (where the
+    /// probe goes). Bends the left elbow so the forearm points from the elbow to just in front of the clavicle.
+    private func posePitchCouch() {
+        let names = jointIndex.keys.filter { $0.contains("clav") || $0.hasSuffix("arm_l") || $0 == "hand_l" }
+        SmokeLog.mark("pitch couch pose joints=\(names.sorted())")
+        guard let e = jointIndex["lowerarm_l"], let w = jointIndex["hand_l"], let c = jointIndex["clavicle_l"] ?? jointIndex["neck_01"] else { return }
+        func p(_ i: Int) -> SIMD3<Float> { let v = restWorld[i].columns.3; return [v.x, v.y, v.z] }
+        let toMesh = meshToRoot.inverse
+        let front4 = toMesh * SIMD4<Float>(anchorNormals["abdomen_upper"] ?? [0, 1, 0], 0)
+        let front = simd_normalize(SIMD3<Float>(front4.x, front4.y, front4.z))
+        let target = p(c) * 0.7 + p(jointIndex["neck_01"] ?? c) * 0.3 + front * Self.pitchHandLift
+        let delta = simd_quatf(from: simd_normalize(p(w) - p(e)), to: simd_normalize(target - p(e)))
+        pitchPose = ["lowerarm_l": delta]
+        jointDelta["lowerarm_l"] = delta
+        applyJoints()
+    }
+    private static let pitchHandLift: Float = 0.07
+
     /// Eases joints to model-space rotation offsets (Blender axes: X = patient's left, -Y = front, Z = up).
     /// `lean` adds a forward torso lean that peaks mid-way. Stops where it is when cancelled.
     private func tweenJoints(_ target: [String: simd_quatf], duration: Double, lean: Float = 0) async {
@@ -453,7 +475,7 @@ final class PatientAvatar {
     /// Moves the body to the behaviour's pose. `snap` skips the animation (first appearance).
     func apply(_ behavior: PatientBehavior, snap: Bool = false) async {
         guard isAnimated else { return }
-        await tweenJoints(behavior.pose.mapValues { Self.rot($0, [1, 0, 0]) },
+        await tweenJoints(behavior.pose.mapValues { Self.rot($0, [1, 0, 0]) }.merging(pitchPose) { $1 },
                           duration: snap ? 0 : behavior.state.duration, lean: snap ? 0 : behavior.lean)
         guard !Task.isCancelled, let rest = anchorRest["right_wrist"], let wrist = anchors["right_wrist"] else { return }
         let moved = simd_distance(wrist.position(relativeTo: root), [rest.columns.3.x, rest.columns.3.y, rest.columns.3.z])

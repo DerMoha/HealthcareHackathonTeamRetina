@@ -32,6 +32,8 @@ final class UltrasoundScene {
     private let gelRoot = Entity()
     private let couchExtras = Entity() // pitch only: paper sheet, roll, pillow
     private let cable = Entity() // pitch only: probe cable from the handle back to the cart
+    private let glove = Entity() // pitch only: the learner's gloved right hand on the probe handle (child of the probe)
+    private let arm = Entity() // pitch only: gloved forearm and sleeve running out of frame towards the wearer
     private let highlight = ModelEntity(mesh: .generateCylinder(height: 0.004, radius: 0.06),
                                         materials: [UnlitMaterial(color: .systemTeal)])
     private var probe = Entity()
@@ -72,6 +74,7 @@ final class UltrasoundScene {
         root.addChild(regionRoot)
         root.addChild(couchExtras)
         root.addChild(cable)
+        if SmokeLog.pitch && Self.pitchHand { buildHand() }
         gelRoot.isEnabled = false
         root.addChild(gelRoot)
         root.isEnabled = false
@@ -91,8 +94,8 @@ final class UltrasoundScene {
         let faint = Self.overlay(.white, SmokeLog.pitch ? 0 : 0.07) // pitch shots: no visible hit spheres
         for region in regions {
             guard let anchor = avatar.anchors[region.attachTo] else { continue }
-            let normal = avatar.anchorNormals[region.attachTo] ?? [0, 1, 0]
-            let position = anchor.position(relativeTo: avatar.root)
+            let position = Self.skinPoint(anchor.position(relativeTo: avatar.root))
+            let normal = Self.skinNormal(avatar.anchorNormals[region.attachTo], at: position)
             let zone = ModelEntity(mesh: .generateSphere(radius: region.radius), materials: [faint])
             zone.name = region.id
             zone.position = position + normal * 0.01
@@ -210,13 +213,16 @@ final class UltrasoundScene {
             PitchAntenatal.mirror(region: region)
             gelRoot.children.forEach { $0.isEnabled = $0.name == region }
             cable.isEnabled = region != nil
+            glove.isEnabled = region != nil
+            arm.isEnabled = region != nil
+            upperArm.isEnabled = region != nil
         }
         guard let region, let hit = regionPose(region) else { sendHome(probe, animated: true); return }
         guard let avatar else { return }
         if probe.parent !== avatar.root { probe.stopAllAnimations(); probe.setParent(avatar.root, preservingWorldTransform: true) }
         let pose = Transform(scale: [1, 1, 1], rotation: Self.orientation(normal: hit.normal, turns: scans), translation: hit.position)
         probe.move(to: pose, relativeTo: avatar.root, duration: 0.25)
-        if SmokeLog.pitch { layCable(from: pose) }
+        if SmokeLog.pitch { layCable(from: pose); if Self.pitchHand { layArm(from: pose) } }
     }
 
     func showGel(_ on: Bool) { gelRoot.isEnabled = on }
@@ -229,7 +235,21 @@ final class UltrasoundScene {
 
     private func regionPose(_ id: String) -> (position: SIMD3<Float>, normal: SIMD3<Float>)? {
         guard let avatar, let region = regions.first(where: { $0.id == id }), let anchor = avatar.anchors[region.attachTo] else { return nil }
-        return (anchor.position(relativeTo: avatar.root), avatar.anchorNormals[region.attachTo] ?? [0, 1, 0])
+        let position = Self.skinPoint(anchor.position(relativeTo: avatar.root))
+        return (position, Self.skinNormal(avatar.anchorNormals[region.attachTo], at: position))
+    }
+
+    /// The sidecar's belly normals do not fit the pitch patient's smaller bump (some point at the wearer, so the
+    /// probe lay sideways and the gel stood up in the air). Pitch shots use the inclined front of the belly instead,
+    /// turned a little towards the side the region is on.
+    /// Pitch shots: the sidecar points sit at the hem of the crop top; slide them down the bump onto bare skin.
+    private static func skinPoint(_ p: SIMD3<Float>) -> SIMD3<Float> {
+        SmokeLog.pitch ? p + SIMD3<Float>(0, -0.41, 0.91) * Self.pitchSlide : p
+    }
+
+    private static func skinNormal(_ sidecar: SIMD3<Float>?, at p: SIMD3<Float>) -> SIMD3<Float> {
+        guard SmokeLog.pitch else { return sidecar ?? [0, 1, 0] }
+        return simd_normalize(SIMD3<Float>(max(-0.3, min(0.3, p.x * 5)), 0.91, 0.41))
     }
 
     private func nearestRegion(to p: SIMD3<Float>, within limit: Float) -> (id: String, position: SIMD3<Float>, normal: SIMD3<Float>)? {
@@ -246,7 +266,107 @@ final class UltrasoundScene {
     private static func orientation(normal: SIMD3<Float>, turns: Int) -> simd_quatf {
         // pitch shots: the handle leans ~25 degrees towards the sonographer's side, like a held transducer
         let lean = simd_quatf(angle: SmokeLog.pitch ? 0.44 : 0, axis: [0, 0, 1])
+        // pitch shots: one fixed turn that puts the gripping hand's forearm towards the wearer (no quarter turns)
+        if SmokeLog.pitch { return simd_quatf(from: [0, 1, 0], to: simd_normalize(normal)) * lean * simd_quatf(angle: handYaw, axis: [0, 1, 0]) }
         return simd_quatf(from: [0, 1, 0], to: simd_normalize(normal)) * lean * simd_quatf(angle: Float(turns % 4) * .pi / 2, axis: [0, 1, 0])
+    }
+
+    // MARK: Pitch hand
+
+    /// Probe turn about its handle so the hand's forearm (+X in probe space) points to the wearer's right side.
+    private static let handYaw: Float = -0.35
+    /// Pitch shots: `-pitchHand off` (or env PITCH_HAND=off) leaves the probe without the learner's gloved hand.
+    static let pitchHand = (AppConfig.launchArgument("-pitchHand") ?? ProcessInfo.processInfo.environment["PITCH_HAND"]) != "off"
+    /// How far the probe slides from the scan points (at the crop-top hem) down the bump, towards the navel.
+    private static let pitchSlide: Float = Float(ProcessInfo.processInfo.environment["PITCH_SLIDE"] ?? "") ?? 0.28
+    /// Where the glove model's cuff stub ends, and its direction (probe space; see scripts/pitch_glove_antenatal2.py).
+    private static let cuffEnd: SIMD3<Float> = [0.088, 0.080, 0.030] + simd_normalize(SIMD3<Float>(1, -0.35, 0.45)) * 0.06
+    private static let cuffDir = simd_normalize(SIMD3<Float>(1, -0.35, 0.45))
+
+    /// Light-blue nitrile: soft sheen, slightly translucent-looking pale blue.
+    private static var nitrile: PhysicallyBasedMaterial {
+        var m = solid(UIColor(red: 0.53, green: 0.72, blue: 0.96, alpha: 1), roughness: 0.42)
+        m.clearcoat = .init(floatLiteral: 0.35); m.clearcoatRoughness = .init(floatLiteral: 0.25)
+        return m
+    }
+
+    private func buildHand() {
+        glove.name = "us_glove"
+        if let model = PitchKit.model("antenatal2_glove") {
+            let b = model.visualBounds(relativeTo: nil)
+            if b.center.z < -0.03 { model.orientation = simd_quatf(angle: .pi / 2, axis: [1, 0, 0]) * model.orientation } // undo the Z-up import turn
+            SmokeLog.mark("pitch glove bounds center=\(b.center) extents=\(b.extents)")
+            func paint(_ e: Entity) {
+                if var m = e.components[ModelComponent.self] { m.materials = m.materials.map { _ in Self.nitrile }; e.components.set(m) }
+                e.children.forEach(paint)
+            }
+            paint(model)
+            glove.addChild(model)
+        }
+        glove.isEnabled = false
+        probe.addChild(glove)
+        // forearm in the glove's cuff, a scrubs sleeve over it, the elbow, and the upper arm running out of frame
+        let fabric = Self.solid(UIColor(red: 0.19, green: 0.28, blue: 0.40, alpha: 1), roughness: 0.95)
+        let forearm = ModelEntity(mesh: Self.tube(length: 0.11, r0: 0.0255, r1: 0.029), materials: [Self.nitrile])
+        let sleeve = ModelEntity(mesh: Self.tube(length: Self.sleeveLength, r0: 0.036, r1: 0.044, cap: true), materials: [fabric])
+        sleeve.position.y = 0.085
+        let hem = ModelEntity(mesh: Self.tube(length: 0.018, r0: 0.039, r1: 0.038, cap: true), materials: [fabric])
+        hem.position.y = 0.083
+        let elbow = ModelEntity(mesh: .generateSphere(radius: 0.046), materials: [fabric])
+        elbow.position.y = 0.085 + Self.sleeveLength
+        for part in [sleeve, hem, elbow] { forearm.addChild(part) }
+        arm.addChild(forearm)
+        upperArm.model = ModelComponent(mesh: Self.tube(length: 1.3, r0: 0.046, r1: 0.058), materials: [fabric])
+        arm.isEnabled = false
+        root.addChild(arm)
+        root.addChild(upperArm)
+        upperArm.isEnabled = false
+    }
+
+    private static let sleeveLength: Float = 0.25
+    private let upperArm = ModelEntity()
+
+    /// Pitch shots: the forearm continues the glove's cuff stub, in the probe's resting pose.
+    private func layArm(from pose: Transform) {
+        guard let avatar else { return }
+        let start = pose.matrix * SIMD4<Float>(Self.cuffEnd - Self.cuffDir * 0.01, 1)
+        let dir = pose.rotation.act(Self.cuffDir)
+        arm.position = root.convert(position: [start.x, start.y, start.z], from: avatar.root)
+        let along = simd_normalize(root.convert(direction: dir, from: avatar.root))
+        arm.orientation = simd_quatf(from: [0, 1, 0], to: along)
+        // upper arm from the elbow down-right towards the wearer, out of the bottom of the frame
+        upperArm.position = arm.position + along * (0.085 + Self.sleeveLength)
+        upperArm.orientation = simd_quatf(from: [0, 1, 0], to: simd_normalize(SIMD3<Float>(0.35, -0.25, 1)))
+    }
+
+    /// Open truncated cone along +Y from radius r0 (y = 0) to r1 (y = length), smooth normals; `cap` closes the start with a disc.
+    private static func tube(length: Float, r0: Float, r1: Float, cap: Bool = false) -> MeshResource {
+        let n = 40
+        var positions: [SIMD3<Float>] = [], normals: [SIMD3<Float>] = [], indices: [UInt32] = []
+        let slope = (r0 - r1) / length
+        for i in 0...n {
+            let a = Float(i) / Float(n) * 2 * .pi
+            let c = cos(a), s = sin(a)
+            positions += [[r0 * c, 0, r0 * s], [r1 * c, length, r1 * s]]
+            let nrm = simd_normalize(SIMD3<Float>(c, slope, s))
+            normals += [nrm, nrm]
+        }
+        for i in 0..<n {
+            let b = UInt32(2 * i)
+            indices += [b, b + 1, b + 2, b + 1, b + 3, b + 2]
+        }
+        if cap {
+            let centre = UInt32(positions.count)
+            positions.append([0, 0, 0]); normals.append([0, -1, 0])
+            for i in 0...n {
+                let a = Float(i) / Float(n) * 2 * .pi
+                positions.append([r0 * cos(a), 0, r0 * sin(a)]); normals.append([0, -1, 0])
+            }
+            for i in 0..<UInt32(n) { indices += [centre, centre + 1 + i, centre + 2 + i] }
+        }
+        var d = MeshDescriptor(name: "tube")
+        d.positions = MeshBuffer(positions); d.normals = MeshBuffer(normals); d.primitives = .triangles(indices)
+        return (try? MeshResource.generate(from: [d])) ?? .generateCylinder(height: length, radius: r0)
     }
 
     /// Pitch shots: a sagging cable from the probe handle to the cart's probe port (segmented tube).
