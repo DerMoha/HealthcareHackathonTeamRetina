@@ -11,15 +11,15 @@ enum PitchTraumaBay {
 
         // Floor, walls, ceiling.
         let floor = ModelEntity(mesh: .generatePlane(width: 2 * w, depth: front - back),
-                                materials: [PitchKit.material("traumabay_vinyl", tiling: [2 * w / 1.4, (front - back) / 1.4], roughness: 0.75)])
+                                materials: [PitchKit.material("traumabay_vinyl", tiling: [2 * w / 1.4, (front - back) / 1.4], roughness: 0.55)])
         floor.position = [0, 0, (front + back) / 2]
         set.addChild(floor)
-        let wallTint = UIColor(red: 0.84, green: 0.85, blue: 0.83, alpha: 1)
+        let wallTint = UIColor(red: 0.8, green: 0.82, blue: 0.81, alpha: 1)
         wall(set, size: [2 * w, h], at: [0, h / 2, back], yaw: 0, tint: wallTint)
         wall(set, size: [front - back, h], at: [-w, h / 2, (front + back) / 2], yaw: .pi / 2, tint: wallTint)
         wall(set, size: [front - back, h], at: [w, h / 2, (front + back) / 2], yaw: -.pi / 2, tint: wallTint)
         let ceiling = ModelEntity(mesh: .generatePlane(width: 2 * w, depth: front - back),
-                                  materials: [PitchKit.material("traumabay_ceiling", tiling: [2 * w / 1.2, (front - back) / 1.2], tint: UIColor(white: 0.8, alpha: 1), roughness: 0.9)])
+                                  materials: [PitchKit.material("traumabay_ceiling", tiling: [2 * w / 1.2, (front - back) / 1.2], tint: UIColor(white: 1, alpha: 1), roughness: 0.9)])
         ceiling.position = [0, h, (front + back) / 2]
         ceiling.orientation = simd_quatf(angle: .pi, axis: [1, 0, 0])
         set.addChild(ceiling)
@@ -35,7 +35,7 @@ enum PitchTraumaBay {
         let rail = PitchKit.material("traumabay_steel", tint: UIColor(white: 0.9, alpha: 1), roughness: 0.35)
         let railBody = PitchKit.material("traumabay_plastic", tiling: [10, 0.2], tint: UIColor(white: 0.62, alpha: 1), roughness: 0.5)
         let railInsert = PitchKit.material("traumabay_plastic", tiling: [10, 0.2], tint: UIColor(red: 0.16, green: 0.26, blue: 0.32, alpha: 1), roughness: 0.4)
-        let skirt = PitchKit.material("traumabay_plastic", tiling: [10, 0.2], tint: UIColor(white: 0.28, alpha: 1), roughness: 0.6)
+        let skirt = PitchKit.material("traumabay_plastic", tiling: [10, 0.2], tint: UIColor(red: 0.2, green: 0.24, blue: 0.27, alpha: 1), roughness: 0.6)
         box(set, [2 * w, 1.1, 0.012], lower, at: [0, 0.55, back + 0.006])
         box(set, [2 * w, 0.14, 0.04], railBody, at: [0, 0.92, back + 0.02], corner: 0.012)
         box(set, [2 * w, 0.04, 0.008], railInsert, at: [0, 0.92, back + 0.042])
@@ -151,11 +151,16 @@ enum PitchTraumaBay {
         staff(set, "Patient_female", at: [1.2, 0, -0.35], yaw: -1.0, scrubs: UIColor(red: 0.28, green: 0.5, blue: 0.85, alpha: 1), masked: false, armsForward: true)
         staff(set, "Patient_female", at: [0.55, 0, -1.55], yaw: -0.25, scrubs: UIColor(red: 0.5, green: 0.12, blue: 0.2, alpha: 1), masked: false, armsForward: false)
 
-        // Light: HDRI on everything, shadows from the overhead lamp and the ceiling panels.
+        // Light: HDRI on everything (a stop under as-shot, so it stays contrasty), the exam lamp as key over the trolley,
+        // and a near-vertical 'ceiling panel' light so shadows pool under people and furniture instead of streaking.
         PitchKit.light(avatarRoot, hdri: "traumabay_ibl", intensity: -0.1)
         PitchKit.showShadows(on: floor)
-        PitchKit.spot(set, at: [0.35, h - 0.6, 0.0], target: [0, 0.5, -0.1], intensity: 60000, color: UIColor(red: 1, green: 0.97, blue: 0.92, alpha: 1), angle: 75)
-        PitchKit.sun(set, from: [0.8, 3, 1.2], to: [0, 0, -0.6], intensity: 3000, color: UIColor(red: 0.96, green: 0.98, blue: 1, alpha: 1))
+        PitchKit.spot(set, at: [0.35, h - 0.6, 0.0], target: [0, 0.5, -0.1], intensity: 50000, color: UIColor(red: 1, green: 0.97, blue: 0.92, alpha: 1), angle: 48)
+        PitchKit.sun(set, from: [0.35, 3, 0.3], to: [0, 0, -0.1], intensity: 3800, color: UIColor(red: 0.96, green: 0.98, blue: 1, alpha: 1))
+        // Shadowless fill from the ceiling panels so the floor shadows stay soft-grey, not black.
+        let fill = Entity(); fill.position = [-0.3, h - 0.5, 0.9]
+        fill.components.set(PointLightComponent(color: UIColor(red: 0.97, green: 0.98, blue: 1, alpha: 1), intensity: 70000, attenuationRadius: 9))
+        set.addChild(fill)
         return true
     }
 
@@ -555,7 +560,7 @@ enum PitchTraumaBay {
 
     private static func wall(_ e: Entity, size: SIMD2<Float>, at p: SIMD3<Float>, yaw: Float, tint: UIColor) {
         let m = ModelEntity(mesh: .generatePlane(width: size.x, height: size.y),
-                            materials: [PitchKit.material("traumabay_wall", tiling: [size.x / 1.5, size.y / 1.5], tint: tint, roughness: 0.9)])
+                            materials: [tinted("traumabay_wall", tiling: [size.x / 2.5, size.y / 2.5], tint, roughness: 0.85)])
         m.position = p; m.orientation = simd_quatf(angle: yaw, axis: [0, 1, 0])
         e.addChild(m)
     }
