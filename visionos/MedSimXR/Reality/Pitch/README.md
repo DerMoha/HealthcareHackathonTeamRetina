@@ -67,6 +67,29 @@ python3 -I visionos/scripts/pitch_assets.py model     WoodenChair_01 clinic_chai
 
 The IDs are Poly Haven slugs (`polyhaven.com/a/<id>`) and ambientCG IDs (`ambientcg.com/view?id=<id>`). A texture set produces `<prefix>_diff/_nor/_rough.jpg`, plus `_ao/_metal` when the set has them.
 
+## People: PitchCrowd and the baked poses
+
+Bystanders, crew, police, hikers and resus staff are the patient avatars (Patient.usdz / Patient_female.usdz)
+in poses baked in Blender: `crowd_<pose>_<m|f>.usdz`, made by `visionos/scripts/pitch_crowd_poses.py`
+(`/opt/homebrew/bin/blender -b --python visionos/scripts/pitch_crowd_poses.py -- [pose ...] [--g m|f] [--preview DIR]`).
+
+```swift
+PitchCrowd.person(.kneelWork, .m, outfit: "paramedic_m", in: e, at: [-0.8, 0, -0.06], facing: [0, 0, 0.1], hair: .gray)
+PitchCrowd.body(of: holder)        // the avatar mesh (material 1 = clothes), e.g. to put scrubs on
+PitchCrowd.headAnchor(of: holder)  // entity at the head joint, turned with the head (caps, masks)
+```
+
+- Poses: stand_relaxed, stand_worried (hand at the mouth), arms_crossed, phone_filming (phone in the file),
+  pointing, kneel_work (on the right knee, hands forward at a seated casualty's arm), stand_lean_work (bending in,
+  right hand forward, left on the thigh), stand_hands_front. Each for m and f, ~0.7-0.8 MB a file.
+- The files are static meshes (no skeleton): the original mesh prim with posed points/normals, same UVs and the
+  same seven material subsets, but no textures. `person` swaps in the original avatar's materials (loaded once),
+  then `dress` puts the outfit texture on material 1 and tints hair (3) and skin (0).
+- Origin on the floor under the pelvis, faces +Z, 1 unit = 1 m, so `at` is where the person stands.
+- `PitchKit.model` caches each file: one load per pose file, every person is a clone sharing the mesh.
+- No baked file: falls back to the rigged clone posed at runtime (`PitchCrowd.Pose`, the old stiff look).
+- Lena in the ambulance seat keeps the avatar's own seated rest pose.
+
 ## Gotchas (all seen in the visionOS 26 simulator)
 
 - **IBL works**: an equirect Radiance `.hdr` goes CGImageSource -> `EnvironmentResource(equirectangular:)` -> `ImageBasedLightComponent` + `ImageBasedLightReceiverComponent` on avatarRoot. Without it, the procedural rooms are lit only by point lights and the dim system default. The 1k HDRI (about 1.3 MB) is enough.
