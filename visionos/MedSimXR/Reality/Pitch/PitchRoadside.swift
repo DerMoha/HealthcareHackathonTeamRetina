@@ -549,7 +549,21 @@ enum PitchRoadside {
     /// "Crowd 4 · Distraction high" next to the stage banner (ScenarioStage's sign at y 2.3, z -0.6;
     /// on the trail that sign itself says "On the trail").
     private static func chip(_ set: Entity, _ text: String) {
-        let size = CGSize(width: 900, height: 110)
+        let w: Float = 0.6
+        let e = ModelEntity(mesh: .generatePlane(width: w, height: w * 110 / 900), materials: [chipMaterial(text)])
+        e.position = [0, 2.42, -0.6]
+        set.addChild(e)
+        chipEntity = e
+    }
+
+    private static var chipEntity: ModelEntity?
+
+    /// Rewrites the chip (adaptive-difficulty concept: the crowd and distraction change with the heart rate).
+    static func setChip(_ text: String) {
+        chipEntity?.model?.materials = [chipMaterial(text)]
+    }
+
+    private static func chipMaterial(_ text: String) -> UnlitMaterial {
         let color = RoadsidePaint.texture("chip_\(text)", size: [900, 110]) { ctx, s in
             ctx.setFillColor(UIColor(red: 0.13, green: 0.12, blue: 0.16, alpha: 1).cgColor); ctx.fill(CGRect(origin: .zero, size: s))
             ctx.setFillColor(UIColor(red: 0.98, green: 0.45, blue: 0.7, alpha: 1).cgColor)
@@ -563,10 +577,7 @@ enum PitchRoadside {
         var m = UnlitMaterial()
         m.color = .init(tint: .white, texture: color.map { .init($0) })
         m.blending = .transparent(opacity: .init(scale: 0.88, texture: mask.map { .init($0) }))
-        let w: Float = 0.6
-        let e = ModelEntity(mesh: .generatePlane(width: w, height: w * Float(size.height / size.width)), materials: [m])
-        e.position = [0, 2.42, -0.6]
-        set.addChild(e)
+        return m
     }
 
     // MARK: - Meshes
