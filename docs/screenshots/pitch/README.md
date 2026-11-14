@@ -11,7 +11,7 @@ All images are 3840×2160 (web Studio: 2880×1800). Files without a suffix are t
 | Your own notebook | `wrist-06-notebook` | `us-04b-notebook`, `rt-07-team-log` |
 | Scored against what the case expects | `wrist-07-feedback` (OSCE station mark scheme, 78/100) | `us-05-feedback` (mid-trimester anomaly-scan checklist, 74/100), `rt-08-feedback` (<C>ABCDE + ATMIST + open-fracture standard + "Under distraction", 79/100) |
 | Crowd, stress, interruptions | `rt-02-crew` | `rt-01-roadside`, `rt-03-splinted`, `rt-04-ambulance` |
-| Heart-rate adaptive difficulty (concept, staged) | `adapt-02-harder`, `adapt-03-easier` | `adapt-01-steady` (baseline), `adapt-04-debrief` (heart rate over the case), `adapt-collage.png` (the four heart-rate panels cut out, 2×2, on the deck's background) |
+| Heart-rate adaptive difficulty (concept, staged) | `adapt-02-harder`, `adapt-03-easier` | `adapt-01-steady` (baseline), `adapt-04-debrief` (heart rate over the case), `adapt-collage.png` (2×2: the four heart-rate panels in the street scene, with the crew and Jordan) |
 | Mix and match: same case, other place | `rt-01-roadside-forest` | `rt-02-crew-forest`, `rt-03-splinted-forest` |
 | Scenario generator (browser) | `studio-web-01-generator` | `-b` |
 | AI scenario author (browser) | `studio-web-02-ai-author` | `-b` |
