@@ -7,8 +7,12 @@ import SwiftUI
 struct StudioView: View {
     @Environment(StudioState.self) private var studio
     var body: some View {
+        if PitchStudioWindow.on { PitchStudioWindow() } else { studioTabs }   // pitch_shots.sh --case studio
+    }
+
+    private var studioTabs: some View {
         @Bindable var studio = studio
-        TabView(selection: $studio.tab) {
+        return TabView(selection: $studio.tab) {
             ForEach(StudioState.Tab.allCases) { tab in
                 Tab(tab.title, systemImage: tab.icon, value: tab) { page(tab) }
             }

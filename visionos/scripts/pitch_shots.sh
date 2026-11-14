@@ -14,11 +14,12 @@
 #         us-01-greeting us-02-head-bpd us-03-heart us-04-overview us-05-feedback
 #         rt-01-roadside rt-02-crew rt-03-splinted rt-04-ambulance rt-05-resus rt-06-xray
 #         rt-07-team-log rt-08-feedback
+#         studio (alias vp): vp-01-marketplace vp-02-download vp-03-scenario-detail vp-04-library-ready
 # Runs offline with the scripted voice: no backend, no ElevenLabs credits.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-OUT="$ROOT/docs/screenshots/pitch"; BUILD=1; HOLD=""; CASES="wrist us rt"
+OUT="$ROOT/docs/screenshots/pitch"; BUILD=1; HOLD=""; CASES="wrist us rt studio"
 while [ $# -gt 0 ]; do
   case "$1" in
     --case) CASES="$2"; shift ;;
@@ -55,7 +56,8 @@ for c in $CASES; do
     wrist) SCENARIO=wrist_trauma_001; OFFSET="-0.45,0.4,0" ;;   # centred (no main window), raised: the fixed camera looks level, the patient sits low
     us) SCENARIO=obstetric_ultrasound_001; OFFSET="0,0.15,0" ;;   # the couch has its own placement
     rt) SCENARIO=road_trauma_journey_001; OFFSET="-0.45,0.2,-0.3" ;;
-    *) echo "unknown case $c (wrist | us | rt)" >&2; exit 2 ;;
+    studio|vp) SCENARIO=wrist_trauma_001; OFFSET="0,0,0" ;;   # the Vision Pro Studio window, no immersive space
+    *) echo "unknown case $c (wrist | us | rt | studio)" >&2; exit 2 ;;
   esac
   echo "== $c"
   xcrun simctl terminate "$UDID" $BUNDLE 2>/dev/null || true
@@ -63,6 +65,7 @@ for c in $CASES; do
   xcrun simctl install "$UDID" "$APP"
   ARGS=(-pitch -mockVoice -scenario "$SCENARIO" -mood calm -patientOffset "@$OFFSET" -MEDSIM_BACKEND_HOST 127.0.0.1:9)
   [ -n "$HOLD" ] && ARGS+=(-pitchHold "$HOLD")
+  case "$c" in studio|vp) ARGS+=(-pitchStudio) ;; esac
   xcrun simctl launch "$UDID" $BUNDLE "${ARGS[@]}" >/dev/null
   LOG="$(xcrun simctl get_app_container "$UDID" $BUNDLE data)/Documents/smoke.log"
   seen=0
