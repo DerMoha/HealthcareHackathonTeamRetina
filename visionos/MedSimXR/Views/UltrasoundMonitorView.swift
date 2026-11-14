@@ -71,11 +71,11 @@ struct UltrasoundMonitorView: View {
             Text("MedSim US").font(.system(size: 20, weight: .bold, design: .monospaced)).foregroundStyle(.cyan)
             Text("OB 2nd trimester").font(.system(size: 17, design: .monospaced)).foregroundStyle(.white.opacity(0.75))
             Spacer()
-            Text("Simulated scan, illustrative images")
+            if !SmokeLog.pitch { Text("Simulated scan, illustrative images")
                 .font(.system(size: 17, weight: .semibold))
                 .padding(.horizontal, 10).padding(.vertical, 3)
                 .background(.orange.opacity(0.9), in: Capsule())
-                .foregroundStyle(.black)
+                .foregroundStyle(.black) }
         }
         .padding(.horizontal, 16).padding(.vertical, 8)
         .background(Color.white.opacity(0.08))
@@ -93,8 +93,8 @@ struct UltrasoundMonitorView: View {
                     .padding(20)
                     .overlay(FanShape().stroke(Color.white.opacity(0.12), lineWidth: 1).padding(20))
                 VStack(spacing: 6) {
-                    Image(systemName: "waveform.slash").font(.system(size: 34))
-                    Text("No contact").font(.system(size: 26, weight: .semibold))
+                    Image(systemName: SmokeLog.pitch ? "dot.radiowaves.up.forward" : "waveform.slash").font(.system(size: 34))
+                    Text(SmokeLog.pitch ? "Ready to scan" : "No contact").font(.system(size: 26, weight: .semibold)) // pitch: standby, not an error
                     Text(model.usHint ?? (model.gelApplied ? "Place the probe on the patient's belly."
                                                            : "Apply gel, then place the probe on the belly."))
                         .font(.system(size: 17)).multilineTextAlignment(.center).padding(.horizontal, 30)
@@ -154,8 +154,13 @@ struct UltrasoundMonitorView: View {
         VStack(alignment: .leading, spacing: 4) {
             switch mode {
             case .noContact:
-                Text("Probe not on the patient").font(.system(size: 21, weight: .semibold))
-                Text("The live image appears here while the probe touches the belly.").font(.system(size: 16)).foregroundStyle(.white.opacity(0.6))
+                if SmokeLog.pitch { // pitch: the booked patient, as a real scanner shows before the first frame
+                    Text("Sarah Thompson  ·  DOB 14/03/1995  ·  20+0 weeks").font(.system(size: 21, weight: .semibold))
+                    Text("Mid-trimester fetal anomaly scan  ·  transabdominal").font(.system(size: 16)).foregroundStyle(.white.opacity(0.6))
+                } else {
+                    Text("Probe not on the patient").font(.system(size: 21, weight: .semibold))
+                    Text("The live image appears here while the probe touches the belly.").font(.system(size: 16)).foregroundStyle(.white.opacity(0.6))
+                }
             case .poor(let scan):
                 Text(scan.title).font(.system(size: 21, weight: .semibold)).foregroundStyle(.orange)
                 Text(scan.caption).font(.system(size: 16)).foregroundStyle(.white.opacity(0.75)).lineLimit(2)

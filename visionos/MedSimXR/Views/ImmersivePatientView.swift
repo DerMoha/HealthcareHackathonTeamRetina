@@ -52,7 +52,7 @@ struct ImmersivePatientView: View {
             if us.arrange(recumbent: avatar.isRecumbent) { model.recenter() }
             if let caption = attachments.entity(for: "pitchCaption") {
                 // Beside the head on the wearer's right; above the couch for a reclining patient.
-                caption.position = avatar.isRecumbent ? [0.2, 1.75, 0.2] : [0.8, 1.5, 0.3]
+                caption.position = avatar.isRecumbent ? [0.2, 1.75, 0.2] : [0.8, 1.46, 0.3] // low enough to hide the clinic wall cabinet edge behind it
                 caption.scale = [1.4, 1.4, 1.4]
                 avatar.root.addChild(caption)
             }
@@ -65,7 +65,7 @@ struct ImmersivePatientView: View {
             lab.build(model.session?.case.orthotics ?? Orthotics())
             // Above the tray, scaled to be readable from the examination position.
             if let panel = attachments.entity(for: "fitting") {
-                panels.add(panel, to: avatar.root, at: [-0.62, 1.38, 0.5], yaw: 0.35, scale: 1.5)
+                panels.add(panel, to: avatar.root, at: SmokeLog.pitch ? [-0.72, 1.5, 0.5] : [-0.62, 1.38, 0.5], yaw: 0.35, scale: 1.5)
             }
             // The debrief replay: same spot (the fitting panel is gone by then), movable on its own.
             if let panel = attachments.entity(for: "replay") {

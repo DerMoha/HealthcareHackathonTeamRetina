@@ -1,5 +1,6 @@
 import AVFoundation
 import RealityKit
+import SwiftUI
 import UIKit
 
 /// Something a companion says out loud. Never a transcript turn, so it cannot earn points.
@@ -61,12 +62,25 @@ final class ScenarioStage {
             showInjury(nil)
             return
         }
-        let sign = Self.text("Stage \(position + 1) of \(count)  ·  \(stage.label)", size: 0.05, color: .white)
+        let sign = Self.titleCard(stage, position: position, count: count)
         sign.position = [0, 2.3, -0.6]
+        if SmokeLog.pitch { sign.position.x = -0.35; sign.scale = [0.8, 0.8, 0.8] } // pitch: clear of the ambulance grab pole and the conversation card
+        sign.components.set(BillboardComponent()) // square on to the wearer wherever they stand
         journeyRoot.addChild(sign)
-        let setting = Self.text(stage.setting, size: 0.03, color: UIColor(white: 0.85, alpha: 1))
-        setting.position = [0, 2.2, -0.6]
-        journeyRoot.addChild(setting)
+        if sign.name != "journey_title_card" { // ImageRenderer can come back empty early in a launch: retry, then swap in the card
+            Task { @MainActor in
+                for _ in 0..<5 {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    guard let parent = sign.parent else { return }
+                    let card = Self.titleCard(stage, position: position, count: count)
+                    guard card.name == "journey_title_card" else { continue }
+                    card.transform = sign.transform
+                    card.components.set(BillboardComponent())
+                    parent.addChild(card); sign.removeFromParent()
+                    return
+                }
+            }
+        }
         for (i, member) in team.enumerated() {
             let (spot, turn) = Self.teamSpots[i % Self.teamSpots.count]
             let figure = Self.person(shirt: Self.teamShirts[i % Self.teamShirts.count], height: 1.74,
@@ -184,6 +198,7 @@ final class ScenarioStage {
         synth.speak(utterance)
 
         bubble?.removeFromParent()
+        if SmokeLog.pitch { return } // the pitch conversation card shows the line instead
         let text = Self.text("\(line.speaker): \u{201C}\(line.text)\u{201D}", size: 0.028, color: .systemYellow)
         let speaker = speakers[line.speaker] ?? journeySpeakers[line.speaker]
         text.position = (speaker?.position ?? [0, 0, 0]) + [0, 2.0, 0.05]
@@ -262,6 +277,24 @@ final class ScenarioStage {
         return e
     }
 
+    /// The place sign: a title card drawn by SwiftUI onto a plane, crisp at any distance.
+    private static func titleCard(_ stage: JourneyStage, position: Int, count: Int) -> Entity {
+        let renderer = ImageRenderer(content: StageTitleCard(stage: stage, position: position, count: count))
+        renderer.scale = 3
+        guard let image = renderer.cgImage,
+              let texture = try? TextureResource(image: image, options: .init(semantic: .color)) else {
+            return text("Stage \(position + 1) of \(count)  ·  \(stage.label)", size: 0.05, color: .white)
+        }
+        var material = UnlitMaterial()
+        material.color = .init(tint: .white, texture: .init(texture))
+        material.blending = .transparent(opacity: .init(floatLiteral: 1))
+        let width: Float = 1.65
+        let plane = ModelEntity(mesh: .generatePlane(width: width, height: width * Float(image.height) / Float(image.width)),
+                                materials: [material])
+        plane.name = "journey_title_card"
+        return plane
+    }
+
     /// Centred text that always reads from the front of the room.
     private static func text(_ string: String, size: CGFloat, color: UIColor) -> Entity {
         let mesh = MeshResource.generateText(string, extrusionDepth: 0.001, font: .systemFont(ofSize: size, weight: .semibold))
@@ -270,5 +303,55 @@ final class ScenarioStage {
         let holder = Entity()
         holder.addChild(model)
         return holder
+    }
+}
+
+/// Stage sign of a journey case: where the encounter is now, and how far along the journey.
+private struct StageTitleCard: View {
+    let stage: JourneyStage
+    let position: Int
+    let count: Int
+
+    private var symbol: String {
+        switch stage.id {
+        case "scene": "car.side.rear.and.collision.and.car.side.front"
+        case "ambulance": "staroflife.fill"
+        default: "cross.case.fill"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 26) {
+            Image(systemName: symbol)
+                .font(.system(size: 44, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 104, height: 104)
+                .background(LinearGradient(colors: [Color(red: 0.1, green: 0.72, blue: 0.7), Color(red: 0.03, green: 0.45, blue: 0.5)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing),
+                            in: .rect(cornerRadius: 26))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    Text("STAGE \(position + 1) OF \(count)")
+                        .font(.system(size: 21, weight: .heavy)).tracking(2.4)
+                        .foregroundStyle(Color(red: 0.35, green: 0.9, blue: 0.85))
+                    HStack(spacing: 6) {
+                        ForEach(0..<count, id: \.self) { i in
+                            Capsule().fill(i <= position ? Color(red: 0.35, green: 0.9, blue: 0.85) : .white.opacity(0.22))
+                                .frame(width: i == position ? 56 : 30, height: 9)
+                        }
+                    }
+                }
+                Text(stage.label).font(.system(size: 50, weight: .bold)).foregroundStyle(.white)
+                Text(stage.setting).font(.system(size: 25, weight: .medium)).foregroundStyle(.white.opacity(0.78)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.leading, 26).padding(.trailing, 44).padding(.vertical, 24)
+        .frame(width: 900, alignment: .leading)
+        .background(LinearGradient(colors: [Color(red: 0.08, green: 0.1, blue: 0.13).opacity(0.97),
+                                            Color(red: 0.04, green: 0.05, blue: 0.07).opacity(0.95)],
+                                   startPoint: .top, endPoint: .bottom),
+                    in: .rect(cornerRadius: 36))
+        .overlay(RoundedRectangle(cornerRadius: 36).strokeBorder(.white.opacity(0.16), lineWidth: 2))
+        .environment(\.colorScheme, .dark)
     }
 }
