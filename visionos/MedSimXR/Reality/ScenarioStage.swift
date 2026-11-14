@@ -64,8 +64,23 @@ final class ScenarioStage {
         }
         let sign = Self.titleCard(stage, position: position, count: count)
         sign.position = [0, 2.3, -0.6]
+        if SmokeLog.pitch { sign.position.x = -0.35; sign.scale = [0.8, 0.8, 0.8] } // pitch: clear of the ambulance grab pole and the conversation card
         sign.components.set(BillboardComponent()) // square on to the wearer wherever they stand
         journeyRoot.addChild(sign)
+        if sign.name != "journey_title_card" { // ImageRenderer can come back empty early in a launch: retry, then swap in the card
+            Task { @MainActor in
+                for _ in 0..<5 {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    guard let parent = sign.parent else { return }
+                    let card = Self.titleCard(stage, position: position, count: count)
+                    guard card.name == "journey_title_card" else { continue }
+                    card.transform = sign.transform
+                    card.components.set(BillboardComponent())
+                    parent.addChild(card); sign.removeFromParent()
+                    return
+                }
+            }
+        }
         for (i, member) in team.enumerated() {
             let (spot, turn) = Self.teamSpots[i % Self.teamSpots.count]
             let figure = Self.person(shirt: Self.teamShirts[i % Self.teamShirts.count], height: 1.74,

@@ -37,13 +37,26 @@ struct PitchCaption: View {
     /// Who cuts in at each journey stage, after a learner and patient exchange or a crew line.
     private static let interruptions: [String: Pitch.Line] = [
         "scene": Pitch.Line(speaker: "Driver", text: "I didn't see him, he came out of nowhere! Is he going to be OK?"),
-        "ambulance": Pitch.Line(speaker: "Ambulance driver", text: "Hold on, sharp bend! Four minutes to the hospital."),
+        "ambulance": Pitch.Line(speaker: "Ambulance driver", text: "Hold on, sharp bend! About fifteen minutes out."),
     ]
+    /// The learner and patient exchange that leads a stage's crew lines, so every stage shows you talking.
+    private static let openers: [String: [Pitch.Line]] = [
+        "ambulance": [Pitch.Line(speaker: "You", text: "Jordan, how's the pain now, out of ten?", learner: true),
+                      Pitch.Line(speaker: "Jordan", text: "About a six. Better since the gas.")],
+    ]
+    /// Scripted replies a clinician would query in a still picture.
+    private static let rewrites = ["Yes, that's me, Sarah. I'm thirty-one. It's lovely to meet you.":
+                                   "Yes, Sarah Thompson, 14 March 1995. Lovely to meet you."]
 
     private var lines: [Pitch.Line] {
-        var lines = pitch.caption
+        var lines = pitch.caption.map { line in
+            var line = line
+            line.text = Self.rewrites[line.text] ?? line.text
+            return line
+        }
         if let stage = model?.currentStage?.id, let extra = Self.interruptions[stage], !lines.isEmpty, lines.count < 3,
            stage != "scene" || lines.contains(where: \.learner) {
+            if !lines.contains(where: \.learner) { lines.insert(contentsOf: Self.openers[stage] ?? [], at: 0) }
             lines.append(extra)
         }
         return lines
@@ -58,7 +71,7 @@ struct PitchCaption: View {
                     row(line, latest: i == lines.count - 1)
                         .padding(.top, i == 0 ? 0 : 18)
                 }
-                listening.padding(.top, 22)
+                listening(live: lines.last?.learner == true).padding(.top, 22)
             }
             .padding(.horizontal, 30).padding(.top, 24).padding(.bottom, 26)
             .frame(width: 770, alignment: .leading)
@@ -84,39 +97,43 @@ struct PitchCaption: View {
         .padding(.bottom, 20)
     }
 
-    /// The learner's open mic: always listening, no button to press.
-    private var listening: some View {
+    /// The learner's open mic: always on, no button to press. Its level meter moves only while the
+    /// learner is the one talking; while someone else speaks it waits, flat.
+    private func listening(live: Bool) -> some View {
         HStack(spacing: 14) {
             Image(systemName: "mic.fill").font(.system(size: 20, weight: .semibold)).foregroundStyle(.black.opacity(0.8))
-                .frame(width: 40, height: 40).background(Self.teal, in: .circle)
-            Text("Listening to you").font(.system(size: 21, weight: .semibold)).foregroundStyle(Self.teal)
-            Waveform(tint: Self.teal, bars: 22, height: 26)
+                .frame(width: 40, height: 40).background(Self.teal.opacity(live ? 1 : 0.6), in: .circle)
+            Text(live ? "Listening to you" : "Mic open · your turn next").font(.system(size: 21, weight: .semibold))
+                .foregroundStyle(Self.teal.opacity(live ? 1 : 0.75))
+            Waveform(tint: Self.teal.opacity(live ? 1 : 0.35), bars: 22, height: 26, live: live)
             Spacer(minLength: 0)
             Text("Just talk").font(.system(size: 18, weight: .medium)).foregroundStyle(.secondary)
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
-        .background(Self.teal.opacity(0.12), in: .capsule)
-        .overlay(Capsule().strokeBorder(Self.teal.opacity(0.35), lineWidth: 1.5))
+        .background(Self.teal.opacity(live ? 0.12 : 0.06), in: .capsule)
+        .overlay(Capsule().strokeBorder(Self.teal.opacity(live ? 0.35 : 0.2), lineWidth: 1.5))
     }
 
     private func row(_ line: Pitch.Line, latest: Bool) -> some View {
         let who = speaker(line)
+        let pain = model?.reaction.flatMap { $0.painLevel > 0 && $0.text == line.text ? $0.painLevel : nil }
+        let accent: Color? = who.interrupts ? who.tint : pain != nil ? Self.orange : nil
         return HStack(alignment: .top, spacing: 18) {
             SpeakerBadge(name: who.name, tint: who.tint, size: 64, symbol: line.learner ? "stethoscope" : nil)
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .center, spacing: 10) {
                     Text(who.name).font(.system(size: 25, weight: .bold)).foregroundStyle(who.tint)
-                    Text(who.role.uppercased()).font(.system(size: 15, weight: .bold)).tracking(1.2)
+                    Text(who.role.uppercased()).font(.system(size: 20, weight: .bold)).tracking(1.2)
                         .foregroundStyle(.white.opacity(0.6))
                     if who.interrupts {
-                        Label("CUTS IN", systemImage: "exclamationmark.bubble.fill").font(.system(size: 14, weight: .heavy)).tracking(1)
+                        Label("CUTS IN", systemImage: "exclamationmark.bubble.fill").font(.system(size: 17, weight: .heavy)).tracking(1)
                             .foregroundStyle(.white).padding(.horizontal, 9).padding(.vertical, 4)
                             .background(who.tint.opacity(0.85), in: .capsule)
                     }
-                    if let pain = model?.reaction, pain.painLevel > 0, pain.text == line.text {
-                        Label("PAIN \(pain.painLevel)/10", systemImage: "bolt.heart.fill").font(.system(size: 14, weight: .heavy)).tracking(1)
-                            .foregroundStyle(.white).padding(.horizontal, 9).padding(.vertical, 4)
-                            .background(Self.orange.opacity(0.85), in: .capsule)
+                    if let pain {
+                        Label("PAIN \(pain)/10", systemImage: "bolt.heart.fill").font(.system(size: 24, weight: .heavy)).tracking(1)
+                            .foregroundStyle(.white).padding(.horizontal, 14).padding(.vertical, 6)
+                            .background(Self.orange, in: .capsule)
                     }
                     Spacer(minLength: 8)
                     if latest, !line.learner {
@@ -131,11 +148,11 @@ struct PitchCaption: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(who.interrupts ? 14 : 0)
+        .padding(accent != nil ? 14 : 0)
         .background {
-            if who.interrupts {
-                RoundedRectangle(cornerRadius: 22).fill(who.tint.opacity(0.14))
-                    .overlay(alignment: .leading) { Capsule().fill(who.tint).frame(width: 5).padding(.vertical, 12) }
+            if let accent {
+                RoundedRectangle(cornerRadius: 22).fill(accent.opacity(0.14))
+                    .overlay(alignment: .leading) { Capsule().fill(accent).frame(width: 5).padding(.vertical, 12) }
             }
         }
     }
@@ -156,14 +173,15 @@ struct PitchCaption: View {
         var tint: Color
         var bars: Int
         var height: CGFloat
+        var live = true
         var body: some View {
-            TimelineView(.animation) { context in
-                let t = context.date.timeIntervalSinceReferenceDate
+            TimelineView(.animation(paused: !live)) { context in
+                let t = live ? context.date.timeIntervalSinceReferenceDate : 0
                 HStack(spacing: 3.5) {
                     ForEach(0..<bars, id: \.self) { i in
                         let base = 0.35 + 0.65 * abs(sin(Double(i) * 1.7 + 0.4))
                         Capsule().fill(tint)
-                            .frame(width: 4.5, height: 4 + (height - 4) * base * (0.55 + 0.45 * abs(sin(t * 5 + Double(i) * 0.9))))
+                            .frame(width: 4.5, height: live ? 4 + (height - 4) * base * (0.55 + 0.45 * abs(sin(t * 5 + Double(i) * 0.9))) : 4)
                     }
                 }
                 .frame(height: height)

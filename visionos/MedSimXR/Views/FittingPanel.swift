@@ -21,7 +21,7 @@ struct FittingPanel: View {
                 }
             }
             .padding(22)
-            .frame(width: 420, alignment: .leading)
+            .frame(width: 470, alignment: .leading)
             .glassBackgroundEffect(in: .rect(cornerRadius: 32))
         }
     }
@@ -32,17 +32,17 @@ struct FittingPanel: View {
                 .font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
                 .frame(width: 40, height: 40)
                 .background(LinearGradient(colors: [.teal, .teal.opacity(0.6)], startPoint: .top, endPoint: .bottom), in: .rect(cornerRadius: 12))
-            Text("Wrist support fitting").font(.headline)
+            Text("Wrist support fitting").font(.title3.weight(.bold))
             Spacer()
             if model.fit != nil {
-                Text("ON THE ARM").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(.teal)
+                Text("ON THE ARM").font(.callout.weight(.heavy)).tracking(1).foregroundStyle(.teal)
                     .padding(.horizontal, 10).padding(.vertical, 5).background(.teal.opacity(0.18), in: .capsule)
             }
         }
     }
 
     private func section(_ title: String) -> some View {
-        Text(title).font(.caption2.weight(.semibold)).tracking(1.2).foregroundStyle(.secondary)
+        Text(title).font(.callout.weight(.bold)).tracking(1.2).foregroundStyle(.secondary)
     }
 
     @ViewBuilder
@@ -73,7 +73,7 @@ struct FittingPanel: View {
                 ForEach(orthotics.measurements) { info in
                     let value = model.measurements.first { $0.measurementId == info.id }?.valueCm
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(info.kind == "circumference" ? "Wrist" : "Forearm").font(.caption).foregroundStyle(.secondary)
+                        Text(info.kind == "circumference" ? "Wrist" : "Forearm").font(.callout.weight(.medium)).foregroundStyle(.secondary)
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
                             Text(value.map { String(format: "%.1f", $0) } ?? "–")
                                 .font(.system(size: 30, weight: .semibold, design: .rounded).monospacedDigit())
@@ -97,14 +97,15 @@ struct FittingPanel: View {
                     let on = model.fit?.size == size.id
                     Button { model.selectedTool = OrthoticsLab.orthosisPrefix + size.id } label: {
                         VStack(spacing: 2) {
-                            Text(size.label).font(.callout.weight(.semibold))
+                            Text(size.label).font(.title3.weight(.semibold))
                             Text(size.wristCm.map { String(format: "%g", $0) }.joined(separator: "–") + " cm")
-                                .font(.caption2.monospacedDigit()).foregroundStyle(on ? .white.opacity(0.85) : .secondary)
+                                .font(.callout.monospacedDigit()).foregroundStyle(on ? .black.opacity(0.75) : .secondary)
                         }
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered).buttonBorderShape(.roundedRectangle(radius: 12))
                     .tint(on ? .teal : nil)
+                    .foregroundStyle(on ? .black : .primary)
                 }
             }
         }
@@ -118,10 +119,10 @@ struct FittingPanel: View {
                     .accessibilityLabel("Loosen").disabled(fit.tightness == orthotics.tightness.first)
                 HStack(spacing: 4) {
                     ForEach(orthotics.tightness, id: \.self) { level in
-                        Text(level.capitalized).font(.caption.weight(.semibold))
-                            .frame(maxWidth: .infinity).padding(.vertical, 7)
+                        Text(level.capitalized).font(.callout.weight(.bold))
+                            .frame(maxWidth: .infinity).padding(.vertical, 9)
                             .background(level == fit.tightness ? AnyShapeStyle(.teal) : AnyShapeStyle(.white.opacity(0.06)), in: .capsule)
-                            .foregroundStyle(level == fit.tightness ? .white : .secondary)
+                            .foregroundStyle(level == fit.tightness ? .black : .secondary)
                     }
                 }
                 Button { Task { await model.stepTightness(1) } } label: { Image(systemName: "plus") }
@@ -139,7 +140,7 @@ struct FittingPanel: View {
                 Button(role: .destructive) { Task { await model.setFit(nil) } } label: { Label("Take off", systemImage: "xmark").foregroundStyle(Color(red: 1, green: 0.5, blue: 0.5)) }
             }
         }
-        .buttonStyle(.bordered).controlSize(.small)
+        .buttonStyle(.bordered).controlSize(.regular)
     }
 
     private var checks: some View {
@@ -153,7 +154,7 @@ struct FittingPanel: View {
                     Label("Check fingers", systemImage: "hand.raised.fill").frame(maxWidth: .infinity)
                 }
             }
-            .buttonStyle(.bordered).controlSize(.small)
+            .buttonStyle(.bordered).controlSize(.regular)
             if let check = model.lastCheck, !SmokeLog.pitch { // pitch: the conversation card carries the answer
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: check.check == "comfort" ? "quote.opening" : "waveform.path.ecg")
