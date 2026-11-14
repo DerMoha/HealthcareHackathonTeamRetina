@@ -69,7 +69,9 @@ enum PitchCrowd {
         }
     }
 
-    /// `-pitchEnv forest` (or env PITCH_ENV=forest, e.g. SIMCTL_CHILD_PITCH_ENV): the case on a forest trail.
+    /// Pitch shots only: `-pitchEnv forest` (or env PITCH_ENV=forest, e.g. SIMCTL_CHILD_PITCH_ENV) moves the road
+    /// case's first stage to a forest trail (AppModel.environmentKind -> .forest). Normal play gets the trail
+    /// from the case's own setting text instead.
     static let forest = (AppConfig.launchArgument("-pitchEnv") ?? ProcessInfo.processInfo.environment["PITCH_ENV"]) == "forest"
     /// Who shouts from the crowd: bystanders on the street, hikers on the trail.
     static var bystander: String { forest ? "Hiker" : "Bystander" }

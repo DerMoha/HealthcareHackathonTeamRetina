@@ -2,21 +2,24 @@ import AVFoundation
 import RealityKit
 import UIKit
 
-/// The place the encounter happens in, built in code (no art assets): a clinic room, an antenatal
-/// scan room, a roadside, the back of an ambulance or a resus bay, each with a sound loop.
+/// The place the encounter happens in: a clinic room, an antenatal scan room, a roadside, a forest
+/// trail, the back of an ambulance or a resus bay, each with a sound loop. With "Realistic environments"
+/// on (AppConfig.realisticRooms) the dressed places of Reality/Pitch are built (models, photo textures,
+/// posed people); otherwise, and for the night roadside, the procedural ones (code only, no art assets).
 /// It lives in avatar space (patient at the origin facing +Z, wearer about 1.7 m in front), so it moves
 /// with the patient when the learner re-centres. Purely decorative: nothing here is collidable, and
 /// no screen shows clinical values.
 @MainActor
 final class EnvironmentSet {
     enum Kind: String, Equatable {
-        case clinic, antenatal, roadside, roadsideNight, ambulance, traumaBay
+        case clinic, antenatal, roadside, roadsideNight, forest, ambulance, traumaBay
 
         /// First text that names a place wins, so pass the most specific first (journey stage, Studio
         /// environment, case setting). Nothing recognised: the clinic room.
         static func resolve(_ texts: [String?], night: Bool = false) -> Kind {
             for case let text? in texts {
                 let t = text.lowercased()
+                if ["forest", "trail", "woods"].contains(where: t.contains) { return .forest }
                 if t.contains("road") { return night ? .roadsideNight : .roadside }
                 if t.contains("ambulance") { return .ambulance }
                 if t.contains("trauma") || t.contains("emergency") || t.contains("resus") { return .traumaBay }
@@ -33,6 +36,11 @@ final class EnvironmentSet {
     let root = Entity()
     private(set) var kind: Kind?
     private var seat: Float = 0
+    /// Whether the current place is a dressed one (see `dresses`).
+    private(set) var dressed = false
+    /// Who the dressed place shows; rebuilt on its own when only this changes.
+    private var cast: PitchDressing.Cast?
+    private let people = Entity()
     private var ambience: AVAudioPlayer?
     private var blinkers: [Task<Void, Never>] = []
 
@@ -41,29 +49,48 @@ final class EnvironmentSet {
         avatar.root.addChild(root)
     }
 
+    /// Whether `kind` is built as a dressed place right now: realistic rooms on and a dressing exists.
+    static func dresses(_ kind: Kind) -> Bool { AppConfig.realisticRooms && PitchDressing.exists(kind) }
+
     /// `seat`: the patient's seat height (avatar space), for the places that bring their own seat.
-    func show(_ kind: Kind, seat: Float) {
-        guard kind != self.kind || seat != self.seat else { return }
-        let sound = kind != self.kind
-        self.kind = kind; self.seat = seat
-        blinkers.forEach { $0.cancel() }; blinkers = []
-        Array(root.children).forEach { $0.removeFromParent() }
-        let set = Entity()
-        // Pitch shots: a dressed place (Reality/Pitch) replaces the procedural one when it exists.
-        if !(SmokeLog.pitch && PitchDressing.build(kind, into: set, seat: seat, avatarRoot: root.parent ?? root)) {
-            switch kind {
-            case .clinic: buildClinic(set, antenatal: false)
-            case .antenatal: buildClinic(set, antenatal: true)
-            case .roadside: buildRoadside(set, night: false)
-            case .roadsideNight: buildRoadside(set, night: true)
-            case .ambulance: buildAmbulance(set)
-            case .traumaBay: buildTraumaBay(set)
+    /// `cast`: the people a dressed place shows (ignored by the procedural places). Only what changed
+    /// is rebuilt: the place for a new kind, seat height or setting, else just its people.
+    func show(_ kind: Kind, seat: Float, cast: PitchDressing.Cast = .init()) {
+        let dressed = Self.dresses(kind)
+        let rebuild = kind != self.kind || seat != self.seat || dressed != self.dressed
+        guard rebuild || (dressed && cast != self.cast) else { return }
+        let avatarRoot = root.parent ?? root
+        if rebuild {
+            let sound = kind != self.kind
+            self.kind = kind; self.seat = seat; self.dressed = dressed
+            blinkers.forEach { $0.cancel() }; blinkers = []
+            Array(root.children).forEach { $0.removeFromParent() }
+            PitchKit.clearLight(avatarRoot) // a dressed place's light on the patient
+            let set = Entity()
+            // A dressed place (Reality/Pitch) replaces the procedural one when it exists.
+            if !(dressed && PitchDressing.build(kind, into: set, seat: seat, avatarRoot: avatarRoot)) {
+                self.dressed = false
+                switch kind {
+                case .clinic: buildClinic(set, antenatal: false)
+                case .antenatal: buildClinic(set, antenatal: true)
+                case .roadside, .forest: buildRoadside(set, night: false)
+                case .roadsideNight: buildRoadside(set, night: true)
+                case .ambulance: buildAmbulance(set)
+                case .traumaBay: buildTraumaBay(set)
+                }
+                if kind.bringsSeat { buildSeat(set, kind) }
             }
-            if kind.bringsSeat { buildSeat(set, kind) }
+            root.addChild(set)
+            if sound { playAmbience(kind) }
+            SmokeLog.mark("environment set=\(kind.rawValue) dressed=\(self.dressed) parts=\(set.children.count) sound=\(ambience?.isPlaying ?? false)")
         }
-        root.addChild(set)
-        if sound { playAmbience(kind) }
-        SmokeLog.mark("environment set=\(kind.rawValue) parts=\(set.children.count) sound=\(ambience?.isPlaying ?? false)")
+        Array(people.children).forEach { $0.removeFromParent() }
+        self.cast = self.dressed ? cast : nil
+        guard self.dressed else { return }
+        PitchDressing.people(kind, cast: cast, into: people)
+        root.addChild(people)
+        SmokeLog.mark("environment people set=\(kind.rawValue) crew=\(cast.crew.map { $0.sorted() } ?? ["all"]) "
+            + "onlookers=\(cast.onlookers.map(String.init) ?? "default") speaker=\(cast.speaker) figures=\(people.children.count)")
     }
 
     func stop() {
@@ -77,7 +104,7 @@ final class EnvironmentSet {
     private func buildSeat(_ e: Entity, _ kind: Kind) {
         let steel = Self.mat(UIColor(white: 0.75, alpha: 1), metal: true)
         switch kind {
-        case .roadside, .roadsideNight:
+        case .roadside, .roadsideNight, .forest:
             box(e, [0.75, seat - 0.03, 0.42], Self.mat(UIColor(red: 0.95, green: 0.5, blue: 0.1, alpha: 1), rough: 0.5), at: [0, (seat - 0.03) / 2, -0.12])
             box(e, [0.77, 0.03, 0.44], Self.mat(UIColor(white: 0.25, alpha: 1)), at: [0, seat - 0.015, -0.12])
             box(e, [0.5, 0.04, 0.44], Self.mat(UIColor(red: 0.2, green: 0.6, blue: 0.3, alpha: 1)), at: [0, seat * 0.6, -0.11])
@@ -720,7 +747,7 @@ final class EnvironmentSet {
         guard let player = try? AVAudioPlayer(data: Self.wav(Self.ambienceSamples(kind))) else { return }
         player.numberOfLoops = -1
         // Kept well below speech so the patient and the voice agent stay intelligible.
-        player.volume = [Kind.clinic: 0.1, .antenatal: 0.08, .traumaBay: 0.18, .ambulance: 0.32, .roadside: 0.28, .roadsideNight: 0.32][kind] ?? 0.1
+        player.volume = [Kind.clinic: 0.1, .antenatal: 0.08, .traumaBay: 0.18, .ambulance: 0.32, .roadside: 0.28, .roadsideNight: 0.32, .forest: 0.2][kind] ?? 0.1
         player.play()
         ambience = player
     }
@@ -748,6 +775,9 @@ final class EnvironmentSet {
             case .roadside:
                 let passing = pow(sin(.pi * t / 4), 6) // one car going by per loop
                 out[i] = low * 3 + (mid - low) * (0.15 + 0.9 * passing)
+            case .forest: // the roadside's loop with a car far off: mostly wind in the trees
+                let passing = pow(sin(.pi * t / 4), 6)
+                out[i] = low * 3 + (mid - low) * (0.1 + 0.25 * passing)
             case .roadsideNight:
                 out[i] = low * 2.5 + (white - mid) * 0.35 + (mid - low) * 0.2
             }

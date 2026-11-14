@@ -3,13 +3,13 @@ import UIKit
 
 /// Pitch dressing: the roadside (road trauma rt-01..03). A photographic street (Poly Haven HDRI as
 /// backdrop and light), the crashed car, the bicycle, the ambulance and police, a cordon, debris, a
-/// crowd of bystanders and the crew (PitchCrowd). `-pitchEnv forest` moves the same case to a forest
-/// trail (mountain-bike crash, hikers), the Studio's mix-and-match. Night keeps the procedural place.
+/// crowd of bystanders and the crew (PitchCrowd, built by `people`). `forest`: the same case on a forest
+/// trail (mountain-bike crash, hikers; EnvironmentSet.Kind.forest, `-pitchEnv forest` in the pitch shots).
+/// Night keeps the procedural place.
 @MainActor
 enum PitchRoadside {
-    static func build(into set: Entity, seat: Float, night: Bool, avatarRoot: Entity) -> Bool {
+    static func build(into set: Entity, seat: Float, night: Bool, forest: Bool, avatarRoot: Entity) -> Bool {
         guard !night else { return false }
-        let forest = PitchCrowd.forest
         let eye = avatarRoot.convert(position: [0, 1.6, 0], from: nil) // the simulator camera: world origin, eye height
         SmokeLog.mark("pitch roadside eye=\(eye) forest=\(forest)")
         backdrop(set, image: forest ? "roadside_forest_backdrop.jpg" : "roadside_backdrop.jpg", center: eye,
@@ -19,8 +19,71 @@ enum PitchRoadside {
         responseBag(set, seat: seat)
         monitor(set, at: [0.4, 0, 0.34])
         if forest { trail(set) } else { street(set) }
-        chip(set, forest ? "Hikers 3  ·  Distraction high" : "Crowd 4  ·  Distraction high")
+        if SmokeLog.pitch { chip(set, forest ? "Hikers 3  ·  Distraction high" : "Crowd 4  ·  Distraction high") } // pitch caption, not part of the place
         return true
+    }
+
+    // MARK: - People
+
+    /// The crew with the patient (journey member ids): kneeling-height workers either side.
+    static let crew: [String: SIMD3<Float>] = ["sam": [-0.95, 0, -0.12], "lena": [0.95, 0, -0.28]]
+
+    /// An onlooker: where they stand and how they look (PitchCrowd.person arguments).
+    private struct Onlooker {
+        var model: String, outfit: String, at: SIMD3<Float>, pose: PitchCrowd.Pose
+        var hair: UIColor? = nil, skin: UIColor? = nil, phone = false
+    }
+
+    /// Onlookers in the order they join as the crowd grows (Studio crowdedness 0 / 2 / 4). The last one
+    /// of the default crowd stands where a Studio bystander goes (`speakerSpot`) and steps aside for them.
+    private static func onlookers(forest: Bool) -> (all: [Onlooker], standard: Int) {
+        let darkSkin = UIColor(red: 0.62, green: 0.48, blue: 0.4, alpha: 1)
+        if forest {
+            return ([Onlooker(model: "Patient", outfit: "hiker_m", at: [1.6, 0, -2.0], pose: PitchCrowd.worried, hair: UIColor(white: 0.25, alpha: 1)),
+                     Onlooker(model: "Patient_female", outfit: "hiker_f", at: [-0.6, 0, -3.1], pose: PitchCrowd.filming,
+                              hair: UIColor(red: 0.9, green: 0.75, blue: 0.5, alpha: 1), phone: true),
+                     Onlooker(model: "Patient", outfit: "driver", at: [2.1, 0, -1.6], pose: PitchCrowd.armsFolded, skin: darkSkin),
+                     Onlooker(model: "Patient", outfit: "bystander_m", at: [-2.2, 0, -2.3], pose: PitchCrowd.relaxed,
+                              hair: UIColor(red: 0.35, green: 0.22, blue: 0.14, alpha: 1))], 3)
+        }
+        return ([Onlooker(model: "Patient_female", outfit: "bystander_f", at: [-0.55, 0, -3.3], pose: PitchCrowd.worried,
+                          hair: UIColor(red: 0.35, green: 0.22, blue: 0.14, alpha: 1)),
+                 Onlooker(model: "Patient", outfit: "bystander_m", at: [-2.25, 0, -1.55], pose: PitchCrowd.filming,
+                          hair: UIColor(red: 1.0, green: 0.85, blue: 0.6, alpha: 1), phone: true),
+                 Onlooker(model: "Patient_female", outfit: "bystander_f2", at: [2.0, 0, -1.3], pose: PitchCrowd.armsFolded,
+                          hair: UIColor(white: 0.2, alpha: 1), skin: darkSkin),
+                 Onlooker(model: "Patient", outfit: "driver", at: [0.5, 0, -2.7], pose: PitchCrowd.pointing,
+                          hair: UIColor(white: 0.25, alpha: 1), skin: UIColor(red: 0.8, green: 0.68, blue: 0.58, alpha: 1)),
+                 Onlooker(model: "Patient", outfit: "hiker_m", at: [-1.7, 0, -4.4], pose: PitchCrowd.worried, hair: UIColor(white: 0.3, alpha: 1))], 4)
+    }
+
+    /// Where a Studio bystander stands: the spot of the default crowd's last onlooker (the driver in the street).
+    static func speakerSpot(forest: Bool) -> SIMD3<Float> {
+        let o = onlookers(forest: forest)
+        return o.all[o.standard - 1].at
+    }
+
+    /// The crew (`cast.crew`, nil = both) and the onlookers (`cast.onlookers`, nil = the default crowd);
+    /// the street also has a police officer at the cordon.
+    static func people(_ e: Entity, cast: PitchDressing.Cast, forest: Bool) {
+        if cast.crew?.contains("sam") ?? true {
+            PitchCrowd.person("Patient", outfit: "paramedic_m", in: e, at: crew["sam"]!, facing: [0, 0, 0.1],
+                              pose: PitchCrowd.working, hair: UIColor(white: 0.45, alpha: 1))
+        }
+        if cast.crew?.contains("lena") ?? true {
+            PitchCrowd.person("Patient_female", outfit: "paramedic_f", in: e, at: crew["lena"]!, facing: [0, 0, 0.1],
+                              pose: PitchCrowd.working)
+        }
+        let (all, standard) = onlookers(forest: forest)
+        var pool = all
+        if cast.speaker { pool.remove(at: standard - 1) }
+        for o in pool.prefix(max(0, cast.onlookers ?? standard)) {
+            PitchCrowd.person(o.model, outfit: o.outfit, in: e, at: o.at, facing: [0, 0, 0], pose: o.pose, hair: o.hair, skin: o.skin, phone: o.phone)
+        }
+        if !forest {
+            PitchCrowd.person("Patient", outfit: "police", in: e, at: [-1.2, 0, -5.9], facing: [0, 0, 0],
+                              pose: PitchCrowd.relaxed, hair: UIColor(white: 0.3, alpha: 1))
+        }
     }
 
     static let streetYaw: Float = -0.4
@@ -44,38 +107,12 @@ enum PitchRoadside {
             cone(set, at: p)
         }
         tape(set, [[-2.6, 0, -4.8], [-0.4, 0, -5.6], [1.8, 0, -6.2], [3.4, 0, -5.4]])
-
-        // The crew with the patient, the bystanders around: the driver, the worried, the one filming.
-        PitchCrowd.person("Patient", outfit: "paramedic_m", in: set, at: [-0.95, 0, -0.12], facing: [0, 0, 0.1],
-                          pose: PitchCrowd.working, hair: UIColor(white: 0.45, alpha: 1))
-        PitchCrowd.person("Patient_female", outfit: "paramedic_f", in: set, at: [0.95, 0, -0.28], facing: [0, 0, 0.1],
-                          pose: PitchCrowd.working)
-        PitchCrowd.person("Patient", outfit: "driver", in: set, at: [0.5, 0, -2.7], facing: [0, 0, 0],
-                          pose: PitchCrowd.pointing, hair: UIColor(white: 0.25, alpha: 1), skin: UIColor(red: 0.8, green: 0.68, blue: 0.58, alpha: 1))
-        PitchCrowd.person("Patient_female", outfit: "bystander_f", in: set, at: [-0.55, 0, -3.3], facing: [0, 0, 0],
-                          pose: PitchCrowd.worried, hair: UIColor(red: 0.35, green: 0.22, blue: 0.14, alpha: 1))
-        PitchCrowd.person("Patient", outfit: "bystander_m", in: set, at: [-2.25, 0, -1.55], facing: [0, 0, 0],
-                          pose: PitchCrowd.filming, hair: UIColor(red: 1.0, green: 0.85, blue: 0.6, alpha: 1), phone: true)
-        PitchCrowd.person("Patient_female", outfit: "bystander_f2", in: set, at: [2.0, 0, -1.3], facing: [0, 0, 0],
-                          pose: PitchCrowd.armsFolded, hair: UIColor(white: 0.2, alpha: 1), skin: UIColor(red: 0.62, green: 0.48, blue: 0.4, alpha: 1))
-        PitchCrowd.person("Patient", outfit: "police", in: set, at: [-1.2, 0, -5.9], facing: [0, 0, 0],
-                          pose: PitchCrowd.relaxed, hair: UIColor(white: 0.3, alpha: 1))
     }
 
     private static func trail(_ set: Entity) {
         bicycle(set, at: [-1.05, 0, -1.85], yaw: 0.5, frame: UIColor(red: 0.85, green: 0.35, blue: 0.08, alpha: 1), mtb: true)
         helmet(set, at: [-0.35, 0, -1.25], yaw: 1.1)
         bottle(set, at: [0.55, 0, -1.6])
-        PitchCrowd.person("Patient", outfit: "paramedic_m", in: set, at: [-0.95, 0, -0.12], facing: [0, 0, 0.1],
-                          pose: PitchCrowd.working, hair: UIColor(white: 0.45, alpha: 1))
-        PitchCrowd.person("Patient_female", outfit: "paramedic_f", in: set, at: [0.95, 0, -0.28], facing: [0, 0, 0.1],
-                          pose: PitchCrowd.working)
-        PitchCrowd.person("Patient", outfit: "hiker_m", in: set, at: [1.6, 0, -2.0], facing: [0, 0, 0],
-                          pose: PitchCrowd.worried, hair: UIColor(white: 0.25, alpha: 1))
-        PitchCrowd.person("Patient_female", outfit: "hiker_f", in: set, at: [-0.6, 0, -3.1], facing: [0, 0, 0],
-                          pose: PitchCrowd.filming, hair: UIColor(red: 0.9, green: 0.75, blue: 0.5, alpha: 1), phone: true)
-        PitchCrowd.person("Patient", outfit: "driver", in: set, at: [2.1, 0, -1.6], facing: [0, 0, 0],
-                          pose: PitchCrowd.armsFolded, skin: UIColor(red: 0.62, green: 0.48, blue: 0.4, alpha: 1))
     }
 
     // MARK: - Backdrop

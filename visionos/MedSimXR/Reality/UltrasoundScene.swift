@@ -90,7 +90,8 @@ final class UltrasoundScene {
         root.isEnabled = info != nil
         reset()
         guard let avatar, info != nil else { return }
-        if SmokeLog.pitch { PitchAntenatal.dressCouch(avatar.root, extras: couchExtras) }
+        // The scan couch's upholstery and paper sheet belong to the room: realistic rooms dress it too.
+        if AppConfig.realisticRooms { PitchAntenatal.dressCouch(avatar.root, extras: couchExtras) } else { Array(couchExtras.children).forEach { $0.removeFromParent() } }
         let faint = Self.overlay(.white, SmokeLog.pitch ? 0 : 0.07) // pitch shots: no visible hit spheres
         for region in regions {
             guard let anchor = avatar.anchors[region.attachTo] else { continue }

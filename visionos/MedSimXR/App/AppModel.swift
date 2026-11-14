@@ -190,9 +190,11 @@ final class AppModel {
     /// The room the immersive scene builds: the journey's current place, else the Studio
     /// environment, else the case's setting (before a session: the selected case's).
     var environmentKind: EnvironmentSet.Kind {
-        EnvironmentSet.Kind.resolve([currentStage?.setting, scenario?.environmentId, scenario?.environmentLabel,
-                                     session?.case.catalog?.setting ?? selectedCase?.catalog?.setting],
-                                    night: scenario?.environmentId.contains("night") == true)
+        let kind = EnvironmentSet.Kind.resolve([currentStage?.setting, scenario?.environmentId, scenario?.environmentLabel,
+                                                session?.case.catalog?.setting ?? selectedCase?.catalog?.setting],
+                                               night: scenario?.environmentId.contains("night") == true)
+        // Pitch `-pitchEnv forest`: the road case's first stage on the trail (see ScenarioStage.pitchPlace).
+        return kind == .roadside && SmokeLog.pitch && PitchCrowd.forest ? .forest : kind
     }
     /// Set by the immersive view after it rebuilt the room; reported back to the instructor.
     var stageStatus = "immersive scene not open"

@@ -217,23 +217,38 @@ struct ImmersivePatientView: View {
         .onDisappear { avatar.stopIdle(); stage.stop(); place.stop(); model.stageStatus = "immersive scene not open" }
     }
 
-    /// The room for the current place. Road, ambulance and resus bring their own seat for the
-    /// patient, so the clinic stool hides there.
+    /// The room for the current place. Road, trail, ambulance and resus bring their own seat for the
+    /// patient, so the clinic stool hides there. The scenario stage learns whether the place is dressed,
+    /// so the people in it appear once (the place's crew and onlookers, the stage's companions).
     private func showPlace() {
+        guard place.root.parent != nil else { return } // not installed yet: the scene's setup shows it once the patient has loaded
         let kind = model.environmentKind
         avatar.furnitureHidden = kind.bringsSeat
-        place.show(kind, seat: avatar.seatHeight)
+        place.show(kind, seat: avatar.seatHeight, cast: Self.cast(model))
+        stage.setPlace(place.dressed ? kind : nil)
+    }
+
+    /// Who a dressed place shows: the journey members of the current stage (none outside a journey), as
+    /// many onlookers as the Studio scenario's crowd (the place's default without one), and whether a
+    /// Studio bystander takes an onlooker's spot. Pitch shots: the default cast.
+    static func cast(_ model: AppModel) -> PitchDressing.Cast {
+        guard !SmokeLog.pitch else { return .init() }
+        return .init(crew: Set(model.teamPresent.map(\.id)), onlookers: model.scenario.map(ScenarioStage.crowdCount),
+                     speaker: model.scenario?.bystander != nil)
     }
 }
 
 /// Rebuilds the room when the place changes (another case, the next journey stage, a Studio environment).
 private struct PlaceSync: ViewModifier {
     @Environment(AppModel.self) private var model
+    @AppStorage(AppConfig.realisticRoomsKey) private var realistic = true
     let show: () -> Void
     let place: EnvironmentSet
 
     func body(content: Content) -> some View {
         content.onChange(of: model.environmentKind) { show() }
+            .onChange(of: ImmersivePatientView.cast(model)) { show() } // stage team, Studio crowd: the people only
+            .onChange(of: realistic) { show() }
             .onChange(of: Pitch.shared.hideRoom) { _, hide in place.root.isEnabled = !hide } // pitch: the wearer's own room
             .background { if SmokeLog.pitch { PitchDemo() } } // runs in the space: the window closes
     }

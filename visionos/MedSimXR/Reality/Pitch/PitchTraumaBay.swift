@@ -146,11 +146,6 @@ enum PitchTraumaBay {
         cyl(set, 0.1, 0.3, pendantWhite, at: [0.35, h - 0.52, 0.0])
         cyl(set, 0.01, 0.26, UnlitMaterial(color: UIColor(red: 1, green: 0.98, blue: 0.92, alpha: 1)), at: [0.35, h - 0.575, 0.0])
 
-        // Resus team: registrar at the head end (cap and mask), nurse at the IV pole, a third behind.
-        staff(set, "Patient", at: [-1.15, 0, -0.45], yaw: 0.9, scrubs: UIColor(red: 0.12, green: 0.2, blue: 0.42, alpha: 1), masked: true, armsForward: true)
-        staff(set, "Patient_female", at: [1.2, 0, -0.35], yaw: -1.0, scrubs: UIColor(red: 0.28, green: 0.5, blue: 0.85, alpha: 1), masked: false, armsForward: true)
-        staff(set, "Patient_female", at: [0.55, 0, -1.55], yaw: -0.25, scrubs: UIColor(red: 0.5, green: 0.12, blue: 0.2, alpha: 1), masked: false, armsForward: false)
-
         // Light: HDRI on everything (a stop under as-shot, so it stays contrasty), the exam lamp as key over the trolley,
         // and a near-vertical 'ceiling panel' light so shadows pool under people and furniture instead of streaking.
         PitchKit.light(avatarRoot, hdri: "traumabay_ibl", intensity: -0.1)
@@ -380,6 +375,24 @@ enum PitchTraumaBay {
     }
 
     // MARK: Team
+
+    /// Journey members in the bay: Dr Omar (registrar) at the head end, Priya (nurse) at the IV pole.
+    static let crew: [String: SIMD3<Float>] = ["omar": [-1.15, 0, -0.45], "priya": [1.2, 0, -0.35]]
+
+    /// The resus team: Omar and Priya when in `cast.crew`; with the default cast (pitch shots, nil) also
+    /// a third member behind the trolley, who is nobody in the case.
+    static func people(_ e: Entity, cast: PitchDressing.Cast) {
+        // Registrar at the head end (cap and mask), nurse at the IV pole, a third behind.
+        if cast.crew?.contains("omar") ?? true {
+            staff(e, "Patient", at: crew["omar"]!, yaw: 0.9, scrubs: UIColor(red: 0.12, green: 0.2, blue: 0.42, alpha: 1), masked: true, armsForward: true)
+        }
+        if cast.crew?.contains("priya") ?? true {
+            staff(e, "Patient_female", at: crew["priya"]!, yaw: -1.0, scrubs: UIColor(red: 0.28, green: 0.5, blue: 0.85, alpha: 1), masked: false, armsForward: true)
+        }
+        if cast.crew == nil {
+            staff(e, "Patient_female", at: [0.55, 0, -1.55], yaw: -0.25, scrubs: UIColor(red: 0.5, green: 0.12, blue: 0.2, alpha: 1), masked: false, armsForward: false)
+        }
+    }
 
     /// One of the bundled seated avatars, stood up (legs straightened, forearms forward) and dressed in scrubs.
     private static func staff(_ e: Entity, _ variant: String, at p: SIMD3<Float>, yaw: Float, scrubs: UIColor, masked: Bool, armsForward: Bool) {

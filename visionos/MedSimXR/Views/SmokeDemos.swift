@@ -8,13 +8,21 @@ struct SmokeDemos: View {
     @Environment(StudioState.self) private var studio
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
+    @Environment(\.dismissWindow) private var dismissWindow
+    /// `-noWindow`: close this window once the patient's space is open, so screenshots show the place
+    /// (the simulator's camera is fixed). The run then continues without the window.
+    private static let noWindow = ProcessInfo.processInfo.arguments.contains("-noWindow")
 
     var body: some View {
         Color.clear.task {
-            await autoDemo()
-            await scenarioDemo()
-            await studioDemo()
+            let run = Task { @MainActor in
+                await autoDemo()
+                await scenarioDemo()
+                await studioDemo()
+            }
+            if !Self.noWindow { await withTaskCancellationHandler { await run.value } onCancel: { run.cancel() } }
         }
+        .onChange(of: model.immersiveOpen) { _, open in if open, Self.noWindow { dismissWindow(id: "studio") } }
     }
 
     private func start() async {

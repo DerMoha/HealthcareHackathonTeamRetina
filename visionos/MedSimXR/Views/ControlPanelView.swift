@@ -12,6 +12,7 @@ struct ControlPanelView: View {
     @AppStorage(AppConfig.backendHostKey) private var backendHost = ""
     @AppStorage(AppConfig.agentIdKey) private var agentId = ""
     @AppStorage("fingertipExam") private var fingertip = false
+    @AppStorage(AppConfig.realisticRoomsKey) private var realisticRooms = true
     @AppStorage(AppConfig.voiceIdKeyPrefix + "MALE") private var maleVoiceId = ""
     @AppStorage(AppConfig.voiceIdKeyPrefix + "FEMALE") private var femaleVoiceId = ""
 
@@ -239,6 +240,7 @@ struct ControlPanelView: View {
                 TextField("Voice ID, female patient (optional)", text: $femaleVoiceId)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                 Toggle("Fingertip examination (experimental)", isOn: $fingertip)
+                Toggle("Realistic environments", isOn: $realisticRooms)
                 HStack {
                     Text(creditsLine ?? "ElevenLabs credits").font(.caption).foregroundStyle(.secondary)
                     Spacer()
@@ -248,7 +250,7 @@ struct ControlPanelView: View {
                     }
                     .buttonStyle(.bordered)
                 }
-                Text("Backend, agent and voice changes apply on the next Start. Voice IDs need the agent's voice override enabled.")
+                Text("Backend, agent, voice and environment changes apply on the next Start. Voice IDs need the agent's voice override enabled.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             .padding(.top, 8)

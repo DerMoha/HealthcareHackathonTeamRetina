@@ -193,9 +193,7 @@ enum PitchAmbulance {
         box(seat, [0.03, 1.05, 0.05], frame, at: [-0.215, ch + 0.45, 0.0])
         box(seat, [0.03, 1.05, 0.05], frame, at: [0.215, ch + 0.45, 0.0])
         let belt = pbr(UIColor(red: 0.78, green: 0.1, blue: 0.1, alpha: 1), 0.7)
-        if withEMT {
-            emt(seat, at: [0, 0, 0.24])
-        } else {
+        if !withEMT { // with: `people` seats her here
             let buckle: SIMD3<Float> = [0, ch + 0.16, 0.13]
             for sx: Float in [-1, 1] {
                 let top: SIMD3<Float> = [sx * 0.11, ch + 0.66, 0.11]
@@ -336,6 +334,19 @@ enum PitchAmbulance {
 
     /// EMT Lena in the attendant's seat (false: the empty seat with its harness).
     static let withEMT = true
+    /// The attendant's seat in the bulkhead corner, facing the rear (as built by `bulkhead`).
+    private static let seatFrame = Transform(rotation: simd_quatf(angle: .pi / 2, axis: [0, 1, 0]), translation: [xF + 0.02, 0, zB + 0.32])
+    /// Lena in the attendant's seat. Sam drives (the case's ambulance stage), so he has no spot here.
+    static let crew: [String: SIMD3<Float>] = ["lena": [xF + 0.02 + 0.24, 0, zB + 0.32]] // seatFrame applied to [0, 0, 0.24]
+
+    /// The crew in the compartment: Lena in the attendant's seat when she is in `cast.crew` (nil = yes).
+    static func people(_ e: Entity, cast: PitchDressing.Cast) {
+        guard withEMT, cast.crew?.contains("lena") ?? true else { return }
+        let seat = Entity()
+        seat.transform = seatFrame
+        e.addChild(seat)
+        emt(seat, at: [0, 0, 0.24])
+    }
 
     /// The bundled seated female avatar (origin on the floor, seat 0.371 m, faces +Z) in paramedic green.
     private static func emt(_ e: Entity, at p: SIMD3<Float>) {
