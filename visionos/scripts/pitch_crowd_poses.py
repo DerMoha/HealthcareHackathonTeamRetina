@@ -201,16 +201,17 @@ def stand_worried(r, g):
 
 
 def arms_crossed(r, g):
+    """Forearms folded across the lower chest, each hand wrapped round the other arm above the elbow."""
     stand_legs(r, "l", free_fwd=0.06, free_out=0.12, hip_drop=3)
     lean(r, -3)
     k = r.k
     c = chest(r)
-    arm_ik(r, "r", c + V((0.15 * k, -0.08 * k, 0.0)), r.w("upperarm_r") + V((-0.4, 0.25, -0.35)))
-    aim_hand(r, "r", (1, 0.35, 0.05), palm=(0, 1, 0))
-    H.curl(r.rig, "r", 40, 15)
-    arm_ik(r, "l", c + V((-0.135 * k, -0.18 * k, -0.08 * k)), r.w("upperarm_l") + V((0.4, 0.25, -0.35)))
-    aim_hand(r, "l", (-1, 0.7, 0.1), palm=(0, 1, 0))
-    H.curl(r.rig, "l", 45, 15)
+    arm_ik(r, "r", c + V((0.10 * k, -0.08 * k, 0.0)), r.w("upperarm_r") + V((-0.4, 0.25, -0.35)))
+    aim_hand(r, "r", (1, 0.45, -0.05), palm=(0, 1, 0))
+    H.curl(r.rig, "r", 50, 15)
+    arm_ik(r, "l", c + V((-0.09 * k, -0.17 * k, -0.08 * k)), r.w("upperarm_l") + V((0.4, 0.25, -0.35)))
+    aim_hand(r, "l", (-1, 0.6, 0.05), palm=(0, 1, 0))
+    H.curl(r.rig, "l", 55, 15)
     look(r, yaw=8, pitch=2, tilt=-3)
 
 
