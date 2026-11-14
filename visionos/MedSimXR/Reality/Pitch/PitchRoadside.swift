@@ -78,8 +78,22 @@ enum PitchRoadside {
         let (all, standard) = onlookers(forest: forest)
         var pool = all
         if cast.speaker { pool.remove(at: standard - 1) }
+        var calmed: [Entity] = []
         for o in pool.prefix(max(0, cast.onlookers ?? standard)) {
-            PitchCrowd.person(o.pose, o.gender, outfit: o.outfit, in: e, at: o.at, facing: [0, 0, 0], hair: o.hair, skin: o.skin)
+            let person = PitchCrowd.person(o.pose, o.gender, outfit: o.outfit, in: e, at: o.at, facing: [0, 0, 0], hair: o.hair, skin: o.skin)
+            if !forest, ["driver", "bystander_f"].contains(o.outfit), let person { calmed.append(person) }
+        }
+        if !forest, PitchAdaptive.on { // the adaptive-difficulty concept: who the police move back, who joins when the sim pushes
+            PitchAdaptive.calmedCrowd = calmed
+            PitchAdaptive.extraCrowd = [
+                PitchCrowd.person(.pointing, .m, outfit: "bystander_m", in: e, at: [-1.5, 0, 0.2], facing: [0, 0, 0],
+                                  hair: UIColor(white: 0.15, alpha: 1), skin: UIColor(red: 0.55, green: 0.4, blue: 0.32, alpha: 1)),
+                PitchCrowd.person("Patient_female", outfit: "bystander_f", in: e, at: [-0.45, 0, -1.8], facing: [0, 0, 0],
+                                  pose: PitchCrowd.shouting, hair: UIColor(red: 0.85, green: 0.7, blue: 0.45, alpha: 1)),
+                PitchCrowd.person(.phoneFilming, .m, outfit: "driver", in: e, at: [-0.15, 0, -2.2], facing: [0, 0, 0],
+                                  hair: UIColor(red: 0.3, green: 0.2, blue: 0.12, alpha: 1)),
+            ].compactMap { $0 }
+            PitchAdaptive.extraCrowd.forEach { $0.isEnabled = false }
         }
         if !forest {
             PitchCrowd.person(.standRelaxed, .m, outfit: "police", in: e, at: [-1.2, 0, -5.9], facing: [0, 0, 0],

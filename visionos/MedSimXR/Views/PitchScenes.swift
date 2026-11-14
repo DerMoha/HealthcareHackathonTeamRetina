@@ -21,6 +21,8 @@ final class Pitch {
     var hideRoom = false
     /// The equipment panel above the tray, shown only in the lab scene.
     var showFitting = false
+    /// Heart-rate adaptive difficulty (concept, `-pitchAdaptive`): the watch panel and how the scene is tuned.
+    var adapt: PitchAdaptive.State?
 }
 
 /// The live conversation card beside the patient: who speaks (initials, role colour), what they
@@ -256,7 +258,8 @@ struct PitchDemo: View {
         await pause(1)
         await model.startSession()
         await pause(4)
-        if model.isUltrasound { await ultrasound() } else if model.journey != nil { await journey() } else { await wrist() }
+        if PitchAdaptive.on { await adaptive() }
+        else if model.isUltrasound { await ultrasound() } else if model.journey != nil { await journey() } else { await wrist() }
         SmokeLog.mark("DONE")
     }
 
@@ -447,6 +450,46 @@ struct PitchDemo: View {
         model.notebookTab = .assessment
         await model.submitDiagnosis()
         await shot("rt-08-feedback")
+    }
+}
+
+extension PitchDemo {
+    /// Heart-rate adaptive difficulty at the roadside (concept): the same moment three ways, then the debrief.
+    fileprivate func adaptive() async {
+        _ = model.performPatientAction(PatientAction.sitDown.rawValue)
+        await pause(3)
+        await team("scene_safety")
+        await team("haemorrhage_control")
+        await team("observations")
+
+        // In the zone: the scene as designed.
+        pitch.adapt = PitchAdaptive.steady
+        pitch.caption = [Pitch.Line(speaker: "You", text: "Jordan, can you wiggle your fingers for me?", learner: true),
+                         Pitch.Line(speaker: patient, text: "Yeah... they feel a bit tingly.")]
+        await shot("adapt-01-steady")
+        await pause(12) // the crowded street renders late in the simulator
+
+        // Too calm: the sim pushes. More people shouting, Jordan drifting off, louder.
+        pitch.adapt = PitchAdaptive.harder
+        pitch.caption = [Pitch.Line(speaker: PitchCrowd.bystander, text: "He's gone all grey! Why is nobody helping him?!"),
+                         Pitch.Line(speaker: "Passer-by", text: "I'm filming this. The ambulance took twenty minutes!"),
+                         Pitch.Line(speaker: patient, text: "Mm... where... what happened...?")]
+        await pause(4)
+        await shot("adapt-02-harder")
+        await pause(12)
+
+        // Overloaded: the sim eases off. Lena gives a hint, the crowd moves back, quieter, Jordan holds still.
+        pitch.adapt = PitchAdaptive.easier
+        pitch.caption = [Pitch.Line(speaker: "Lena", text: "You're doing fine. Feel for his radial pulse before we splint."),
+                         Pitch.Line(speaker: "You", text: "Thanks. Jordan, I'm going to feel your wrist.", learner: true),
+                         Pitch.Line(speaker: patient, text: "OK. I'll keep still, do what you need.")]
+        await pause(4)
+        await shot("adapt-03-easier")
+        await pause(12)
+
+        pitch.caption = []
+        pitch.adapt = PitchAdaptive.debrief
+        await shot("adapt-04-debrief")
     }
 }
 

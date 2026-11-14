@@ -11,6 +11,7 @@ All images are 3840×2160 (web Studio: 2880×1800). Files without a suffix are t
 | Your own notebook | `wrist-06-notebook` | `us-04b-notebook`, `rt-07-team-log` |
 | Scored against what the case expects | `wrist-07-feedback` (OSCE station mark scheme, 78/100) | `us-05-feedback` (mid-trimester anomaly-scan checklist, 74/100), `rt-08-feedback` (<C>ABCDE + ATMIST + open-fracture standard + "Under distraction", 79/100) |
 | Crowd, stress, interruptions | `rt-02-crew` | `rt-01-roadside`, `rt-03-splinted`, `rt-04-ambulance` |
+| Heart-rate adaptive difficulty (concept, staged) | `adapt-02-harder`, `adapt-03-easier` | `adapt-01-steady` (baseline), `adapt-04-debrief` (heart rate over the case), `adapt-collage.png` (2×2: the four heart-rate panels in the street scene, with the crew and Jordan) |
 | Mix and match: same case, other place | `rt-01-roadside-forest` | `rt-02-crew-forest`, `rt-03-splinted-forest` |
 | Scenario generator (browser) | `studio-web-01-generator` | `-b` |
 | AI scenario author (browser) | `studio-web-02-ai-author` | `-b` |
@@ -27,6 +28,8 @@ All images are 3840×2160 (web Studio: 2880×1800). Files without a suffix are t
 - **Sarah, 31, 20-week anomaly scan:** `us-01` greeting and ID check → `02` head/BPD → `03` four-chamber heart → `04` overview → `04b` notebook with the scan checklist → `05` debrief. `-nohand` versions show the probe without the learner's gloved hand.
 - **Jordan, 34, cyclist with an open forearm fracture (3-stage journey):** `rt-01..03` at the roadside with bystanders and crew → `04` in the ambulance (`04-ambulance-b`: no EMT in the seat) → `05..08` resus bay: team, X-ray, team log, debrief. The same case on a forest trail with hikers: `rt-0N-*-forest`.
 
+- **Heart-rate adaptive difficulty (concept, Jordan at the roadside):** `adapt-01` in the zone (104 bpm, the scene as designed) → `02` too easy, so the sim pushes (72 bpm: three more bystanders shouting, Jordan slumped and drifting off, louder scene, "Crowd 7 · Distraction max") → `03` overloaded, so it eases off (148 bpm: EMT Lena gives a hint, police move two bystanders back, quieter, Jordan holds still) → `04` debrief with the heart rate over 12 minutes and where the sim adjusted. Nothing reads a watch: all numbers are staged, so label these "Concept" in the deck.
+
 ## Re-shooting one scene
 
 From the repo root, with Xcode and the visionOS simulator installed. Nothing needs a backend or voice credits.
@@ -34,6 +37,7 @@ From the repo root, with Xcode and the visionOS simulator installed. Nothing nee
 ```sh
 visionos/scripts/pitch_shots.sh --case wrist            # one case: wrist | us | rt | studio  (2–5 min)
 visionos/scripts/pitch_shots.sh --case rt --env forest  # forest variant, writes rt-*-forest.jpg
+visionos/scripts/pitch_shots.sh --case adapt            # heart-rate adaptive difficulty concept, adapt-01..04
 SIMCTL_CHILD_PITCH_HAND=off visionos/scripts/pitch_shots.sh --case us --out /tmp/nohand   # probe without the hand
 visionos/scripts/pitch_shots.sh --hold wrist-07-feedback  # stop at one scene and leave it on screen to frame by hand
 cd studio && node scripts/pitch_shots.mjs marketplace   # web Studio pages (refreshes their cover images from this folder first)

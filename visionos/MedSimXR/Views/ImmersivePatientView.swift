@@ -61,6 +61,12 @@ struct ImmersivePatientView: View {
                 caption.scale = [1.4, 1.4, 1.4]
                 avatar.root.addChild(caption)
             }
+            if let adapt = attachments.entity(for: "pitchAdapt") { // the watch panel: left of the patient, turned to the camera
+                adapt.position = [-0.9, 1.5, 0.3]
+                adapt.orientation = simd_quatf(angle: 0.3, axis: [0, 1, 0])
+                adapt.scale = [1.6, 1.6, 1.6]
+                avatar.root.addChild(adapt)
+            }
             if let monitor = attachments.entity(for: "usMonitor") {
                 panels.add(monitor, to: us.monitorMount, scale: 1.3)
             }
@@ -93,6 +99,7 @@ struct ImmersivePatientView: View {
             Attachment(id: "fitting") { FittingPanel().environment(model) }
             Attachment(id: "replay") { ReplayPanel().environment(model) }
             if SmokeLog.pitch { Attachment(id: "pitchCaption") { PitchCaption() } }
+            if PitchAdaptive.on { Attachment(id: "pitchAdapt") { PitchAdaptPanel() } }
         }
         .gesture(
             SpatialTapGesture().targetedToEntity(where: Self.scene).onEnded { value in
@@ -152,6 +159,7 @@ struct ImmersivePatientView: View {
         }
         .modifier(StageSync(stage: stage))
         .modifier(PlaceSync(show: showPlace, place: place))
+        .modifier(PitchAdaptSync(avatar: avatar))
         .onChange(of: model.session?.sessionId) { lab.build(model.session?.case.orthotics ?? Orthotics()) }
         .modifier(UltrasoundSync(model: model, us: us))
         .onChange(of: model.activeAvatarModel) { _, variant in
