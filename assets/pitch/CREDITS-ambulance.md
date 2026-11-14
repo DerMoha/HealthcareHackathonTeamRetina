@@ -8,3 +8,4 @@ Files in visionos/MedSimXR/Resources/Pitch/. Added by visionos/scripts/pitch_ass
 - `ambulance_steel_*.jpg`: Metal032 by ambientCG (Lennart Demes), https://ambientcg.com/view?id=Metal032, CC0 1.0, fetched 2026-11-14
 - `ambulance_tread_*.jpg`: DiamondPlate001 by ambientCG (Lennart Demes), https://ambientcg.com/view?id=DiamondPlate001, CC0 1.0, fetched 2026-11-14
 - `ambulance_vinyl_*.jpg`: Fabric Leather 02 by Rob Tuytel, https://polyhaven.com/a/fabric_leather_02, CC0 1.0, fetched 2026-11-14
+- `ambulance_fabric_*.jpg`: Fabric036 by ambientCG (Lennart Demes), https://ambientcg.com/view?id=Fabric036, CC0 1.0, fetched 2026-11-14

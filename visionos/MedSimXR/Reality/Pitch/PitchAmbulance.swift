@@ -80,7 +80,7 @@ enum PitchAmbulance {
                                         ("SPLINTS", UIColor(red: 0.5, green: 0.3, blue: 0.75, alpha: 1)),
                                         ("OBS / BM", UIColor(red: 0.1, green: 0.6, blue: 0.7, alpha: 1))]
         let bw = (x1 - x0) / Float(bays.count)
-        let glass = pbr(UIColor(red: 0.18, green: 0.2, blue: 0.22, alpha: 0.5), 0.05)
+        let rimMat = pbr(UIColor(white: 0.7, alpha: 1), 0.25, metal: 1)
         for (i, (name, c)) in bays.enumerated() {
             let x = x0 + bw * (Float(i) + 0.5)
             // Recess (dark interior) and two bins inside.
@@ -91,8 +91,9 @@ enum PitchAmbulance {
                 plane(e, [bw * 0.36, 0.06], label(name, c), at: [bx, yb + 0.2, zB + 0.332])
             }
             // Smoked front with a dark handle strip and the printed label below it.
-            box(e, [bw - 0.03, yt - yb - 0.11, 0.008], glass, at: [x, (yb + yt) / 2 + 0.04, zB + d + 0.004])
+            for sy: Float in [yb + 0.33, yb + 0.12] { box(e, [bw - 0.03, 0.022, 0.008], pbr(UIColor(white: 0.18, alpha: 1), 0.8), at: [x, sy, zB + d - 0.03]) }
             box(e, [bw * 0.5, 0.018, 0.012], dark, at: [x, yb + 0.1, zB + d + 0.012])
+            box(e, [bw - 0.03, 0.012, 0.012], rimMat, at: [x, yt - 0.02, zB + d + 0.006])
             plane(e, [bw * 0.72, 0.055], label(name, c, onWhite: true), at: [x, yb + 0.045, zB + d + 0.002])
             box(e, [0.012, yt - yb, d + 0.01], trim, at: [x0 + bw * Float(i), (yb + yt) / 2, zB + d / 2])
         }
@@ -124,9 +125,9 @@ enum PitchAmbulance {
         plane(mon, [0.33, 0.235], vitals(), at: [-0.04, -0.01, 0.101])
         for i in 0..<4 { cyl(mon, 0.012, 0.012, pbr(UIColor(white: 0.5, alpha: 1), 0.4), at: [0.17, 0.09 - Float(i) * 0.06, 0.101], axis: .z) }
         // Leads from the monitor down to the patient's chest area (dangling cables).
-        let lead = pbr(UIColor(white: 0.9, alpha: 1), 0.4)
-        rod(e, from: [-1.0, 1.15, zB + 0.28], to: [-0.85, 0.8, zB + 0.32], radius: 0.005, lead)
-        rod(e, from: [-0.98, 1.15, zB + 0.28], to: [-0.55, 0.72, -0.35], radius: 0.005, lead)
+        let lead = pbr(UIColor(white: 0.2, alpha: 1), 0.5)
+        rod(e, from: [-1.0, 1.2, zB + 0.28], to: [-0.92, 0.95, zB + 0.3], radius: 0.004, lead)
+        rod(e, from: [-0.92, 0.95, zB + 0.3], to: [-0.8, 1.0, zB + 0.3], radius: 0.004, lead)
 
         // Oxygen and suction panel next to the bulkhead seat.
         let px: Float = -1.55
@@ -154,11 +155,12 @@ enum PitchAmbulance {
             text("DANGER", at: CGPoint(x: 30, y: 84), size: 40, weight: .bold, color: .red)
         }, at: [sx, 0.99, zB + 0.186])
         let gloveX: Float = -0.62
-        box(e, [0.42, 0.14, 0.11], pbr(UIColor(white: 0.85, alpha: 1), 0.3, metal: 0.5), at: [gloveX, 1.28, zB + 0.055], corner: 0.008)
+        box(e, [0.44, 0.16, 0.02], pbr(UIColor(white: 0.8, alpha: 1), 0.3, metal: 0.8), at: [gloveX, 1.28, zB + 0.01], corner: 0.005)
+        box(e, [0.44, 0.015, 0.11], pbr(UIColor(white: 0.8, alpha: 1), 0.3, metal: 0.8), at: [gloveX, 1.215, zB + 0.055])
         for (i, c) in [UIColor(red: 0.35, green: 0.45, blue: 0.95, alpha: 1), UIColor(red: 0.45, green: 0.35, blue: 0.85, alpha: 1), UIColor(red: 0.25, green: 0.55, blue: 0.85, alpha: 1)].enumerated() {
             let x = gloveX + Float(i - 1) * 0.135
-            box(e, [0.125, 0.11, 0.09], pbr(c, 0.6), at: [x, 1.28, zB + 0.06], corner: 0.005)
-            plane(e, [0.06, 0.05], drawn(120, 100) { _ in text(["S", "M", "L"][i], at: CGPoint(x: 38, y: 8), size: 76, weight: .heavy, color: .white) }, at: [x, 1.28, zB + 0.106])
+            box(e, [0.125, 0.11, 0.09], pbr(c, 0.6), at: [x, 1.28, zB + 0.065], corner: 0.005)
+            plane(e, [0.06, 0.05], drawn(120, 100) { _ in text(["S", "M", "L"][i], at: CGPoint(x: 38, y: 8), size: 76, weight: .heavy, color: .white) }, at: [x, 1.28, zB + 0.111])
         }
         box(e, [0.07, 0.15, 0.06], pbr(.white, 0.35), at: [-0.95, 0.975, zB + 0.1], corner: 0.01)
         box(e, [0.04, 0.03, 0.03], pbr(UIColor(red: 0.2, green: 0.5, blue: 0.9, alpha: 1), 0.4), at: [-0.95, 1.06, zB + 0.1])
@@ -176,25 +178,39 @@ enum PitchAmbulance {
     private static func bulkhead(_ e: Entity) {
         // Pass-through window into the cab, high up.
         let win = Entity(); win.position = [xF + 0.004, 1.62, -0.15]; win.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0]); e.addChild(win)
-        box(win, [0.58, 0.3, 0.01], pbr(UIColor(white: 0.3, alpha: 1), 0.4), at: [0, 0, 0], corner: 0.03)
+        box(win, [0.62, 0.34, 0.012], pbr(UIColor(white: 0.62, alpha: 1), 0.3, metal: 0.7), at: [0, 0, 0], corner: 0.035)
         plane(win, [0.54, 0.26], cabView(), at: [0, 0, 0.006])
 
-        // Attendant's seat in the corner, facing the rear: grey frame, blue vinyl, red 4-point belt.
+        // Attendant's seat in the corner, facing the rear: grey vinyl on a seat box, red 4-point harness.
         let seat = Entity(); seat.position = [xF + 0.02, 0, zB + 0.32]; seat.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0]); e.addChild(seat)
-        let vinyl = PitchKit.material("ambulance_vinyl", tiling: [2, 2], tint: UIColor(red: 0.2, green: 0.3, blue: 0.55, alpha: 1), roughness: 0.6)
-        let frame = pbr(UIColor(white: 0.25, alpha: 1), 0.4, metal: 0.5)
-        box(seat, [0.48, 0.08, 0.46], vinyl, at: [0, 0.52, 0.27], corner: 0.035)       // cushion
-        box(seat, [0.46, 0.62, 0.08], vinyl, at: [0, 0.92, 0.06], corner: 0.035)      // backrest
-        box(seat, [0.3, 0.17, 0.08], vinyl, at: [0, 1.36, 0.06], corner: 0.035)       // headrest
-        box(seat, [0.05, 0.5, 0.05], frame, at: [-0.2, 0.25, 0.27])
-        box(seat, [0.05, 0.5, 0.05], frame, at: [0.2, 0.25, 0.27])
-        box(seat, [0.44, 0.04, 0.42], frame, at: [0, 0.46, 0.27])
-        let belt = pbr(UIColor(red: 0.75, green: 0.08, blue: 0.1, alpha: 1), 0.7)
-        for s: Float in [-1, 1] {
-            box(seat, [0.045, 0.56, 0.008], belt, at: [s * 0.1, 0.98, 0.106], yaw: 0)
-            box(seat, [0.045, 0.2, 0.008], belt, at: [s * 0.13, 0.62, 0.32])
+        let vinyl = tinted("ambulance_vinyl", tiling: [2, 2], UIColor(red: 0.36, green: 0.4, blue: 0.46, alpha: 1), roughness: 0.6)
+        let frame = pbr(UIColor(white: 0.3, alpha: 1), 0.4, metal: 0.5)
+        let ch: Float = 0.37 // cushion top = the seated avatars' seat height
+        box(seat, [0.48, 0.08, 0.46], vinyl, at: [0, ch - 0.04, 0.27], corner: 0.035)       // cushion
+        box(seat, [0.46, 0.62, 0.09], vinyl, at: [0, ch + 0.36, 0.06], corner: 0.04)      // backrest
+        box(seat, [0.3, 0.17, 0.09], vinyl, at: [0, ch + 0.82, 0.06], corner: 0.04)       // headrest
+        box(seat, [0.42, ch - 0.08, 0.4], pbr(UIColor(white: 0.82, alpha: 1), 0.4), at: [0, (ch - 0.08) / 2, 0.24], corner: 0.02) // seat box
+        box(seat, [0.03, 1.05, 0.05], frame, at: [-0.215, ch + 0.45, 0.0])
+        box(seat, [0.03, 1.05, 0.05], frame, at: [0.215, ch + 0.45, 0.0])
+        let belt = pbr(UIColor(red: 0.78, green: 0.1, blue: 0.1, alpha: 1), 0.7)
+        if withEMT {
+            emt(seat, at: [0, 0, 0.24])
+        } else {
+            let buckle: SIMD3<Float> = [0, ch + 0.16, 0.13]
+            for sx: Float in [-1, 1] {
+                let top: SIMD3<Float> = [sx * 0.11, ch + 0.66, 0.11]
+                let strap = ModelEntity(mesh: .generateBox(size: [0.045, simd_distance(top, buckle), 0.008]), materials: [belt])
+                strap.position = (top + buckle) / 2
+                strap.orientation = simd_quatf(from: [0, 1, 0], to: simd_normalize(top - buckle))
+                seat.addChild(strap)
+                box(seat, [0.18, 0.045, 0.008], belt, at: [sx * 0.11, ch + 0.06, 0.5])
+            }
+            box(seat, [0.1, 0.1, 0.025], pbr(UIColor(white: 0.75, alpha: 1), 0.25, metal: 1), at: buckle + [0, 0, 0.01], corner: 0.03) // rotary buckle
         }
-        box(seat, [0.09, 0.07, 0.02], pbr(UIColor(white: 0.75, alpha: 1), 0.25, metal: 1), at: [0, 0.72, 0.112], corner: 0.01) // buckle
+        // Fire extinguisher on the bulkhead beside the seat.
+        cyl(e, 0.38, 0.055, pbr(UIColor(red: 0.8, green: 0.08, blue: 0.08, alpha: 1), 0.35), at: [xF + 0.07, 0.32, 0.12])
+        cyl(e, 0.06, 0.02, pbr(UIColor(white: 0.15, alpha: 1), 0.4), at: [xF + 0.07, 0.54, 0.12])
+        box(e, [0.02, 0.06, 0.16], pbr(UIColor(white: 0.3, alpha: 1), 0.4, metal: 0.6), at: [xF + 0.01, 0.4, 0.12])
         PitchKit.contactShadow(seat, at: [0, 0, 0.27], size: [0.5, 0.45])
     }
 
@@ -232,7 +248,7 @@ enum PitchAmbulance {
         rod(e, from: [xF + 0.3, ry, rz], to: [xR - 0.3, ry, rz], radius: 0.017, steel)
         for x: Float in [xF + 0.45, -0.3, 0.9] { rod(e, from: [x, h, rz], to: [x, ry, rz], radius: 0.012, steel) }
         // LED panels flush in the ceiling.
-        let ledFrame = pbr(UIColor(white: 0.8, alpha: 1), 0.3)
+        let ledFrame = pbr(UIColor(white: 0.95, alpha: 1), 0.3)
         for x: Float in [-1.3, -0.15, 1.0] {
             box(e, [0.78, 0.012, 0.36], ledFrame, at: [x, h - 0.006, -0.05])
             box(e, [0.72, 0.014, 0.3], UnlitMaterial(color: UIColor(red: 0.97, green: 0.99, blue: 1, alpha: 1)), at: [x, h - 0.008, -0.05])
@@ -260,16 +276,18 @@ enum PitchAmbulance {
         let z: Float = -0.12
         let alu = PitchKit.material("ambulance_steel", tiling: [4, 1], roughness: 0.3)
         let black = pbr(UIColor(white: 0.1, alpha: 1), 0.6)
-        let mattress = PitchKit.material("ambulance_vinyl", tiling: [3, 1.2], tint: UIColor(red: 0.12, green: 0.16, blue: 0.24, alpha: 1), roughness: 0.55)
+        let mattress = tinted("ambulance_vinyl", tiling: [3, 1.2], UIColor(red: 0.1, green: 0.14, blue: 0.24, alpha: 1), roughness: 0.55)
         let sheet = pbr(UIColor(white: 0.97, alpha: 1), 0.85)
         // Mattress with a sheet; raised back rest at the head end (-X) with a pillow.
         box(e, [1.9, 0.09, 0.6], mattress, at: [0.05, seat - 0.045, z], corner: 0.035)
         box(e, [1.25, 0.012, 0.62], sheet, at: [0.2, seat + 0.001, z], corner: 0.004)
-        let rest = Entity(); rest.position = [-0.55, seat, z]; rest.orientation = simd_quatf(angle: -0.9, axis: [0, 0, 1]); e.addChild(rest)
+        let rest = Entity(); rest.position = [-0.55, seat, z]; rest.orientation = simd_quatf(angle: -0.75, axis: [0, 0, 1]); e.addChild(rest)
         box(rest, [0.72, 0.08, 0.58], mattress, at: [-0.36, 0.04, 0], corner: 0.035)
-        box(rest, [0.36, 0.07, 0.48], sheet, at: [-0.42, 0.11, 0], corner: 0.03)
+        box(rest, [0.3, 0.06, 0.42], sheet, at: [-0.46, 0.105, 0], corner: 0.03)
         // Red cellular blanket folded at the foot end.
-        box(e, [0.4, 0.07, 0.58], PitchKit.material("ambulance_vinyl", tiling: [2, 2], tint: UIColor(red: 0.72, green: 0.08, blue: 0.1, alpha: 1), roughness: 1), at: [0.72, seat + 0.035, z], corner: 0.025)
+        let blanket = tinted("ambulance_fabric", tiling: [4, 5], UIColor(red: 0.42, green: 0.05, blue: 0.06, alpha: 1), roughness: 1)
+        box(e, [0.42, 0.05, 0.6], blanket, at: [0.74, seat + 0.025, z], corner: 0.024)
+        cyl(e, 0.58, 0.035, blanket, at: [0.86, seat + 0.085, z], axis: .z)
         // Aluminium frame, side rails, safety straps hanging down.
         box(e, [1.95, 0.05, 0.62], alu, at: [0.05, seat - 0.115, z], corner: 0.015)
         for dz: Float in [-0.32, 0.32] {
@@ -300,7 +318,7 @@ enum PitchAmbulance {
     private static func floorKit(_ e: Entity) {
         // Green paramedic response bag with reflective strips, by the rear doors.
         let bag = Entity(); bag.position = [1.15, 0, -0.42]; bag.orientation = simd_quatf(angle: -0.25, axis: [0, 1, 0]); e.addChild(bag)
-        let green = PitchKit.material("ambulance_vinyl", tiling: [2, 1], tint: UIColor(red: 0.12, green: 0.42, blue: 0.22, alpha: 1), roughness: 0.9)
+        let green = tinted("ambulance_vinyl", tiling: [2, 1], UIColor(red: 0.12, green: 0.4, blue: 0.22, alpha: 1), roughness: 0.9)
         box(bag, [0.55, 0.3, 0.3], green, at: [0, 0.15, 0], corner: 0.05)
         let reflect = pbr(UIColor(white: 0.85, alpha: 1), 0.2, metal: 0.6)
         box(bag, [0.56, 0.035, 0.305], reflect, at: [0, 0.2, 0], corner: 0.01)
@@ -318,6 +336,50 @@ enum PitchAmbulance {
         box(e, [0.12, 0.03, 0.02], pbr(UIColor(red: 0.1, green: 0.55, blue: 0.25, alpha: 1), 0.6), at: [-1.5, 0.38, zB + 0.38])
         PitchKit.contactShadow(e, at: [-1.5, 0, zB + 0.33], size: [0.12, 0.12])
     }
+
+    // MARK: Crew
+
+    /// EMT Lena in the attendant's seat (variant switch).
+    static let withEMT = false
+
+    /// The bundled seated female avatar (origin on the floor, seat 0.371 m, faces +Z) in paramedic green.
+    private static func emt(_ e: Entity, at p: SIMD3<Float>) {
+        guard let model = PitchKit.model("Patient_female") else { return }
+        let holder = Entity()
+        holder.addChild(model)
+        let size = model.visualBounds(relativeTo: holder).extents
+        if size.z > size.y { model.orientation = simd_quatf(angle: -.pi / 2, axis: [1, 0, 0]) }
+        let b = model.visualBounds(relativeTo: holder)
+        model.position.y -= b.min.y
+        if let mesh = skinned(model), var m = mesh.model {
+            let green = tinted("ambulance_fabric", tiling: [8, 8], UIColor(red: 0.1, green: 0.3, blue: 0.2, alpha: 1), roughness: 1)
+            if m.materials.count > 1 { m.materials[1] = green }
+            mesh.model = m
+        }
+        holder.position = p
+        e.addChild(holder)
+    }
+
+    private static func skinned(_ e: Entity) -> ModelEntity? {
+        if let m = e as? ModelEntity, !m.jointNames.isEmpty { return m }
+        for c in e.children { if let f = skinned(c) { return f } }
+        return nil
+    }
+
+    /// Opacity map for the smoked locker fronts: a light tint with two diagonal reflection streaks.
+    private static let glassOpacity: TextureResource? = {
+        let fmt = UIGraphicsImageRendererFormat(); fmt.scale = 1
+        let img = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256), format: fmt).image { _ in
+            UIColor(white: 0.38, alpha: 1).setFill(); UIBezierPath(rect: CGRect(x: 0, y: 0, width: 256, height: 256)).fill()
+            UIColor(white: 0.62, alpha: 1).setFill()
+            for (x, w) in [(CGFloat(40), CGFloat(34)), (110, 12)] {
+                let p = UIBezierPath(); p.move(to: CGPoint(x: x + 90, y: 0)); p.addLine(to: CGPoint(x: x + 90 + w, y: 0))
+                p.addLine(to: CGPoint(x: x + w, y: 256)); p.addLine(to: CGPoint(x: x, y: 256)); p.close(); p.fill()
+            }
+        }
+        guard let cg = img.cgImage else { return nil }
+        return try? TextureResource(image: cg, options: .init(semantic: .raw))
+    }()
 
     // MARK: Screens and pictures
 
@@ -409,14 +471,13 @@ enum PitchAmbulance {
                 UIColor(red: 0.25, green: 0.27, blue: 0.45, alpha: 1).cgColor,
                 UIColor(red: 0.95, green: 0.6, blue: 0.35, alpha: 1).cgColor] as CFArray, locations: [0, 1])!
             ctx.drawLinearGradient(sky, start: .zero, end: CGPoint(x: 0, y: 150), options: [])
-            UIColor(red: 0.12, green: 0.12, blue: 0.15, alpha: 1).setFill(); UIBezierPath(rect: CGRect(x: 0, y: 150, width: r.width, height: 110)).fill()
-            UIColor(white: 0.08, alpha: 1).setFill()
-            UIBezierPath(rect: CGRect(x: 0, y: 175, width: r.width, height: 85)).fill()
-            UIBezierPath(rect: CGRect(x: 250, y: 0, width: 40, height: r.height)).fill() // headrests / pillar
-            UIBezierPath(roundedRect: CGRect(x: 80, y: 120, width: 120, height: 140), cornerRadius: 30).fill()
-            UIBezierPath(roundedRect: CGRect(x: 340, y: 120, width: 120, height: 140), cornerRadius: 30).fill()
-            UIColor(red: 0.3, green: 0.6, blue: 1, alpha: 1).setFill()
-            UIBezierPath(rect: CGRect(x: 300, y: 190, width: 30, height: 12)).fill()
+            UIColor(red: 0.12, green: 0.12, blue: 0.16, alpha: 1).setFill(); UIBezierPath(rect: CGRect(x: 0, y: 140, width: r.width, height: 120)).fill()
+            UIColor(red: 0.26, green: 0.26, blue: 0.3, alpha: 1).setFill()
+            let road = UIBezierPath(); road.move(to: CGPoint(x: 262, y: 142)); road.addLine(to: CGPoint(x: 278, y: 142)); road.addLine(to: CGPoint(x: 470, y: 260)); road.addLine(to: CGPoint(x: 70, y: 260)); road.close(); road.fill()
+            UIColor(red: 1, green: 0.3, blue: 0.25, alpha: 1).setFill() // tail lights ahead
+            UIBezierPath(ovalIn: CGRect(x: 256, y: 150, width: 9, height: 6)).fill(); UIBezierPath(ovalIn: CGRect(x: 276, y: 150, width: 9, height: 6)).fill()
+            UIColor(white: 0.06, alpha: 1).setFill(); UIBezierPath(rect: CGRect(x: 0, y: 225, width: r.width, height: 35)).fill() // dashboard
+            UIColor(white: 0.55, alpha: 1).setFill(); UIBezierPath(rect: CGRect(x: 266, y: 0, width: 8, height: r.height)).fill() // sliding pane edge
         }
     }
 

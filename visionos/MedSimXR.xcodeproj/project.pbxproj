@@ -104,6 +104,7 @@
 		67D7081FE616288A7C92CB50 /* clinic_plant.usdz in Resources */ = {isa = PBXBuildFile; fileRef = C5DB95F6B6A2D9DD9DC69B95 /* clinic_plant.usdz */; };
 		687D5998B7F9B6C7B162AD66 /* clinic_floor_rough.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 01E64A2155282389A2CFF73E /* clinic_floor_rough.jpg */; };
 		6886182696F05A6EBD0789DC /* StudioClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CF5AB80D12E09D2C3500AE4 /* StudioClient.swift */; };
+		6976C5FE5BF90E4FAB49ADC8 /* ambulance_fabric_nor.jpg in Resources */ = {isa = PBXBuildFile; fileRef = C0CBE8C6B06FFDF50853053E /* ambulance_fabric_nor.jpg */; };
 		699995946C775E9A0DC7C7C0 /* clinic_clock.usdz in Resources */ = {isa = PBXBuildFile; fileRef = 99301758CDEC5A6AA05EF274 /* clinic_clock.usdz */; };
 		69AFADE54BECA84E4EE361C0 /* permission.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 5AA46EA955BF17CD85554A2D /* permission.m4a */; };
 		6AE62016437F65B972D32412 /* greeting.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 41987FE7A5AF451369BD2C62 /* greeting.m4a */; };
@@ -139,6 +140,7 @@
 		8F5E5FBE20EC89FFCC2D10B2 /* props_plastic_normal.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 3CEE540585EDBDFD4D4CEE1F /* props_plastic_normal.jpg */; };
 		916D2455AD149648AF08F383 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EE1F19129804B5FE4EE2AC5 /* AppModel.swift */; };
 		91E758E0F71CBD0CB319369E /* PitchTraumaBay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B3793AECF1C099CC466EAC8 /* PitchTraumaBay.swift */; };
+		927290A893B791AE0CA31C39 /* ambulance_fabric_ao.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 3F40696519B76D130CEDE170 /* ambulance_fabric_ao.jpg */; };
 		92B1E4F8C361438DF9765456 /* antenatal_sidetable.usdz in Resources */ = {isa = PBXBuildFile; fileRef = EAD86F7AE04F2F9FCB023B65 /* antenatal_sidetable.usdz */; };
 		9351624625ADF20D3A5F43FE /* traumabay_floor_rough.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 2A6BFD19307A466A1DB622D6 /* traumabay_floor_rough.jpg */; };
 		940AFBAA74FF8E67E716B048 /* Patient_pregnant.usdz in Resources */ = {isa = PBXBuildFile; fileRef = D9A02DCEC62445D991C58216 /* Patient_pregnant.usdz */; };
@@ -212,6 +214,7 @@
 		D9682FF3612B1745CFE52639 /* clinic_wall_ao.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CC726A86AADF49127D01D123 /* clinic_wall_ao.jpg */; };
 		D9864FEC005E2AE6898402F4 /* ambulance_steel_nor.jpg in Resources */ = {isa = PBXBuildFile; fileRef = FFF0894E31A9AB3E1C0986EC /* ambulance_steel_nor.jpg */; };
 		D988331062E58068AADF22F2 /* vpstudio_cover_rt-02-crew.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 00C8D72E0E080DA04EF514A4 /* vpstudio_cover_rt-02-crew.jpg */; };
+		D9F07B87EA159FA9F0632538 /* ambulance_fabric_diff.jpg in Resources */ = {isa = PBXBuildFile; fileRef = AB5831D1C9F908BC8D59F531 /* ambulance_fabric_diff.jpg */; };
 		DAB4D94F724F921530AFFB7D /* props_neoprene_normal.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 27E9308B3914DBF89F15CF4C /* props_neoprene_normal.jpg */; };
 		DB36DAE7B96B1465E42F9655 /* ambulance_tread_rough.jpg in Resources */ = {isa = PBXBuildFile; fileRef = DDB0AE94E8372171AFAEF87C /* ambulance_tread_rough.jpg */; };
 		DD053033F03EBEF9B789BD57 /* props_strap_rough.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 02C3D7C7030A12F3E6B02C38 /* props_strap_rough.jpg */; };
@@ -240,6 +243,7 @@
 		FBE03C132944B8527E2C6672 /* antenatal_floor_ao.jpg in Resources */ = {isa = PBXBuildFile; fileRef = BB2CF704AAC87E83C0621C74 /* antenatal_floor_ao.jpg */; };
 		FCB51AFA627749EC7F071D6C /* us_umbilical_cord.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 702854C71168DEE3FCC36034 /* us_umbilical_cord.jpg */; };
 		FDA845AE4D5B197EBF006B63 /* roadside_crowd_paramedic_f.jpg in Resources */ = {isa = PBXBuildFile; fileRef = ED9C431117A9C0EEB8223AD0 /* roadside_crowd_paramedic_f.jpg */; };
+		FDE3ACE5644CFE4BD67A7319 /* ambulance_fabric_rough.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 5A2B901A63EDC924CFFD3685 /* ambulance_fabric_rough.jpg */; };
 		FF335C33901C5A9C38F19B2B /* PitchClinic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 936E40ABCB3538BAA0EC55D7 /* PitchClinic.swift */; };
 		FFEBD51BB7DC71EBDDF72A93 /* clinic_maple_ao.jpg in Resources */ = {isa = PBXBuildFile; fileRef = F4054020352AA89AC66189F1 /* clinic_maple_ao.jpg */; };
 		FFF1F5E4F81653A3AE753768 /* PropsPitchLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = E29E243B708E405775544B2C /* PropsPitchLook.swift */; };
@@ -299,6 +303,7 @@
 		3A2C52290485C2D04CC3AE1D /* vpstudio_cover_us-02-head-bpd.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "vpstudio_cover_us-02-head-bpd.jpg"; sourceTree = "<group>"; };
 		3CEE540585EDBDFD4D4CEE1F /* props_plastic_normal.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = props_plastic_normal.jpg; sourceTree = "<group>"; };
 		3EF819F0AB56EE7D419E0CF8 /* Patient_pregnant.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Patient_pregnant.json; sourceTree = "<group>"; };
+		3F40696519B76D130CEDE170 /* ambulance_fabric_ao.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = ambulance_fabric_ao.jpg; sourceTree = "<group>"; };
 		40D6BDFA670E7464C7203602 /* us_no_gel.m4a */ = {isa = PBXFileReference; path = us_no_gel.m4a; sourceTree = "<group>"; };
 		411341ADA2F30AA6C2CF194C /* ExamZones.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExamZones.swift; sourceTree = "<group>"; };
 		41987FE7A5AF451369BD2C62 /* greeting.m4a */ = {isa = PBXFileReference; path = greeting.m4a; sourceTree = "<group>"; };
@@ -316,6 +321,7 @@
 		5396426F27CE34EE370D9A24 /* props_neoprene_rough.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = props_neoprene_rough.jpg; sourceTree = "<group>"; };
 		59214E25F64E1C9CCCF52D28 /* traumabay_scrub_nor.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = traumabay_scrub_nor.jpg; sourceTree = "<group>"; };
 		59CDD7B0E98D65BC1DE33F20 /* us_profile.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = us_profile.jpg; sourceTree = "<group>"; };
+		5A2B901A63EDC924CFFD3685 /* ambulance_fabric_rough.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = ambulance_fabric_rough.jpg; sourceTree = "<group>"; };
 		5A37F53D04691A1FF2127FC0 /* us_view_heart_4ch.m4a */ = {isa = PBXFileReference; path = us_view_heart_4ch.m4a; sourceTree = "<group>"; };
 		5AA46EA955BF17CD85554A2D /* permission.m4a */ = {isa = PBXFileReference; path = permission.m4a; sourceTree = "<group>"; };
 		5CF5AB80D12E09D2C3500AE4 /* StudioClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioClient.swift; sourceTree = "<group>"; };
@@ -394,6 +400,7 @@
 		A93245B230928EFB1EBFF927 /* clinic_ceiling_nor.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = clinic_ceiling_nor.jpg; sourceTree = "<group>"; };
 		AA089D90E7210A727D9BCBB8 /* SmokeDemos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeDemos.swift; sourceTree = "<group>"; };
 		AB32A4DEAAE71D625AAEF190 /* us_heart_4ch.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = us_heart_4ch.jpg; sourceTree = "<group>"; };
+		AB5831D1C9F908BC8D59F531 /* ambulance_fabric_diff.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = ambulance_fabric_diff.jpg; sourceTree = "<group>"; };
 		ABD96C9BE211B5BC0A419145 /* props_strap_normal.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = props_strap_normal.jpg; sourceTree = "<group>"; };
 		AFE03A5F60BE3F8CED6D9030 /* us_worries.m4a */ = {isa = PBXFileReference; path = us_worries.m4a; sourceTree = "<group>"; };
 		B09FC5747FBE2B068E740DB5 /* Patient.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Patient.json; sourceTree = "<group>"; };
@@ -416,6 +423,7 @@
 		BFF5017D0C768F9B53618D4E /* ambulance_vinyl_diff.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = ambulance_vinyl_diff.jpg; sourceTree = "<group>"; };
 		C08E5AC9E737EA1FFEACC77E /* antenatal_floor_diff.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = antenatal_floor_diff.jpg; sourceTree = "<group>"; };
 		C0BB27EC1C3CC5BBAE8B4AD3 /* ScenarioLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenarioLink.swift; sourceTree = "<group>"; };
+		C0CBE8C6B06FFDF50853053E /* ambulance_fabric_nor.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = ambulance_fabric_nor.jpg; sourceTree = "<group>"; };
 		C294E97270F41EF68340CFAC /* FingertipExaminer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FingertipExaminer.swift; sourceTree = "<group>"; };
 		C55895A1F3985009B85DF6E7 /* roadside_crowd_driver.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = roadside_crowd_driver.jpg; sourceTree = "<group>"; };
 		C5B92B52FA839AA1CC0CAC6D /* clinic_splash_nor.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = clinic_splash_nor.jpg; sourceTree = "<group>"; };
@@ -555,6 +563,10 @@
 		2DAAE731821F63E388C8287F /* Pitch */ = {
 			isa = PBXGroup;
 			children = (
+				3F40696519B76D130CEDE170 /* ambulance_fabric_ao.jpg */,
+				AB5831D1C9F908BC8D59F531 /* ambulance_fabric_diff.jpg */,
+				C0CBE8C6B06FFDF50853053E /* ambulance_fabric_nor.jpg */,
+				5A2B901A63EDC924CFFD3685 /* ambulance_fabric_rough.jpg */,
 				35D2488063E9081130265FBB /* ambulance_floor_diff.jpg */,
 				39423D100CF91FFF4786EE4D /* ambulance_floor_nor.jpg */,
 				6FBDC64B1A79A323A3634CA5 /* ambulance_floor_rough.jpg */,
@@ -967,6 +979,10 @@
 				835BEFB3846A9094BEACBD0A /* Patient_pregnant.json in Resources */,
 				940AFBAA74FF8E67E716B048 /* Patient_pregnant.usdz in Resources */,
 				C93DA24D2F850EAA426D3651 /* README.md in Resources */,
+				927290A893B791AE0CA31C39 /* ambulance_fabric_ao.jpg in Resources */,
+				D9F07B87EA159FA9F0632538 /* ambulance_fabric_diff.jpg in Resources */,
+				6976C5FE5BF90E4FAB49ADC8 /* ambulance_fabric_nor.jpg in Resources */,
+				FDE3ACE5644CFE4BD67A7319 /* ambulance_fabric_rough.jpg in Resources */,
 				4011B09AEB8ED3E804D7D0FD /* ambulance_floor_diff.jpg in Resources */,
 				7BF22E6EC47D2B553394787A /* ambulance_floor_nor.jpg in Resources */,
 				F308DB32837476B4696E7CC3 /* ambulance_floor_rough.jpg in Resources */,
