@@ -55,10 +55,10 @@ Agent > Tools > Add tool > **Client tool**.
 
 The app validates the id against the case, asks the clinical engine for the predefined result, opens the viewer, and returns only `success: … requested …` or `failure: …` to the agent. The result text never reaches the model. Fallback without voice: notebook > Investigations. NOT verified against a live agent.
 
-For the road trauma journey case add its ids to the enum: `rt_xray_forearm`, `rt_ct_head`, `rt_bloods` (or remove the enum; the app rejects unknown ids and ids that are not available in the current place).
+For the road trauma journey case and its trail variant add their ids (the same for both) to the enum: `rt_xray_forearm`, `rt_ct_head`, `rt_bloods` (or remove the enum; the app rejects unknown ids and ids that are not available in the current place).
 
 ## 5d. Client tool: asking the medical team (journey cases)
-Agent > Tools > Add tool > **Client tool**. Only used by cases whose case information has THE MEDICAL TEAM (today: `road_trauma_journey_001`).
+Agent > Tools > Add tool > **Client tool**. Only used by cases whose case information has THE MEDICAL TEAM (today: `road_trauma_journey_001` and `trail_trauma_journey_001`, same action ids).
 - Name: `request_team_action` (exact).
 - Description: `Asks a member of the medical team (paramedic, technician, nurse, doctor) to do something the student requested. The app makes the team member answer out loud; you never speak for them.`
 - **Wait for response: ON** (the app returns `success: …`, `blocked: …` or `failure: …`).
