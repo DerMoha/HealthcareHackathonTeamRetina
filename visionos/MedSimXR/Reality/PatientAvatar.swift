@@ -451,6 +451,14 @@ final class PatientAvatar {
     }
     private static let pitchHandLift: Float = 0.07
 
+    /// Pitch shots (adaptive difficulty concept): drifting off, head dropped and shoulders slumped.
+    func pitchDrowsy(_ on: Bool) async {
+        let joints = ["head": Float(24), "spine_02": 10, "spine_01": 6]
+        let target = joints.mapValues { Self.rot(on ? $0 : 0, [1, 0, 0]) }
+        if on { pitchPose.merge(target) { $1 } } else { for k in joints.keys { pitchPose[k] = nil } }
+        await tweenJoints(target, duration: 1.2)
+    }
+
     /// Eases joints to model-space rotation offsets (Blender axes: X = patient's left, -Y = front, Z = up).
     /// `lean` adds a forward torso lean that peaks mid-way. Stops where it is when cancelled.
     private func tweenJoints(_ target: [String: simd_quatf], duration: Double, lean: Float = 0) async {

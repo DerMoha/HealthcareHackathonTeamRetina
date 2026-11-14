@@ -18,6 +18,9 @@ enum PitchCrowd {
     nonisolated static let pointing: Pose = ["upperarm_r": [75, 0, 0], "lowerarm_r": [12, 0, 0], "upperarm_l": [20, 0, 0], "lowerarm_l": [60, 0, 0]]
     nonisolated static let working: Pose = ["upperarm_l": [28, 0, 0], "upperarm_r": [28, 0, 0], "lowerarm_l": [62, 0, 0], "lowerarm_r": [62, 0, 0],
                                 "spine_02": [10, 0, 0], "neck_01": [14, 0, 0]]
+    /// Both arms flung forward, head pushed out: shouting at the crew.
+    nonisolated static let shouting: Pose = ["upperarm_l": [70, 0, -12], "upperarm_r": [70, 0, 12], "lowerarm_l": [35, 0, 0], "lowerarm_r": [35, 0, 0],
+                                 "spine_02": [6, 0, 0], "neck_01": [12, 0, 0]]
     nonisolated static let armsFolded: Pose = ["upperarm_l": [22, 0, -14], "upperarm_r": [22, 0, 14], "lowerarm_l": [95, 0, 0], "lowerarm_r": [95, 0, 0]]
 
     /// A person standing at `p` (feet on p.y) facing `target`. `model`: "Patient" or "Patient_female".

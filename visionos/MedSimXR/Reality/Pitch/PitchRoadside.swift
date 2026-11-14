@@ -50,14 +50,28 @@ enum PitchRoadside {
                           pose: PitchCrowd.working, hair: UIColor(white: 0.45, alpha: 1))
         PitchCrowd.person("Patient_female", outfit: "paramedic_f", in: set, at: [0.95, 0, -0.28], facing: [0, 0, 0.1],
                           pose: PitchCrowd.working)
-        PitchCrowd.person("Patient", outfit: "driver", in: set, at: [0.5, 0, -2.7], facing: [0, 0, 0],
-                          pose: PitchCrowd.pointing, hair: UIColor(white: 0.25, alpha: 1), skin: UIColor(red: 0.8, green: 0.68, blue: 0.58, alpha: 1))
-        PitchCrowd.person("Patient_female", outfit: "bystander_f", in: set, at: [-0.55, 0, -3.3], facing: [0, 0, 0],
-                          pose: PitchCrowd.worried, hair: UIColor(red: 0.35, green: 0.22, blue: 0.14, alpha: 1))
+        let calmed = [
+            PitchCrowd.person("Patient", outfit: "driver", in: set, at: [0.5, 0, -2.7], facing: [0, 0, 0],
+                              pose: PitchCrowd.pointing, hair: UIColor(white: 0.25, alpha: 1), skin: UIColor(red: 0.8, green: 0.68, blue: 0.58, alpha: 1)),
+            PitchCrowd.person("Patient_female", outfit: "bystander_f", in: set, at: [-0.55, 0, -3.3], facing: [0, 0, 0],
+                              pose: PitchCrowd.worried, hair: UIColor(red: 0.35, green: 0.22, blue: 0.14, alpha: 1)),
+        ]
         PitchCrowd.person("Patient", outfit: "bystander_m", in: set, at: [-2.25, 0, -1.55], facing: [0, 0, 0],
                           pose: PitchCrowd.filming, hair: UIColor(red: 1.0, green: 0.85, blue: 0.6, alpha: 1), phone: true)
         PitchCrowd.person("Patient_female", outfit: "bystander_f2", in: set, at: [2.0, 0, -1.3], facing: [0, 0, 0],
                           pose: PitchCrowd.armsFolded, hair: UIColor(white: 0.2, alpha: 1), skin: UIColor(red: 0.62, green: 0.48, blue: 0.4, alpha: 1))
+        if PitchAdaptive.on { // the adaptive-difficulty concept: who the police move back, who joins when the sim pushes
+            PitchAdaptive.calmedCrowd = calmed.compactMap { $0 }
+            PitchAdaptive.extraCrowd = [
+                PitchCrowd.person("Patient", outfit: "bystander_m", in: set, at: [-1.5, 0, 0.2], facing: [0, 0, 0],
+                                  pose: PitchCrowd.pointing, hair: UIColor(white: 0.15, alpha: 1), skin: UIColor(red: 0.55, green: 0.4, blue: 0.32, alpha: 1)),
+                PitchCrowd.person("Patient_female", outfit: "bystander_f", in: set, at: [-0.45, 0, -1.8], facing: [0, 0, 0],
+                                  pose: PitchCrowd.shouting, hair: UIColor(red: 0.85, green: 0.7, blue: 0.45, alpha: 1)),
+                PitchCrowd.person("Patient", outfit: "driver", in: set, at: [-0.15, 0, -2.2], facing: [0, 0, 0],
+                                  pose: PitchCrowd.filming, hair: UIColor(red: 0.3, green: 0.2, blue: 0.12, alpha: 1), phone: true),
+            ].compactMap { $0 }
+            PitchAdaptive.extraCrowd.forEach { $0.isEnabled = false }
+        }
         PitchCrowd.person("Patient", outfit: "police", in: set, at: [-1.2, 0, -5.9], facing: [0, 0, 0],
                           pose: PitchCrowd.relaxed, hair: UIColor(white: 0.3, alpha: 1))
     }
@@ -497,7 +511,20 @@ enum PitchRoadside {
     /// "Crowd 4 · Distraction high" next to the stage banner (ScenarioStage's sign at y 2.3, z -0.6;
     /// on the trail that sign itself says "On the trail").
     private static func chip(_ set: Entity, _ text: String) {
-        let size = CGSize(width: 900, height: 110)
+        let e = ModelEntity(mesh: .generatePlane(width: 0.6, height: 0.6 * 110 / 900), materials: [chipMaterial(text)])
+        e.position = [0, 2.42, -0.6]
+        set.addChild(e)
+        chipEntity = e
+    }
+
+    private static var chipEntity: ModelEntity?
+
+    /// Rewrites the chip (adaptive-difficulty concept: the crowd and distraction change with the heart rate).
+    static func setChip(_ text: String) {
+        chipEntity?.model?.materials = [chipMaterial(text)]
+    }
+
+    private static func chipMaterial(_ text: String) -> UnlitMaterial {
         let color = RoadsidePaint.texture("chip_\(text)", size: [900, 110]) { ctx, s in
             ctx.setFillColor(UIColor(red: 0.13, green: 0.12, blue: 0.16, alpha: 1).cgColor); ctx.fill(CGRect(origin: .zero, size: s))
             ctx.setFillColor(UIColor(red: 0.98, green: 0.45, blue: 0.7, alpha: 1).cgColor)
@@ -511,10 +538,7 @@ enum PitchRoadside {
         var m = UnlitMaterial()
         m.color = .init(tint: .white, texture: color.map { .init($0) })
         m.blending = .transparent(opacity: .init(scale: 0.88, texture: mask.map { .init($0) }))
-        let w: Float = 0.6
-        let e = ModelEntity(mesh: .generatePlane(width: w, height: w * Float(size.height / size.width)), materials: [m])
-        e.position = [0, 2.42, -0.6]
-        set.addChild(e)
+        return m
     }
 
     // MARK: - Meshes
