@@ -25,6 +25,8 @@ final class ScenarioStage {
     private var ambient: AVAudioPlayer?
     private let synth = AVSpeechSynthesizer()
     private var bubble: Entity?
+    /// Speech bubble height per crew member in a dressed place (above their name caption).
+    private var speechHeights: [String: Float] = [:]
     private var bubbleTask: Task<Void, Never>?
     private var speakers: [String: Entity] = [:]
     /// Journey cases: the place sign and the medical team there. Separate from `root` so a
@@ -71,7 +73,7 @@ final class ScenarioStage {
     /// `stage` nil (other cases) clears it.
     func showJourney(_ stage: JourneyStage?, team: [JourneyMember], position: Int, count: Int) {
         Array(journeyRoot.children).forEach { $0.removeFromParent() }
-        journeySpeakers = [:]
+        journeySpeakers = [:]; speechHeights = [:]
         journey = stage.map { ($0, team, position, count) }
         guard let stage else {
             if journeyNoise > 0, !hasScenario { ambient?.stop(); ambient = nil }
@@ -109,7 +111,9 @@ final class ScenarioStage {
             anchor.position = spot ?? [0.2 * Float(i), 0, -1.2]
             if spot != nil {
                 let caption = Self.text("\(member.name) · \(member.role)", size: 0.03, color: .white)
-                caption.position = [0, dressed.map { PitchDressing.crewCaptionHeight($0, member.id) } ?? 1.9, 0]
+                let height = dressed.map { PitchDressing.crewCaptionHeight($0, member.id) } ?? 1.9
+                caption.position = [0, height, 0]
+                speechHeights[member.name] = height + 0.08 // just above the name, so a kneeling medic's line stays low
                 caption.components.set(BillboardComponent())
                 anchor.addChild(caption)
             }
@@ -267,7 +271,7 @@ final class ScenarioStage {
         if SmokeLog.pitch { return } // the pitch conversation card shows the line instead
         let text = Self.bubbleText("\(line.speaker): \u{201C}\(line.text)\u{201D}")
         let speaker = speakers[line.speaker] ?? journeySpeakers[line.speaker]
-        text.position = (speaker?.position ?? [0, 0, 0]) + [0, 2.0, 0.05]
+        text.position = (speaker?.position ?? [0, 0, 0]) + [0, speechHeights[line.speaker] ?? 2.0, 0.05]
         root.addChild(text)
         bubble = text
         bubbleTask?.cancel()
