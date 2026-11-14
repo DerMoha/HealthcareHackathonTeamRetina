@@ -8,6 +8,7 @@
 #   visionos/scripts/pitch_shots.sh --hold wrist-04-xray stop at one scene and leave it on screen,
 #                                                        to frame and screenshot by hand (Cmd+S in Simulator)
 #   --no-build   reuse the last build      --out DIR   default docs/screenshots/pitch
+#   --env forest  the road-trauma case on a forest trail (-pitchEnv forest); shots get a -forest suffix
 #
 # Scenes: wrist-01-in-your-room wrist-02-conversation wrist-03-pain-reaction wrist-04-xray
 #         wrist-05-orthotics-lab wrist-06-notebook wrist-07-feedback wrist-08-replay-anatomy
@@ -19,13 +20,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-OUT="$ROOT/docs/screenshots/pitch"; BUILD=1; HOLD=""; CASES="wrist us rt studio"
+OUT="$ROOT/docs/screenshots/pitch"; ENV=""; SUFFIX=""; BUILD=1; HOLD=""; CASES="wrist us rt studio"
 while [ $# -gt 0 ]; do
   case "$1" in
     --case) CASES="$2"; shift ;;
     --hold) HOLD="$2"; CASES="${2%%-*}"; shift ;;
     --out) OUT="$2"; shift ;;
     --no-build) BUILD=0 ;;
+    --env) ENV="$2"; SUFFIX="-$2"; shift ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
   shift
@@ -65,6 +67,7 @@ for c in $CASES; do
   xcrun simctl install "$UDID" "$APP"
   ARGS=(-pitch -mockVoice -scenario "$SCENARIO" -mood calm -patientOffset "@$OFFSET" -MEDSIM_BACKEND_HOST 127.0.0.1:9)
   [ -n "$HOLD" ] && ARGS+=(-pitchHold "$HOLD")
+  [ -n "$ENV" ] && ARGS+=(-pitchEnv "$ENV")
   case "$c" in studio|vp) ARGS+=(-pitchStudio) ;; esac
   xcrun simctl launch "$UDID" $BUNDLE "${ARGS[@]}" >/dev/null
   LOG="$(xcrun simctl get_app_container "$UDID" $BUNDLE data)/Documents/smoke.log"
@@ -75,7 +78,7 @@ for c in $CASES; do
       while [ "$seen" -lt "$total" ]; do
         seen=$((seen + 1)); line=$(sed -n "${seen}p" "$LOG")
         case "$line" in
-          "STEP "*) name=${line#STEP }; xcrun simctl io "$UDID" screenshot "$OUT/$name.png" >/dev/null 2>&1
+          "STEP "*) name=${line#STEP }$SUFFIX; xcrun simctl io "$UDID" screenshot "$OUT/$name.png" >/dev/null 2>&1
                     sips -s format jpeg -s formatOptions 90 "$OUT/$name.png" --out "$OUT/$name.jpg" >/dev/null 2>&1 && rm "$OUT/$name.png"
                     echo "  $name.jpg" ;;
           "HOLD "*) echo "holding ${line#HOLD } in the Simulator: frame it and press Cmd+S. Ctrl+C here when done."; exit 0 ;;
