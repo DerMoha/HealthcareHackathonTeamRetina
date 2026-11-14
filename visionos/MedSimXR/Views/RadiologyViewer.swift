@@ -21,17 +21,6 @@ private enum PitchStudy {
         default: return nil
         }
     }
-
-    static func credit(_ result: InvestigationResult) -> String? {
-        guard SmokeLog.pitch else { return nil }
-        switch result.investigationId {
-        case "right_wrist_xray":
-            return "Illustrative example images: a normal wrist (mirrored), PA and lateral, by Mikael Häggström, M.D., CC0, Wikimedia Commons. Not this patient."
-        case "rt_xray_forearm":
-            return "Illustrative example images: displaced forearm fractures (mirrored), by Hellerhoff, CC BY-SA 4.0, Wikimedia Commons. Not this patient."
-        default: return nil
-        }
-    }
 }
 
 /// Floating PACS-style result viewer, its own movable panel beside the notebook: a dark image well
@@ -131,7 +120,7 @@ struct RadiologyViewer: View {
         let tl = [name, patient.map { "\($0.age) y" } ?? "", SmokeLog.pitch ? "MRN 4471-2093" : ""]
         let tr = [result.modality == "X-ray" ? "CR · \(result.modality)" : result.modality, Self.time(result.orderedAt), SmokeLog.pitch ? "Acc 26-118734" : ""]
         let bl = [window.readout, "Zoom \(Int(model.viewerZoom * 100)) %"]
-        let br = ["Se 1 · \(images) im", "Simulated"]
+        let br = ["Se 1 · \(images) im", SmokeLog.pitch ? "" : "Simulated"]
         return VStack {
             HStack(alignment: .top) { corner(tl, .leading); Spacer(); corner(tr, .trailing) }
             Spacer()
@@ -192,7 +181,9 @@ struct RadiologyViewer: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Report").font(.headline)
-                    Text("Simulated").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                    if !SmokeLog.pitch {
+                        Text("Simulated").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                    }
                     Spacer()
                     Text("Requested \(Self.time(result.orderedAt))").font(.caption).foregroundStyle(.tertiary)
                 }
@@ -205,7 +196,9 @@ struct RadiologyViewer: View {
                     }
                 }
                 .fixedSize(horizontal: false, vertical: true)
-                Text(PitchStudy.credit(result) ?? result.imageCredit).font(.caption2).foregroundStyle(.tertiary)
+                if !SmokeLog.pitch {
+                    Text(result.imageCredit).font(.caption2).foregroundStyle(.tertiary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

@@ -62,7 +62,8 @@ final class ScenarioStage {
             showInjury(nil)
             return
         }
-        let sign = Self.titleCard(stage, position: position, count: count)
+        let place = Self.pitchPlace(stage)
+        let sign = Self.titleCard(place, position: position, count: count)
         sign.position = [0, 2.3, -0.6]
         if SmokeLog.pitch { sign.position.x = -0.35; sign.scale = [0.8, 0.8, 0.8] } // pitch: clear of the ambulance grab pole and the conversation card
         sign.components.set(BillboardComponent()) // square on to the wearer wherever they stand
@@ -72,7 +73,7 @@ final class ScenarioStage {
                 for _ in 0..<5 {
                     try? await Task.sleep(for: .milliseconds(400))
                     guard let parent = sign.parent else { return }
-                    let card = Self.titleCard(stage, position: position, count: count)
+                    let card = Self.titleCard(place, position: position, count: count)
                     guard card.name == "journey_title_card" else { continue }
                     card.transform = sign.transform
                     card.components.set(BillboardComponent())
@@ -98,6 +99,15 @@ final class ScenarioStage {
     }
 
     private var hasScenario = false
+
+    /// Pitch `-pitchEnv forest`: the first stage is on a forest trail, not at the roadside.
+    private static func pitchPlace(_ stage: JourneyStage) -> JourneyStage {
+        guard SmokeLog.pitch, PitchCrowd.forest, stage.id == "scene" else { return stage }
+        var trail = stage
+        trail.label = "On the trail"
+        trail.setting = "Forest trail, a mountain bike off the path, hikers around"
+        return trail
+    }
 
     // MARK: Injured patient (journey cases)
 
@@ -314,6 +324,7 @@ private struct StageTitleCard: View {
 
     private var symbol: String {
         switch stage.id {
+        case "scene" where SmokeLog.pitch && PitchCrowd.forest: "bicycle"
         case "scene": "car.side.rear.and.collision.and.car.side.front"
         case "ambulance": "staroflife.fill"
         default: "cross.case.fill"

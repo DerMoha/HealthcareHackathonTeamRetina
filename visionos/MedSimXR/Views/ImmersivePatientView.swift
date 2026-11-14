@@ -171,8 +171,9 @@ struct ImmersivePatientView: View {
         .onChange(of: model.phase) { _, phase in // pitch (uinotebook): the larger debrief, more central
             guard SmokeLog.pitch, phase == .feedback, let n = us.notebook else { return }
             let journey = AppConfig.launchArgument("-scenario")?.contains("journey") == true
-            n.transform = Transform(scale: .init(repeating: avatar.isRecumbent ? 0.85 : journey ? 0.9 : 1), rotation: simd_quatf(angle: 0.1, axis: [0, 1, 0]),
-                                    translation: avatar.isRecumbent ? [0.44, 1.53, 0.55] : journey ? [0.71, 1.47, 0.85] : [0.6, 1.25, 0.55])
+            // Seated clinic patient: right of the head so the face stays visible.
+            n.transform = Transform(scale: .init(repeating: avatar.isRecumbent ? 0.85 : journey ? 0.9 : 0.85), rotation: simd_quatf(angle: 0.1, axis: [0, 1, 0]),
+                                    translation: avatar.isRecumbent ? [0.44, 1.53, 0.55] : journey ? [0.71, 1.47, 0.85] : [0.66, 1.25, 0.55])
             panels.markHomes()
         }
         .onChange(of: model.labCommand) { _, command in

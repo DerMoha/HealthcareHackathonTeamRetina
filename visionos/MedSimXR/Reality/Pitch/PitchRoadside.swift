@@ -20,7 +20,6 @@ enum PitchRoadside {
         monitor(set, at: [0.4, 0, 0.34])
         if forest { trail(set) } else { street(set) }
         chip(set, forest ? "Hikers 3  ·  Distraction high" : "Crowd 4  ·  Distraction high")
-        if forest { trailSign(set) }
         return true
     }
 
@@ -495,30 +494,8 @@ enum PitchRoadside {
         set.addChild(e)
     }
 
-    /// "Crowd 4 · Distraction high" next to the stage banner (ScenarioStage's sign at y 2.3, z -0.6).
-    /// The stage sign names the street (scenario data); on the trail a panel in front of it names the trail.
-    private static func trailSign(_ set: Entity) {
-        let px = SIMD2<Int>(1300, 230)
-        let color = RoadsidePaint.texture("trail_sign", size: px) { ctx, s in
-            ctx.setFillColor(UIColor(red: 0.1, green: 0.11, blue: 0.12, alpha: 1).cgColor); ctx.fill(CGRect(origin: .zero, size: s))
-            RoadsidePaint.text(ctx, "Stage 1 of 3  ·  On the trail", in: CGRect(x: 0, y: 22, width: s.width, height: 110), size: 70, weight: .semibold, color: .white)
-            RoadsidePaint.text(ctx, "Forest trail, a mountain bike off the path, hikers around", in: CGRect(x: 0, y: 128, width: s.width, height: 70),
-                               size: 40, weight: .regular, color: UIColor(white: 0.8, alpha: 1))
-        }
-        let mask = RoadsidePaint.mask("trail_sign_mask", size: px) { ctx, s in
-            ctx.setFillColor(UIColor.white.cgColor)
-            ctx.addPath(UIBezierPath(roundedRect: CGRect(origin: .zero, size: s).insetBy(dx: 2, dy: 2), cornerRadius: 60).cgPath); ctx.fillPath()
-        }
-        var m = UnlitMaterial()
-        m.color = .init(tint: .white, texture: color.map { .init($0) })
-        m.blending = .transparent(opacity: .init(scale: 1, texture: mask.map { .init($0) }))
-        let w: Float = 1.5
-        let e = ModelEntity(mesh: .generatePlane(width: w, height: w * Float(px.y) / Float(px.x)), materials: [m])
-        e.position = [0, 2.22, -0.45]
-        e.components.set(BillboardComponent()) // faces the camera like the stage sign it covers
-        set.addChild(e)
-    }
-
+    /// "Crowd 4 · Distraction high" next to the stage banner (ScenarioStage's sign at y 2.3, z -0.6;
+    /// on the trail that sign itself says "On the trail").
     private static func chip(_ set: Entity, _ text: String) {
         let size = CGSize(width: 900, height: 110)
         let color = RoadsidePaint.texture("chip_\(text)", size: [900, 110]) { ctx, s in

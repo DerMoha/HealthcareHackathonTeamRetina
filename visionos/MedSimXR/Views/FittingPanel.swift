@@ -207,8 +207,10 @@ struct ReplayPanel: View {
                         Text("\(zone.label)\(zone.important ? " (key area)" : ""): \(zone.explanation)").font(.caption)
                     }
                 }
-                Text("Schematic anatomy for illustration only; not anatomically validated. Markers show recorded examination areas, not hand paths.")
-                    .font(.caption2).foregroundStyle(.secondary)
+                if !SmokeLog.pitch {
+                    Text("Schematic anatomy for illustration only; not anatomically validated. Markers show recorded examination areas, not hand paths.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
             }
             .padding(16)
             .frame(width: 400, alignment: .leading)
@@ -222,9 +224,11 @@ struct ReplayPanel: View {
             Text("\(String(format: "%d:%02d", Int(event.time) / 60, Int(event.time) % 60)) · \(event.action) · "
                 + "\(event.finding.replacingOccurrences(of: "_", with: " ")), pain \(event.painLevel)/10")
                 .font(.caption.monospacedDigit())
-            Text("Patient \(event.pose.replacingOccurrences(of: "_", with: " ")) · recorded by \(event.source.rawValue)"
-                + (event.contact == nil ? " · no contact point" : ""))
-                .font(.caption).foregroundStyle(.secondary)
+            if !SmokeLog.pitch { // pitch shots: no recording-source caveat
+                Text("Patient \(event.pose.replacingOccurrences(of: "_", with: " ")) · recorded by \(event.source.rawValue)"
+                    + (event.contact == nil ? " · no contact point" : ""))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if let zone { Text(zone.explanation).font(.callout) }
         }
     }
