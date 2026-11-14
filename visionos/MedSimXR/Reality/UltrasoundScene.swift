@@ -94,8 +94,8 @@ final class UltrasoundScene {
         let faint = Self.overlay(.white, SmokeLog.pitch ? 0 : 0.07) // pitch shots: no visible hit spheres
         for region in regions {
             guard let anchor = avatar.anchors[region.attachTo] else { continue }
-            let normal = avatar.anchorNormals[region.attachTo] ?? [0, 1, 0]
             let position = anchor.position(relativeTo: avatar.root)
+            let normal = Self.skinNormal(avatar.anchorNormals[region.attachTo], at: position)
             let zone = ModelEntity(mesh: .generateSphere(radius: region.radius), materials: [faint])
             zone.name = region.id
             zone.position = position + normal * 0.01
@@ -215,6 +215,7 @@ final class UltrasoundScene {
             cable.isEnabled = region != nil
             glove.isEnabled = region != nil
             arm.isEnabled = region != nil
+            upperArm.isEnabled = region != nil
         }
         guard let region, let hit = regionPose(region) else { sendHome(probe, animated: true); return }
         guard let avatar else { return }
@@ -234,7 +235,16 @@ final class UltrasoundScene {
 
     private func regionPose(_ id: String) -> (position: SIMD3<Float>, normal: SIMD3<Float>)? {
         guard let avatar, let region = regions.first(where: { $0.id == id }), let anchor = avatar.anchors[region.attachTo] else { return nil }
-        return (anchor.position(relativeTo: avatar.root), avatar.anchorNormals[region.attachTo] ?? [0, 1, 0])
+        let position = anchor.position(relativeTo: avatar.root)
+        return (position, Self.skinNormal(avatar.anchorNormals[region.attachTo], at: position))
+    }
+
+    /// The sidecar's belly normals do not fit the pitch patient's smaller bump (some point at the wearer, so the
+    /// probe lay sideways and the gel stood up in the air). Pitch shots use the inclined front of the belly instead,
+    /// turned a little towards the side the region is on.
+    private static func skinNormal(_ sidecar: SIMD3<Float>?, at p: SIMD3<Float>) -> SIMD3<Float> {
+        guard SmokeLog.pitch else { return sidecar ?? [0, 1, 0] }
+        return simd_normalize(SIMD3<Float>(max(-0.3, min(0.3, p.x * 5)), 0.91, 0.41))
     }
 
     private func nearestRegion(to p: SIMD3<Float>, within limit: Float) -> (id: String, position: SIMD3<Float>, normal: SIMD3<Float>)? {
@@ -259,10 +269,10 @@ final class UltrasoundScene {
     // MARK: Pitch hand
 
     /// Probe turn about its handle so the hand's forearm (+X in probe space) points to the wearer's right side.
-    private static let handYaw: Float = -0.8
+    private static let handYaw: Float = -0.35
     /// Where the glove model's cuff stub ends, and its direction (probe space; see scripts/pitch_glove_antenatal2.py).
-    private static let cuffEnd: SIMD3<Float> = [0.088, 0.080, 0.030] + simd_normalize(SIMD3<Float>(1, 0, 0.45)) * 0.06
-    private static let cuffDir = simd_normalize(SIMD3<Float>(1, 0, 0.45))
+    private static let cuffEnd: SIMD3<Float> = [0.088, 0.080, 0.030] + simd_normalize(SIMD3<Float>(1, -0.35, 0.45)) * 0.06
+    private static let cuffDir = simd_normalize(SIMD3<Float>(1, -0.35, 0.45))
 
     /// Light-blue nitrile: soft sheen, slightly translucent-looking pale blue.
     private static var nitrile: PhysicallyBasedMaterial {
@@ -286,16 +296,26 @@ final class UltrasoundScene {
         }
         glove.isEnabled = false
         probe.addChild(glove)
-        // forearm in the glove's cuff, then a scrubs sleeve over it, both along the cuff direction
+        // forearm in the glove's cuff, a scrubs sleeve over it, the elbow, and the upper arm running out of frame
+        let fabric = Self.solid(UIColor(red: 0.19, green: 0.28, blue: 0.40, alpha: 1), roughness: 0.95)
         let forearm = ModelEntity(mesh: Self.tube(length: 0.11, r0: 0.0255, r1: 0.029), materials: [Self.nitrile])
-        let sleeve = ModelEntity(mesh: Self.tube(length: 1.1, r0: 0.035, r1: 0.046, cap: true),
-                                 materials: [Self.solid(UIColor(red: 0.16, green: 0.24, blue: 0.36, alpha: 1), roughness: 0.9)])
+        let sleeve = ModelEntity(mesh: Self.tube(length: Self.sleeveLength, r0: 0.036, r1: 0.044, cap: true), materials: [fabric])
         sleeve.position.y = 0.085
-        forearm.addChild(sleeve)
+        let hem = ModelEntity(mesh: Self.tube(length: 0.018, r0: 0.039, r1: 0.038, cap: true), materials: [fabric])
+        hem.position.y = 0.083
+        let elbow = ModelEntity(mesh: .generateSphere(radius: 0.046), materials: [fabric])
+        elbow.position.y = 0.085 + Self.sleeveLength
+        for part in [sleeve, hem, elbow] { forearm.addChild(part) }
         arm.addChild(forearm)
+        upperArm.model = ModelComponent(mesh: Self.tube(length: 1.3, r0: 0.046, r1: 0.058), materials: [fabric])
         arm.isEnabled = false
         root.addChild(arm)
+        root.addChild(upperArm)
+        upperArm.isEnabled = false
     }
+
+    private static let sleeveLength: Float = 0.25
+    private let upperArm = ModelEntity()
 
     /// Pitch shots: the forearm continues the glove's cuff stub, in the probe's resting pose.
     private func layArm(from pose: Transform) {
@@ -303,7 +323,11 @@ final class UltrasoundScene {
         let start = pose.matrix * SIMD4<Float>(Self.cuffEnd - Self.cuffDir * 0.01, 1)
         let dir = pose.rotation.act(Self.cuffDir)
         arm.position = root.convert(position: [start.x, start.y, start.z], from: avatar.root)
-        arm.orientation = simd_quatf(from: [0, 1, 0], to: simd_normalize(root.convert(direction: dir, from: avatar.root)))
+        let along = simd_normalize(root.convert(direction: dir, from: avatar.root))
+        arm.orientation = simd_quatf(from: [0, 1, 0], to: along)
+        // upper arm from the elbow down-right towards the wearer, out of the bottom of the frame
+        upperArm.position = arm.position + along * (0.085 + Self.sleeveLength)
+        upperArm.orientation = simd_quatf(from: [0, 1, 0], to: simd_normalize(SIMD3<Float>(0.35, -0.25, 1)))
     }
 
     /// Open truncated cone along +Y from radius r0 (y = 0) to r1 (y = length), smooth normals; `cap` closes the start with a disc.
