@@ -328,7 +328,7 @@ private struct PitchAdaptDebrief: View {
                     Circle().fill(e.tint).frame(width: 16, height: 16).shadow(color: e.tint, radius: 5).position(x: px, y: py)
                     Text(e.label).font(.system(size: 15, weight: .bold)).foregroundStyle(e.tint)
                         .fixedSize()
-                        .position(x: px + (n == 2 ? 62 : n == 1 ? -44 : 0), y: n == 0 ? py + 26 : py - 18)
+                        .position(x: px + (n == 2 ? 62 : n == 1 ? -44 : 92), y: n == 0 ? py + 4 : py - 18) // first label beside its dashed line, not across it
                 }
             }
         }
