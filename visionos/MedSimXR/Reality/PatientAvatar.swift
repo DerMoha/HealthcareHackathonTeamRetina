@@ -250,7 +250,9 @@ final class PatientAvatar {
             SmokeLog.mark("avatar variant=\(variant) loaded=procedural")
             return
         }
-        for name in variant == "Patient" ? ["Patient"] : [variant, "Patient"] {
+        // pitch shots: a 20-week bump (same build, PREG=0.6) instead of the late-pregnancy one
+        let pitchModel = SmokeLog.pitch && variant == "Patient_pregnant" ? ["antenatal_patient"] : []
+        for name in pitchModel + (variant == "Patient" ? ["Patient"] : [variant, "Patient"]) {
             guard Bundle.main.url(forResource: name, withExtension: "usdz") != nil,
                   let json = Bundle.main.url(forResource: name, withExtension: "json"),
                   let data = try? Data(contentsOf: json),

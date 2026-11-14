@@ -24,7 +24,8 @@ enum PitchAntenatal {
         wall(set, size: [2 * w, h], at: [0, h / 2, front], yaw: .pi, tint: plaster)
         wall(set, size: [depth, h], at: [-w, h / 2, mid], yaw: .pi / 2, tint: plaster)
         wall(set, size: [depth, h], at: [w, h / 2, mid], yaw: -.pi / 2, tint: plaster)
-        let ceiling = ModelEntity(mesh: .generatePlane(width: 2 * w, depth: depth), materials: [solid(UIColor(white: 0.93, alpha: 1), 0.9)])
+        let ceiling = ModelEntity(mesh: .generatePlane(width: 2 * w, depth: depth),
+                                  materials: [Self.plaster(UIColor(red: 0.95, green: 0.91, blue: 0.85, alpha: 1), tiling: SIMD2<Float>(2 * w, depth) / 1.5)])
         ceiling.position = [0, h, mid]
         ceiling.orientation = simd_quatf(angle: .pi, axis: [1, 0, 0])
         set.addChild(ceiling)
@@ -32,6 +33,13 @@ enum PitchAntenatal {
         let skirt = solid(UIColor(white: 0.96, alpha: 1), 0.4)
         box(set, [2 * w, 0.09, 0.015], skirt, at: [0, 0.045, back + 0.008])
         for x in [-w + 0.008, w - 0.008] { box(set, [0.015, 0.09, depth], skirt, at: [x, 0.045, mid]) }
+        // Left wall: a deeper sage dado below a timber rail, so the long wall is not one flat plane.
+        let dado = Self.plaster(UIColor(red: 0.62, green: 0.7, blue: 0.68, alpha: 1), tiling: SIMD2<Float>(depth, 1) / 1.5)
+        let lower = ModelEntity(mesh: .generatePlane(width: depth, height: 1.0), materials: [dado])
+        lower.position = [-w + 0.004, 0.5, mid]
+        lower.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
+        set.addChild(lower)
+        box(set, [0.025, 0.045, depth], solid(UIColor(red: 0.55, green: 0.42, blue: 0.3, alpha: 1), 0.5), at: [-w + 0.012, 1.0, mid])
 
         // Recessed downlights (dimmed) and two warm wall sconces either side of the couch head.
         for (x, z) in [(Float(-1.2), Float(-1.4)), (1.2, -1.4), (-1.2, 1.0), (1.2, 1.0), (0, -0.2)] {
@@ -41,7 +49,11 @@ enum PitchAntenatal {
         }
         for x: Float in [-0.95, 0.95] {
             box(set, [0.16, 0.3, 0.07], solid(UIColor(red: 0.62, green: 0.48, blue: 0.36, alpha: 1), 0.5), at: [x, 1.75, back + 0.04])
-            box(set, [0.13, 0.26, 0.02], UnlitMaterial(color: UIColor(red: 1, green: 0.86, blue: 0.68, alpha: 1)), at: [x, 1.75, back + 0.085])
+            box(set, [0.13, 0.26, 0.02], glowPicture("antenatal_shade", [64, 128]) { drawShade($0, $1) }, at: [x, 1.75, back + 0.085])
+            // Warm wash of light on the wall around the sconce (soft radial falloff).
+            let wash = ModelEntity(mesh: .generatePlane(width: 0.9, height: 1.2), materials: [washMaterial])
+            wash.position = [x, 1.78, back + 0.006]
+            set.addChild(wash)
             point(set, at: [x, 1.8, back + 0.3], intensity: 1200, color: warm, radius: 3)
         }
         // Framed prints on the accent wall above the couch head.
@@ -70,13 +82,22 @@ enum PitchAntenatal {
         set.addChild(tv)
         box(tv, [1.12, 0.65, 0.035], gloss(UIColor(white: 0.05, alpha: 1)), at: [0, 0, 0])
         box(set, [0.08, 0.08, 0.2], solid(UIColor(white: 0.25, alpha: 1), 0.4), at: [1.75, 1.62, back + 0.1])
-        let screen = ModelEntity(mesh: .generatePlane(width: 1.08, height: 0.61), materials: [UnlitMaterial(color: UIColor(red: 0.02, green: 0.03, blue: 0.05, alpha: 1))])
+        let screen = ModelEntity(mesh: .generatePlane(width: 1.08, height: 0.61), materials: [standby])
         screen.position = [0, 0, 0.019]
         tv.addChild(screen)
         wallScreen = screen
 
         // Partner's armchair beside the couch, side table with a plant, tall plant in the far corner.
-        PitchKit.place("antenatal_armchair", in: set, at: [1.3, 0, -1.15], yaw: -1.05, fit: 0.88)
+        if let chair = PitchKit.place("antenatal_armchair", in: set, at: [1.3, 0, -1.15], yaw: -1.05, fit: 0.88) {
+            // The scan's near-black cushions read as holes in the dim room: re-cover them in oatmeal fabric.
+            var fabric = solid(UIColor(red: 0.78, green: 0.7, blue: 0.58, alpha: 1), 0.95)
+            if let n = PitchKit.texture("antenatal_vinyl_nor.jpg", semantic: .raw) { fabric.normal = .init(texture: .init(n)) }
+            func recover(_ e: Entity) {
+                if let m = e as? ModelEntity, var mats = m.model?.materials, mats.count > 1 { mats[1] = fabric; m.model?.materials = mats }
+                e.children.forEach(recover)
+            }
+            recover(chair)
+        }
         PitchKit.place("antenatal_sidetable", in: set, at: [2.1, 0, -1.55], yaw: -0.3, fit: 0.5)
         PitchKit.place("antenatal_plant", in: set, at: [-2.0, 0, -2.0], yaw: 0.4, fit: 1.3)
         // Cabinet with a tissue box and folded towels along the left wall, behind the machine.
@@ -93,6 +114,7 @@ enum PitchAntenatal {
         // Warm key light over the couch: casts the couch and patient shadows on the floor.
         PitchKit.spot(set, at: [0.5, h - 0.05, 0.9], target: [0, 0, -0.1], intensity: 26000, color: warm, angle: 75)
         point(set, at: [0, 2.2, 1.6], intensity: 5000, color: warm, radius: 5)
+        point(set, at: [0, h - 0.5, -0.6], intensity: 2600, color: warm, radius: 2.4) // warm bounce on the ceiling
         return true
     }
 
@@ -183,7 +205,10 @@ enum PitchAntenatal {
     /// pitch run's first pass over each region; read the engine's current image if this ever ships.
     static func mirror(region: String?) {
         let files = ["abdomen_lower": "us_head_bpd.jpg", "abdomen_upper": "us_heart_4ch.jpg", "abdomen_center": "us_overview.jpg"]
-        guard let wallScreen, let region, let file = files[region], let tex = PitchKit.texture(file) else { return }
+        guard let wallScreen else { return }
+        guard let region, let file = files[region], let tex = PitchKit.texture(file) else {
+            wallScreen.model?.materials = [standby]; wallScreen.scale = [1, 1, 1]; return
+        }
         var m = UnlitMaterial()
         m.color = .init(tint: UIColor(white: 0.92, alpha: 1), texture: .init(tex))
         wallScreen.model?.materials = [m]
@@ -264,6 +289,53 @@ enum PitchAntenatal {
         var m = UnlitMaterial()
         if let t = pictures[name] { m.color = .init(tint: UIColor(white: 0.85, alpha: 1), texture: .init(t)) }
         return m
+    }
+
+    /// Wall screen between scans: the clinic's standby card.
+    private static var standby: RealityKit.Material { glowPicture("antenatal_standby", [1080, 610]) { drawStandby($0, $1) } }
+
+    private static var washMaterial: UnlitMaterial {
+        _ = picture("antenatal_wash", [256, 256]) { ctx, size in
+            let colors = [UIColor(red: 1, green: 0.85, blue: 0.62, alpha: 0.55).cgColor, UIColor(red: 1, green: 0.85, blue: 0.62, alpha: 0).cgColor] as CFArray
+            let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1])!
+            let c = CGPoint(x: size.width / 2, y: size.height * 0.45)
+            ctx.drawRadialGradient(g, startCenter: c, startRadius: 0, endCenter: c, endRadius: size.width / 2, options: [])
+        }
+        var m = UnlitMaterial()
+        if let t = pictures["antenatal_wash"] { m.color = .init(tint: .white, texture: .init(t)) }
+        m.blending = .transparent(opacity: .init(floatLiteral: 1))
+        return m
+    }
+
+    /// Frosted sconce shade: brightest in the middle.
+    private static func drawShade(_ ctx: CGContext, _ size: CGSize) {
+        let colors = [UIColor(red: 1, green: 0.95, blue: 0.82, alpha: 1).cgColor, UIColor(red: 0.95, green: 0.72, blue: 0.48, alpha: 1).cgColor] as CFArray
+        let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1])!
+        let c = CGPoint(x: size.width / 2, y: size.height / 2)
+        ctx.drawRadialGradient(g, startCenter: c, startRadius: 0, endCenter: c, endRadius: size.height * 0.6, options: [.drawsAfterEndLocation])
+    }
+
+    private static func drawStandby(_ ctx: CGContext, _ size: CGSize) {
+        let colors = [UIColor(red: 0.07, green: 0.2, blue: 0.24, alpha: 1).cgColor, UIColor(red: 0.03, green: 0.07, blue: 0.1, alpha: 1).cgColor] as CFArray
+        ctx.drawLinearGradient(CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1])!,
+                               start: .zero, end: CGPoint(x: size.width, y: size.height), options: [])
+        let teal = UIColor(red: 0.42, green: 0.82, blue: 0.84, alpha: 1)
+        // Mark: a stylised mother-and-child curve in a ring.
+        teal.setStroke()
+        let ring = UIBezierPath(ovalIn: CGRect(x: size.width / 2 - 70, y: 110, width: 140, height: 140)); ring.lineWidth = 8; ring.stroke()
+        let bump = UIBezierPath()
+        bump.move(to: CGPoint(x: size.width / 2 - 20, y: 140))
+        bump.addCurve(to: CGPoint(x: size.width / 2 - 10, y: 225), controlPoint1: CGPoint(x: size.width / 2 + 60, y: 150), controlPoint2: CGPoint(x: size.width / 2 + 50, y: 230))
+        bump.lineWidth = 9; bump.lineCapStyle = .round; bump.stroke()
+        teal.setFill()
+        UIBezierPath(ovalIn: CGRect(x: size.width / 2 - 32, y: 122, width: 26, height: 26)).fill()
+        func line(_ text: String, _ y: CGFloat, _ font: UIFont, _ color: UIColor) {
+            let t = NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: color])
+            t.draw(at: CGPoint(x: (size.width - t.size().width) / 2, y: y))
+        }
+        line("Antenatal Ultrasound", 290, .systemFont(ofSize: 64, weight: .semibold), .white)
+        line("Scan Room 2  ·  Your images will appear here", 380, .systemFont(ofSize: 34, weight: .regular), UIColor(white: 1, alpha: 0.7))
+        line("Partners welcome  ·  Please ask before taking photos", 470, .systemFont(ofSize: 28, weight: .regular), teal)
     }
 
     /// The machine's touch panel: preset and mode buttons in the scanner's dark UI.

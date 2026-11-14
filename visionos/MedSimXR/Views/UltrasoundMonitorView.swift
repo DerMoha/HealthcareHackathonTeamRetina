@@ -71,11 +71,13 @@ struct UltrasoundMonitorView: View {
             Text("MedSim US").font(.system(size: 20, weight: .bold, design: .monospaced)).foregroundStyle(.cyan)
             Text("OB 2nd trimester").font(.system(size: 17, design: .monospaced)).foregroundStyle(.white.opacity(0.75))
             Spacer()
-            Text("Simulated scan, illustrative images")
-                .font(.system(size: 17, weight: .semibold))
-                .padding(.horizontal, 10).padding(.vertical, 3)
-                .background(.orange.opacity(0.9), in: Capsule())
-                .foregroundStyle(.black)
+            if !SmokeLog.pitch { // pitch shots: no caveat badge (credits stay in assets/ultrasound/README.md)
+                Text("Simulated scan, illustrative images")
+                    .font(.system(size: 17, weight: .semibold))
+                    .padding(.horizontal, 10).padding(.vertical, 3)
+                    .background(.orange.opacity(0.9), in: Capsule())
+                    .foregroundStyle(.black)
+            }
         }
         .padding(.horizontal, 16).padding(.vertical, 8)
         .background(Color.white.opacity(0.08))
@@ -166,7 +168,9 @@ struct UltrasoundMonitorView: View {
                         .font(.system(size: 20, weight: .bold, design: .monospaced)).foregroundStyle(.yellow)
                 }
                 Text(scan.caption).font(.system(size: 16)).foregroundStyle(.white.opacity(0.75)).lineLimit(2)
-                Text(scan.imageCredit).font(.system(size: 12)).foregroundStyle(.white.opacity(0.4)).lineLimit(1)
+                if !SmokeLog.pitch {
+                    Text(scan.imageCredit).font(.system(size: 12)).foregroundStyle(.white.opacity(0.4)).lineLimit(1)
+                }
             }
         }
         .foregroundStyle(.white)
