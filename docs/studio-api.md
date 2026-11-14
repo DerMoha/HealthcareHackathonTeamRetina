@@ -70,7 +70,7 @@ Unsupported choices are errors with a reason, for example choosing `sports_sidel
 in `community_clinic`. Free text (`title`, `narrative.*`) is rejected when it names a finding,
 a result or the diagnosis. Equipment that makes a criterion unearnable is a warning.
 
-Journey cases (`kind: "journey"`, template `road_trauma_journey_001`): the places, their order and
+Journey cases (`kind: "journey"`, templates `road_trauma_journey_001` and its forest-trail variant `trail_trauma_journey_001`): the places, their order and
 the team are part of the case and cannot be configured. A launched session gets each place's
 scenario noise in `case.journey.stages[].noise` and only the chosen investigations. Library and
 published rows carry `kind` and `stages` (place labels) so lists can filter and badge them.
@@ -93,7 +93,9 @@ published rows carry `kind` and `stages` (place labels) so lists can filter and 
 
 Storage: `backend/data/studio_library.json` (override `MEDSIM_STUDIO_DB`). On first use it is
 seeded with two published, experimental variants of `wrist_trauma_001`:
-`LKGLZX` "Quiet clinic, full kit (guided)" and `5344E7` "Busy walk-in, limited kit (challenging)".
+`LKGLZX` "Quiet clinic, full kit (guided)" and `5344E7` "Busy walk-in, limited kit (challenging)",
+and one of `trail_trauma_journey_001`: `7B46EL` "Forest trail with hikers (standard)". An existing
+library file is not re-seeded: delete it (or point `MEDSIM_STUDIO_DB` elsewhere) to get the new entry.
 
 ## Launch
 

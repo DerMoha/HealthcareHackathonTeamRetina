@@ -312,7 +312,9 @@ The voice agent never decides fit: it receives `voice_note` (context) and `voice
 - The app records each examination itself (`ExamEvent`: zone, action, finding, pain, seconds since start, patient pose, contact point in the zone's space when there was one, and the source: gaze-and-pinch, fingertip, fallback button, scripted test). Only `AppModel.examine` creates events; speech, tool calls and notes cannot. Only discrete zone events exist; no hand path is stored or drawn.
 - `POST /sessions/{id}/fitting` now also returns `comfortable`, `patient_response`, `voice_context`, `animation`: what the patient says unprompted when the fit is uncomfortable. The app waits 1.3 s after the last adjustment, speaks it once, and does not repeat the same complaint. It is not recorded as a comfort check.
 
-## 8. Continuous journey cases (`road_trauma_journey_001`)
+## 8. Continuous journey cases (`road_trauma_journey_001`, `trail_trauma_journey_001`)
+
+`trail_trauma_journey_001` is the forest-trail variant of the road case: same stage ids, team, action ids, investigation ids, findings and rubric; only the mechanism, the first stage's label/setting ("On the trail", "Forest trail, …") and the wording differ.
 
 A journey case moves through places in order (roadside → ambulance → emergency department) with an AI medical team. Every team line, measurement and result comes from the engine (`backend/app/journey.py`, mirrored in `OfflineClinicalEngine`); the voice model only routes requests. Engine state: `Session.stages` (moves after the first stage) and `Session.team_actions` (`seq, stage_id, action_id, done`), on the shared `seq`.
 

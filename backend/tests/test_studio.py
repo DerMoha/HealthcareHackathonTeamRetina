@@ -96,7 +96,7 @@ def test_definition_is_complete_and_reproducible(client):
     assert "hidden" not in a and "marked_tenderness" not in json.dumps(a)
 
 
-@pytest.mark.parametrize("tid", ["wrist_trauma_001", "road_trauma_journey_001"])
+@pytest.mark.parametrize("tid", ["wrist_trauma_001", "road_trauma_journey_001", "trail_trauma_journey_001"])
 def test_template_text_passes_its_own_clinical_rule(tid):
     t, case = studio.template(tid), main.SCENARIOS[tid]
     texts = [h["text"] for h in t["hints"]] + [l for v in t["bystander"]["lines"].values() for l in v] \
@@ -108,7 +108,7 @@ def test_template_text_passes_its_own_clinical_rule(tid):
 
 def test_library_versions_review_states_and_sharing(client):
     seeded = client.get("/studio/scenarios").json()
-    assert {s["scenario_id"] for s in seeded} == {"scn_demo_clinic", "scn_demo_walkin"}
+    assert {s["scenario_id"] for s in seeded} == {"scn_demo_clinic", "scn_demo_walkin", "scn_demo_trail"}
     assert all(s["review_state"] == "experimental" and s["published_version"] == 1 for s in seeded)
 
     d = client.post("/studio/scenarios", json=config()).json()

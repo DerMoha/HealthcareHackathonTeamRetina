@@ -16,8 +16,8 @@ NOTES = {"history": "34-year-old cyclist knocked off by a car. Helmet, no head i
          "follow_up": "Admit, nil by mouth."}
 
 
-def create(client, **config):
-    body = {"case_id": RT}
+def create(client, case_id=RT, **config):
+    body = {"case_id": case_id}
     if config:
         body["config"] = config
     r = client.post("/sessions", json=body)
@@ -249,9 +249,9 @@ def test_diagnosis_wording(client, text, verdict):
 
 # ---------------------------------------------------------------- parity with the Swift offline engine
 
-def run_parity(client):
+def run_parity(client, case_id=RT):
     spec = json.loads((FIXTURES / "journey_parity_input.json").read_text(encoding="utf-8"))
-    started = create(client, **spec["config"])
+    started = create(client, case_id, **spec["config"])
     sid = started["session_id"]
     results, feedback = [], None
     for s in spec["steps"]:

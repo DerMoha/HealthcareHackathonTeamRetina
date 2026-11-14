@@ -126,6 +126,13 @@ cd visionos && xcodebuild -quiet -project MedSimXR.xcodeproj -scheme MedSimXR \
   Each place is drawn around you (the street with the crashed car, the bicycle and the ambulance;
   then the inside of the ambulance; then a resus bay), with the patient on a response case, the
   stretcher or the trolley instead of the clinic stool. Turn the Digital Crown to blend in your room.
+- **Forest-trail variant** (`trail_trauma_journey_001`, "Trail accident: Jordan, 34"): the same
+  patient, injury, team, ambulance, emergency department and scoring, but Jordan went over the
+  handlebars of a mountain bike on a forest trail and was found by hikers; the crew came up a fire
+  road. Its first place's `setting` starts with "Forest trail"; the app's place picker shows a
+  forest for settings containing "forest", "trail" or "woods". Listed as its own case card; the
+  seeded Studio scenario `7B46EL` ("Forest trail with hikers (standard)") launches it by code.
+  Not separately clinician-reviewed.
 - **Control panel during a session**: Stop, Recenter, status, and a **Debug** toggle (examination and
   scripted-question buttons, last finding). Nothing else.
 - **Notebook** (floats beside the patient, pinch to open): History, Examination, Assessment,

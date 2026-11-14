@@ -31,7 +31,9 @@ that is not there, or a combination the template rules out, is a validation erro
 reason (for example a pitch-side setting for a case whose history is a bicycle fall seen the
 next day, or an X-ray in a clinic without imaging). Nothing is substituted silently.
 
-One clinical case exists today (`wrist_trauma_001`), so there is one template. Adding a
+Templates exist for `wrist_trauma_001`, the journey `road_trauma_journey_001` and its
+forest-trail variant `trail_trauma_journey_001` (trail environments, hikers as crowd and
+bystander; a city street is unsupported because it is the road case's mechanism). Adding a
 template for another case means writing its `studio_templates` file; no code changes.
 
 ## What a scenario changes at runtime
@@ -46,12 +48,14 @@ template for another case means writing its `studio_templates` file; no code cha
 | Difficulty | Coaching hints: automatic (guided), on request (standard), none (challenging); the patient's manner in the voice context |
 | Seed | Order of the bystander's lines, crowd positions, interjection interval |
 
-Two published variants of the same case are seeded into a new library:
+Two published variants of the wrist case and one of the forest-trail journey are seeded into a new
+library (an existing library file is not re-seeded):
 
 | Code | Title | Differences |
 |---|---|---|
 | `LKGLZX` | Quiet clinic, full kit (guided) | all equipment, no companions, no noise, automatic hints |
 | `5344E7` | Busy walk-in, limited kit (challenging) | no imaging, no medium support, anxious partner, four background figures, 60% noise, no hints |
+| `7B46EL` | Forest trail with hikers (standard) | `trail_trauma_journey_001`: dry daytime trail, two hikers, a calm hiker (Alex) who found him, all hospital investigations, hints on request |
 
 ## Review states
 
@@ -63,7 +67,7 @@ published again). Imports start as draft whatever the file claims. There is no l
 this build, so the reviewer's name is taken on trust: the label means "someone recorded a
 review", not "identity verified". The app and the debrief show the state.
 
-Both seeded scenarios are experimental. The underlying case is not clinician-reviewed either.
+All seeded scenarios are experimental. The underlying case is not clinician-reviewed either.
 
 ## Live Director
 
