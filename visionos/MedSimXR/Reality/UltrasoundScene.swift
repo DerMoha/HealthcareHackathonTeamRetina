@@ -30,6 +30,7 @@ final class UltrasoundScene {
     private let cart = Entity()
     private let regionRoot = Entity()
     private let gelRoot = Entity()
+    private let couchExtras = Entity() // pitch only: paper sheet, roll, pillow
     private let highlight = ModelEntity(mesh: .generateCylinder(height: 0.004, radius: 0.06),
                                         materials: [UnlitMaterial(color: .systemTeal)])
     private var probe = Entity()
@@ -68,6 +69,7 @@ final class UltrasoundScene {
             homes[item.name] = home
         }
         root.addChild(regionRoot)
+        root.addChild(couchExtras)
         gelRoot.isEnabled = false
         root.addChild(gelRoot)
         root.isEnabled = false
@@ -83,6 +85,7 @@ final class UltrasoundScene {
         root.isEnabled = info != nil
         reset()
         guard let avatar, info != nil else { return }
+        if SmokeLog.pitch { PitchAntenatal.dressCouch(avatar.root, extras: couchExtras) }
         let faint = Self.overlay(.white, SmokeLog.pitch ? 0 : 0.07) // pitch shots: no visible hit spheres
         for region in regions {
             guard let anchor = avatar.anchors[region.attachTo] else { continue }
@@ -98,7 +101,7 @@ final class UltrasoundScene {
             zoneEntities.append(zone)
 
             let patch = ModelEntity(mesh: .generateCylinder(height: 0.004, radius: 0.045),
-                                    materials: [Self.overlay(UIColor(red: 0.62, green: 0.88, blue: 1, alpha: 1), SmokeLog.pitch ? 0.18 : 0.38, depth: true)])
+                                    materials: [SmokeLog.pitch ? Self.gel as RealityKit.Material : Self.overlay(UIColor(red: 0.62, green: 0.88, blue: 1, alpha: 1), 0.38, depth: true)])
             patch.position = position + normal * 0.004
             patch.orientation = simd_quatf(from: [0, 1, 0], to: normal)
             gelRoot.addChild(patch)
@@ -199,6 +202,7 @@ final class UltrasoundScene {
     func sync(region: String?, scans: Int) {
         guard !dragging else { return }
         touching = region
+        if SmokeLog.pitch { PitchAntenatal.mirror(region: region) }
         guard let region, let hit = regionPose(region) else { sendHome(probe, animated: true); return }
         guard let avatar else { return }
         if probe.parent !== avatar.root { probe.stopAllAnimations(); probe.setParent(avatar.root, preservingWorldTransform: true) }
@@ -242,6 +246,15 @@ final class UltrasoundScene {
         m.roughness = .init(floatLiteral: roughness)
         m.metallic = .init(floatLiteral: metallic)
         m.faceCulling = .none
+        return m
+    }
+
+    /// Pitch shots: clear, glossy gel instead of a flat tinted disc.
+    private static var gel: PhysicallyBasedMaterial {
+        var m = PhysicallyBasedMaterial()
+        m.baseColor = .init(tint: UIColor(red: 0.8, green: 0.92, blue: 1, alpha: 1))
+        m.roughness = .init(floatLiteral: 0.05); m.clearcoat = .init(floatLiteral: 1); m.clearcoatRoughness = .init(floatLiteral: 0.02)
+        m.blending = .transparent(opacity: 0.22)
         return m
     }
 
@@ -336,9 +349,11 @@ final class UltrasoundScene {
         cart.position = [-0.9, 0, 0.4]
         cart.orientation = simd_quatf(angle: 0.45, axis: [0, 1, 0])
         root.addChild(cart)
-        let white = Self.solid(UIColor(white: 0.94, alpha: 1), roughness: 0.35)
-        let slate = Self.solid(UIColor(red: 0.20, green: 0.23, blue: 0.28, alpha: 1), roughness: 0.5)
-        let dark = Self.solid(UIColor(white: 0.07, alpha: 1), roughness: 0.4)
+        let pitch = SmokeLog.pitch // pitch shots: glossy moulded plastics
+        let white = pitch ? PitchAntenatal.gloss(UIColor(white: 0.95, alpha: 1)) : Self.solid(UIColor(white: 0.94, alpha: 1), roughness: 0.35)
+        let slate = pitch ? PitchAntenatal.gloss(UIColor(red: 0.36, green: 0.39, blue: 0.44, alpha: 1), roughness: 0.45)
+                          : Self.solid(UIColor(red: 0.20, green: 0.23, blue: 0.28, alpha: 1), roughness: 0.5)
+        let dark = pitch ? PitchAntenatal.gloss(UIColor(white: 0.06, alpha: 1), roughness: 0.3) : Self.solid(UIColor(white: 0.07, alpha: 1), roughness: 0.4)
         func part(_ mesh: MeshResource, _ material: PhysicallyBasedMaterial, _ p: SIMD3<Float>, to parent: Entity? = nil) {
             let m = ModelEntity(mesh: mesh, materials: [material])
             m.position = p
@@ -364,6 +379,7 @@ final class UltrasoundScene {
         monitorMount.name = "ultrasound_monitor_mount"
         monitorMount.position = [0, 1.32, -0.168]
         cart.addChild(monitorMount)
+        if SmokeLog.pitch { PitchAntenatal.dressCart(cart) }
         panelMount.name = "ultrasound_panel_mount"
         panelMount.position = [0, 0.55, 0.31]
         panelMount.scale = [1.5, 1.5, 1.5]
