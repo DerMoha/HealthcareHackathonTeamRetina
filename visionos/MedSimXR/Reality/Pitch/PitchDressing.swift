@@ -61,6 +61,16 @@ enum PitchDressing {
         }
     }
 
+    /// Height of the crew member's name caption above their spot: lower for Lena in the ambulance seat
+    /// and for Sam kneeling at the roadside.
+    static func crewCaptionHeight(_ kind: EnvironmentSet.Kind, _ id: String) -> Float {
+        switch kind {
+        case .ambulance: 1.42
+        case .roadside, .forest: PitchRoadside.kneeling.contains(id) ? 1.62 : 1.9
+        default: 1.9
+        }
+    }
+
     /// Outfits (PitchCrowd) for a Studio bystander and helper that no one else in the place wears.
     static func outfits(_ kind: EnvironmentSet.Kind) -> (bystander: String, helper: String) {
         switch kind {

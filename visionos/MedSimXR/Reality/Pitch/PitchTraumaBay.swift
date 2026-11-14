@@ -394,8 +394,35 @@ enum PitchTraumaBay {
         }
     }
 
-    /// One of the bundled seated avatars, stood up (legs straightened, forearms forward) and dressed in scrubs.
+    /// A baked-pose avatar (PitchCrowd) in scrubs: hands together in front (`armsForward`, attending) or
+    /// arms crossed (waiting). Falls back to `riggedStaff` without the baked files.
     private static func staff(_ e: Entity, _ variant: String, at p: SIMD3<Float>, yaw: Float, scrubs: UIColor, masked: Bool, armsForward: Bool) {
+        let gender: PitchCrowd.Gender = variant == "Patient" ? .m : .f
+        let pose: PitchCrowd.BakedPose = armsForward ? .standHandsFront : .armsCrossed
+        guard Bundle.main.url(forResource: "crowd_\(pose.rawValue)_\(gender.rawValue)", withExtension: "usdz") != nil,
+              let holder = PitchCrowd.person(pose, gender, outfit: nil, in: e, at: p, facing: p + [sin(yaw), 0, cos(yaw)]),
+              let mesh = PitchCrowd.body(of: holder) else {
+            return riggedStaff(e, variant, at: p, yaw: yaw, scrubs: scrubs, masked: masked, armsForward: armsForward)
+        }
+        // Scrubs instead of the casual suit (material 1 of the joined mesh), shoes stay.
+        if var m = mesh.model, m.materials.count > 1 {
+            var s = PitchKit.material("traumabay_scrub", tiling: [8, 8], roughness: 1)
+            s.baseColor = .init(tint: scrubs)
+            m.materials[1] = s
+            mesh.model = m
+        }
+        if masked, let head = PitchCrowd.headAnchor(of: holder) { // theatre cap and surgical mask, turned with the head
+            let cap = ModelEntity(mesh: .generateSphere(radius: 0.105), materials: [pbr(UIColor(red: 0.2, green: 0.45, blue: 0.75, alpha: 1), 0.9)])
+            cap.position = [0, 0.1, -0.01]; cap.scale = [1, 0.62, 1.08]
+            head.addChild(cap)
+            let mask = ModelEntity(mesh: .generateBox(size: [0.15, 0.1, 0.05], cornerRadius: 0.02), materials: [pbr(UIColor(red: 0.62, green: 0.82, blue: 0.95, alpha: 1), 0.9)])
+            mask.position = [0, -0.075, 0.085]
+            head.addChild(mask)
+        }
+    }
+
+    /// One of the bundled seated avatars, stood up (legs straightened, forearms forward) and dressed in scrubs.
+    private static func riggedStaff(_ e: Entity, _ variant: String, at p: SIMD3<Float>, yaw: Float, scrubs: UIColor, masked: Bool, armsForward: Bool) {
         guard let model = PitchKit.model(variant), let mesh = skinned(model) else { return }
         let holder = Entity()
         holder.addChild(model)

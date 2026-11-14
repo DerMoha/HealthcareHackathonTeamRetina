@@ -25,13 +25,15 @@ enum PitchRoadside {
 
     // MARK: - People
 
-    /// The crew with the patient (journey member ids): kneeling-height workers either side.
-    static let crew: [String: SIMD3<Float>] = ["sam": [-0.95, 0, -0.12], "lena": [0.95, 0, -0.28]]
+    /// The crew with the patient (journey member ids): Sam kneels at his right side, Lena bends in at his left.
+    static let crew: [String: SIMD3<Float>] = ["sam": [-0.8, 0, -0.06], "lena": [0.82, 0, 0.08]]
+    /// Crew who kneel here (their caption hangs lower).
+    static let kneeling: Set<String> = ["sam"]
 
     /// An onlooker: where they stand and how they look (PitchCrowd.person arguments).
     private struct Onlooker {
-        var model: String, outfit: String, at: SIMD3<Float>, pose: PitchCrowd.Pose
-        var hair: UIColor? = nil, skin: UIColor? = nil, phone = false
+        var gender: PitchCrowd.Gender, outfit: String, at: SIMD3<Float>, pose: PitchCrowd.BakedPose
+        var hair: UIColor? = nil, skin: UIColor? = nil
     }
 
     /// Onlookers in the order they join as the crowd grows (Studio crowdedness 0 / 2 / 4). The last one
@@ -39,22 +41,22 @@ enum PitchRoadside {
     private static func onlookers(forest: Bool) -> (all: [Onlooker], standard: Int) {
         let darkSkin = UIColor(red: 0.62, green: 0.48, blue: 0.4, alpha: 1)
         if forest {
-            return ([Onlooker(model: "Patient", outfit: "hiker_m", at: [1.6, 0, -2.0], pose: PitchCrowd.worried, hair: UIColor(white: 0.25, alpha: 1)),
-                     Onlooker(model: "Patient_female", outfit: "hiker_f", at: [-0.6, 0, -3.1], pose: PitchCrowd.filming,
-                              hair: UIColor(red: 0.9, green: 0.75, blue: 0.5, alpha: 1), phone: true),
-                     Onlooker(model: "Patient", outfit: "driver", at: [2.1, 0, -1.6], pose: PitchCrowd.armsFolded, skin: darkSkin),
-                     Onlooker(model: "Patient", outfit: "bystander_m", at: [-2.2, 0, -2.3], pose: PitchCrowd.relaxed,
+            return ([Onlooker(gender: .m, outfit: "hiker_m", at: [1.6, 0, -2.0], pose: .standWorried, hair: UIColor(white: 0.25, alpha: 1)),
+                     Onlooker(gender: .f, outfit: "hiker_f", at: [-0.6, 0, -3.1], pose: .phoneFilming,
+                              hair: UIColor(red: 0.9, green: 0.75, blue: 0.5, alpha: 1)),
+                     Onlooker(gender: .m, outfit: "driver", at: [2.1, 0, -1.6], pose: .armsCrossed, skin: darkSkin),
+                     Onlooker(gender: .m, outfit: "bystander_m", at: [-2.2, 0, -2.3], pose: .standRelaxed,
                               hair: UIColor(red: 0.35, green: 0.22, blue: 0.14, alpha: 1))], 3)
         }
-        return ([Onlooker(model: "Patient_female", outfit: "bystander_f", at: [-0.55, 0, -3.3], pose: PitchCrowd.worried,
+        return ([Onlooker(gender: .f, outfit: "bystander_f", at: [-0.55, 0, -3.3], pose: .standWorried,
                           hair: UIColor(red: 0.35, green: 0.22, blue: 0.14, alpha: 1)),
-                 Onlooker(model: "Patient", outfit: "bystander_m", at: [-2.25, 0, -1.55], pose: PitchCrowd.filming,
-                          hair: UIColor(red: 1.0, green: 0.85, blue: 0.6, alpha: 1), phone: true),
-                 Onlooker(model: "Patient_female", outfit: "bystander_f2", at: [2.0, 0, -1.3], pose: PitchCrowd.armsFolded,
+                 Onlooker(gender: .m, outfit: "bystander_m", at: [-2.25, 0, -1.55], pose: .phoneFilming,
+                          hair: UIColor(red: 1.0, green: 0.85, blue: 0.6, alpha: 1)),
+                 Onlooker(gender: .f, outfit: "bystander_f2", at: [2.0, 0, -1.3], pose: .armsCrossed,
                           hair: UIColor(white: 0.2, alpha: 1), skin: darkSkin),
-                 Onlooker(model: "Patient", outfit: "driver", at: [0.5, 0, -2.7], pose: PitchCrowd.pointing,
+                 Onlooker(gender: .m, outfit: "driver", at: [0.5, 0, -2.7], pose: .pointing,
                           hair: UIColor(white: 0.25, alpha: 1), skin: UIColor(red: 0.8, green: 0.68, blue: 0.58, alpha: 1)),
-                 Onlooker(model: "Patient", outfit: "hiker_m", at: [-1.7, 0, -4.4], pose: PitchCrowd.worried, hair: UIColor(white: 0.3, alpha: 1))], 4)
+                 Onlooker(gender: .m, outfit: "hiker_m", at: [-1.7, 0, -4.4], pose: .standWorried, hair: UIColor(white: 0.3, alpha: 1))], 4)
     }
 
     /// Where a Studio bystander stands: the spot of the default crowd's last onlooker (the driver in the street).
@@ -67,22 +69,21 @@ enum PitchRoadside {
     /// the street also has a police officer at the cordon.
     static func people(_ e: Entity, cast: PitchDressing.Cast, forest: Bool) {
         if cast.crew?.contains("sam") ?? true {
-            PitchCrowd.person("Patient", outfit: "paramedic_m", in: e, at: crew["sam"]!, facing: [0, 0, 0.1],
-                              pose: PitchCrowd.working, hair: UIColor(white: 0.45, alpha: 1))
+            PitchCrowd.person(.kneelWork, .m, outfit: "paramedic_m", in: e, at: crew["sam"]!, facing: [0, 0, 0.1],
+                              hair: UIColor(white: 0.45, alpha: 1))
         }
         if cast.crew?.contains("lena") ?? true {
-            PitchCrowd.person("Patient_female", outfit: "paramedic_f", in: e, at: crew["lena"]!, facing: [0, 0, 0.1],
-                              pose: PitchCrowd.working)
+            PitchCrowd.person(.standLeanWork, .f, outfit: "paramedic_f", in: e, at: crew["lena"]!, facing: [0, 0, 0.1])
         }
         let (all, standard) = onlookers(forest: forest)
         var pool = all
         if cast.speaker { pool.remove(at: standard - 1) }
         for o in pool.prefix(max(0, cast.onlookers ?? standard)) {
-            PitchCrowd.person(o.model, outfit: o.outfit, in: e, at: o.at, facing: [0, 0, 0], pose: o.pose, hair: o.hair, skin: o.skin, phone: o.phone)
+            PitchCrowd.person(o.pose, o.gender, outfit: o.outfit, in: e, at: o.at, facing: [0, 0, 0], hair: o.hair, skin: o.skin)
         }
         if !forest {
-            PitchCrowd.person("Patient", outfit: "police", in: e, at: [-1.2, 0, -5.9], facing: [0, 0, 0],
-                              pose: PitchCrowd.relaxed, hair: UIColor(white: 0.3, alpha: 1))
+            PitchCrowd.person(.standRelaxed, .m, outfit: "police", in: e, at: [-1.2, 0, -5.9], facing: [0, 0, 0],
+                              hair: UIColor(white: 0.3, alpha: 1))
         }
     }
 

@@ -109,7 +109,7 @@ final class ScenarioStage {
             anchor.position = spot ?? [0.2 * Float(i), 0, -1.2]
             if spot != nil {
                 let caption = Self.text("\(member.name) · \(member.role)", size: 0.03, color: .white)
-                caption.position = [0, dressed == .ambulance ? 1.42 : 1.9, 0] // Lena sits in the ambulance
+                caption.position = [0, dressed.map { PitchDressing.crewCaptionHeight($0, member.id) } ?? 1.9, 0]
                 caption.components.set(BillboardComponent())
                 anchor.addChild(caption)
             }
@@ -205,8 +205,8 @@ final class ScenarioStage {
 
         if let b = s.bystander, let place = dressed {
             let anxious = b.mood == "anxious"
-            let figure = Self.dressedPerson("Patient", outfit: PitchDressing.outfits(place).bystander,
-                                            at: PitchDressing.spots(place).bystander, pose: anxious ? PitchCrowd.worried : PitchCrowd.relaxed,
+            let figure = Self.dressedPerson(.m, outfit: PitchDressing.outfits(place).bystander,
+                                            at: PitchDressing.spots(place).bystander, pose: anxious ? .standWorried : .standRelaxed,
                                             label: "\(b.name) · \(b.roleLabel)\(anxious ? " · anxious" : "")")
             root.addChild(figure)
             speakers[b.name] = figure
@@ -220,8 +220,8 @@ final class ScenarioStage {
             speakers[b.name] = figure
         }
         if s.teammate.present, let place = dressed {
-            let figure = Self.dressedPerson("Patient_female", outfit: PitchDressing.outfits(place).helper, at: PitchDressing.spots(place).helper,
-                                            pose: PitchCrowd.armsFolded, label: "\(s.teammate.name) · \(s.teammate.roleLabel)")
+            let figure = Self.dressedPerson(.f, outfit: PitchDressing.outfits(place).helper, at: PitchDressing.spots(place).helper,
+                                            pose: .armsCrossed, label: "\(s.teammate.name) · \(s.teammate.roleLabel)")
             root.addChild(figure)
             speakers[s.teammate.name] = figure
         } else if s.teammate.present {
@@ -324,10 +324,11 @@ final class ScenarioStage {
     // MARK: Meshes
 
     /// A Studio companion in a dressed place: a posed avatar (PitchCrowd) facing the patient, name above.
-    private static func dressedPerson(_ model: String, outfit: String, at p: SIMD3<Float>, pose: PitchCrowd.Pose, label: String) -> Entity {
+    private static func dressedPerson(_ gender: PitchCrowd.Gender, outfit: String, at p: SIMD3<Float>, pose: PitchCrowd.BakedPose,
+                                      label: String) -> Entity {
         let e = Entity()
         e.position = p
-        PitchCrowd.person(model, outfit: outfit, in: e, at: .zero, facing: [-p.x, 0, 0.6 - p.z], pose: pose)
+        PitchCrowd.person(pose, gender, outfit: outfit, in: e, at: .zero, facing: [-p.x, 0, 0.6 - p.z])
         let caption = text(label, size: 0.03, color: .white)
         caption.position = [0, 1.9, 0]
         caption.components.set(BillboardComponent())

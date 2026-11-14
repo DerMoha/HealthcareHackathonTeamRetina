@@ -2,10 +2,11 @@ import RealityKit
 import SwiftUI
 import UIKit
 
-/// Pitch-only people around the patient (bystanders, crew, police): clones of the bundled rigged
-/// avatars (Patient.usdz / Patient_female.usdz), standing, re-dressed with a recoloured clothing texture
-/// (roadside_crowd_<outfit>.jpg from visionos/scripts/pitch_crowd_textures.py) and posed by a few joints.
-/// Children of the place, so they share the patient's HDRI light.
+/// People around the patient in the dressed places (bystanders, crew, police, hospital staff): the bundled
+/// avatars (Patient.usdz / Patient_female.usdz) in poses baked in Blender (`BakedPose`, crowd_<pose>_<m|f>.usdz
+/// from visionos/scripts/pitch_crowd_poses.py), re-dressed with a recoloured clothing texture
+/// (roadside_crowd_<outfit>.jpg from visionos/scripts/pitch_crowd_textures.py). Without a baked file they fall
+/// back to a rigged clone posed by a few joints at runtime. Children of the place, so they share the patient's HDRI light.
 @MainActor
 enum PitchCrowd {
     /// Joint rotations in degrees about the model's axes (Blender: X = the person's left, Z = up),
@@ -19,6 +20,106 @@ enum PitchCrowd {
     nonisolated static let working: Pose = ["upperarm_l": [28, 0, 0], "upperarm_r": [28, 0, 0], "lowerarm_l": [62, 0, 0], "lowerarm_r": [62, 0, 0],
                                 "spine_02": [10, 0, 0], "neck_01": [14, 0, 0]]
     nonisolated static let armsFolded: Pose = ["upperarm_l": [22, 0, -14], "upperarm_r": [22, 0, 14], "lowerarm_l": [95, 0, 0], "lowerarm_r": [95, 0, 0]]
+
+    // MARK: - Baked poses
+
+    /// Poses made in Blender (visionos/scripts/pitch_crowd_poses.py): crowd_<rawValue>_<m|f>.usdz, a static
+    /// mesh of the avatar with the original mesh/UV/material layout, origin on the floor under the pelvis,
+    /// facing +Z. No skinning, so one load per file and every person is a cheap clone (PitchKit.model).
+    enum BakedPose: String, CaseIterable {
+        case standRelaxed = "stand_relaxed", standWorried = "stand_worried", armsCrossed = "arms_crossed"
+        case phoneFilming = "phone_filming", pointing, kneelWork = "kneel_work", standLeanWork = "stand_lean_work"
+        case standHandsFront = "stand_hands_front"
+
+        /// The runtime joint pose used when the baked file is missing.
+        var fallback: Pose {
+            switch self {
+            case .standRelaxed, .standHandsFront: PitchCrowd.relaxed
+            case .standWorried: PitchCrowd.worried
+            case .armsCrossed: PitchCrowd.armsFolded
+            case .phoneFilming: PitchCrowd.filming
+            case .pointing: PitchCrowd.pointing
+            case .kneelWork, .standLeanWork: PitchCrowd.working
+            }
+        }
+
+        /// Contact shadow footprint (x, z) and centre z: the kneeling pose spreads front to back.
+        var footprint: (size: SIMD2<Float>, z: Float) {
+            switch self {
+            case .kneelWork: ([0.45, 0.8], 0.02)
+            case .standLeanWork: ([0.5, 0.45], 0.04)
+            default: ([0.42, 0.32], 0.02)
+            }
+        }
+    }
+
+    enum Gender: String {
+        case m, f
+        var avatar: String { self == .m ? "Patient" : "Patient_female" }
+    }
+
+    /// A baked-pose person at `p` (floor at p.y) facing `target`. `outfit`: roadside_crowd_<outfit>.jpg
+    /// (nil = the avatar's own clothes, e.g. for a caller that puts scrubs on). `hair`/`skin` tint those
+    /// textures. The materials are the original avatar's (loaded once), so `dress` works as on the rigged
+    /// clones. Falls back to the runtime-posed rigged clone when the baked file is missing.
+    @discardableResult
+    static func person(_ pose: BakedPose, _ gender: Gender, outfit: String?, in parent: Entity, at p: SIMD3<Float>,
+                       facing target: SIMD3<Float> = .zero, hair: UIColor? = nil, skin: UIColor? = nil, height: Float = 1) -> Entity? {
+        let file = "crowd_\(pose.rawValue)_\(gender.rawValue)"
+        guard Bundle.main.url(forResource: file, withExtension: "usdz") != nil, let m = PitchKit.model(file) else {
+            SmokeLog.mark("pitch crowd baked missing \(file), runtime pose")
+            return person(gender.avatar, outfit: outfit ?? "bystander_\(gender.rawValue)", in: parent, at: p, facing: target,
+                          pose: pose.fallback, hair: hair, skin: skin, height: height, phone: pose == .phoneFilming)
+        }
+        let holder = Entity()
+        holder.name = "crowd_\(outfit ?? pose.rawValue)"
+        m.scale *= height
+        holder.addChild(m)
+        if let body = body(of: holder) {
+            if let mats = originalMaterials(gender), var mc = body.model, mc.materials.count == mats.count {
+                mc.materials = mats
+                body.model = mc
+            } else {
+                SmokeLog.mark("pitch crowd \(file) materials \(body.model?.materials.count ?? -1) vs \(originalMaterials(gender)?.count ?? -1)")
+            }
+            dress(body, outfit: outfit, hair: hair, skin: skin)
+        }
+        let fp = pose.footprint
+        PitchKit.contactShadow(holder, at: [0, 0, fp.z], size: fp.size, opacity: 0.5)
+        let d = target - p
+        holder.position = p
+        holder.orientation = simd_quatf(angle: atan2(d.x, d.z), axis: [0, 1, 0]) // the model faces +Z
+        parent.addChild(holder)
+        return holder
+    }
+
+    /// The avatar mesh of a baked person (the prim "body"; a phone is a separate entity).
+    static func body(of e: Entity) -> ModelEntity? {
+        if let b = e.findEntity(named: "body") as? ModelEntity { return b }
+        return firstModel(e) { ($0.model?.materials.count ?? 0) >= 7 }
+    }
+
+    /// The head joint of a baked person (an Xform in the file, turned with the head): hats and masks go here.
+    static func headAnchor(of e: Entity) -> Entity? { e.findEntity(named: "anchor_head") }
+
+    private static var materialCache: [Gender: [any RealityKit.Material]] = [:]
+
+    /// The textured materials of the rigged avatar (one load per gender, via PitchKit's model cache).
+    private static func originalMaterials(_ g: Gender) -> [any RealityKit.Material]? {
+        if let m = materialCache[g] { return m }
+        guard let avatar = PitchKit.model(g.avatar), let mesh = findSkinned(avatar) ?? firstModel(avatar, where: { _ in true }),
+              let mats = mesh.model?.materials else { return nil }
+        materialCache[g] = mats
+        return mats
+    }
+
+    private static func firstModel(_ e: Entity, where ok: (ModelEntity) -> Bool) -> ModelEntity? {
+        if let m = e as? ModelEntity, ok(m) { return m }
+        for c in e.children { if let f = firstModel(c, where: ok) { return f } }
+        return nil
+    }
+
+    // MARK: - Runtime-posed rigged clones (fallback)
 
     /// A person standing at `p` (feet on p.y) facing `target`. `model`: "Patient" or "Patient_female".
     /// `outfit`: roadside_crowd_<outfit>.jpg. `hair`/`skin` tint those textures (nil = as modelled).
@@ -88,14 +189,14 @@ enum PitchCrowd {
     // MARK: - Internals
 
     /// Material slots follow the mesh's subsets: body, suit, shoes, hair, eyebrows, eyelashes, eyes.
-    private static func dress(_ e: ModelEntity, outfit: String, hair: UIColor?, skin: UIColor?) {
+    private static func dress(_ e: ModelEntity, outfit: String?, hair: UIColor?, skin: UIColor?) {
         guard var mc = e.model else { return }
         func retint(_ i: Int, _ change: (inout PhysicallyBasedMaterial) -> Void) {
             guard mc.materials.indices.contains(i), var pbr = mc.materials[i] as? PhysicallyBasedMaterial else { return }
             change(&pbr)
             mc.materials[i] = pbr
         }
-        if let tex = PitchKit.texture("roadside_crowd_\(outfit).jpg") {
+        if let outfit, let tex = PitchKit.texture("roadside_crowd_\(outfit).jpg") {
             retint(1) { $0.baseColor = .init(tint: .white, texture: .init(tex)) }
         }
         if let hair { retint(3) { $0.baseColor.tint = hair } }
