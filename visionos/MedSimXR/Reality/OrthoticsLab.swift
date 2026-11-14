@@ -89,7 +89,7 @@ final class OrthoticsLab {
 
     // MARK: Meshes
 
-    private static func fabric(_ color: UIColor, roughness: Float = 0.9, metallic: Float = 0) -> PhysicallyBasedMaterial {
+    static func fabric(_ color: UIColor, roughness: Float = 0.9, metallic: Float = 0) -> PhysicallyBasedMaterial {
         var m = PhysicallyBasedMaterial()
         m.baseColor = .init(tint: color)
         m.roughness = .init(floatLiteral: roughness)
@@ -108,14 +108,16 @@ final class OrthoticsLab {
 
     /// Open tube along Y, lofted through elliptical rings: half-widths `a` (X) and `b` (Z)
     /// scaled per ring. `arc` leaves a gap, as on a brace that opens along the back of the hand.
-    private static func tube(_ profile: [(y: Float, s: Float)], a: Float, b: Float,
+    static func tube(_ profile: [(y: Float, s: Float)], a: Float, b: Float,
                              arc: ClosedRange<Float> = 0...(2 * .pi), segments: Int = 32) -> MeshResource {
-        var positions: [SIMD3<Float>] = [], normals: [SIMD3<Float>] = [], indices: [UInt32] = []
+        var positions: [SIMD3<Float>] = [], normals: [SIMD3<Float>] = [], uvs: [SIMD2<Float>] = [], indices: [UInt32] = []
+        let y0 = profile.first?.y ?? 0, span = max((profile.last?.y ?? 1) - y0, 0.001)
         for ring in profile {
             for i in 0...segments {
                 let t = arc.lowerBound + (arc.upperBound - arc.lowerBound) * Float(i) / Float(segments)
                 positions.append([a * ring.s * cos(t), ring.y, b * ring.s * sin(t)])
                 normals.append(simd_normalize([cos(t) / a, 0, sin(t) / b]))
+                uvs.append([Float(i) / Float(segments), (ring.y - y0) / span])
             }
         }
         let n = UInt32(segments + 1)
@@ -128,17 +130,18 @@ final class OrthoticsLab {
         var descriptor = MeshDescriptor(name: "tube")
         descriptor.positions = MeshBuffer(positions)
         descriptor.normals = MeshBuffer(normals)
+        descriptor.textureCoordinates = MeshBuffer(uvs)
         descriptor.primitives = .triangles(indices)
         return (try? MeshResource.generate(from: [descriptor])) ?? .generateCylinder(height: sleeveLength, radius: a)
     }
 
     /// Outline of a wrist brace along Y (+Y = hand end): wide on the forearm, waisted at the
     /// wrist, flaring over the palm.
-    private static let braceProfile: [(y: Float, s: Float)] = [
+    static let braceProfile: [(y: Float, s: Float)] = [
         (-0.085, 1.20), (-0.05, 1.12), (-0.015, 1.02), (0.01, 1.0), (0.035, 1.06), (0.06, 1.14), (0.075, 1.12),
     ]
 
-    private static func scale(at y: Float) -> Float {
+    static func scale(at y: Float) -> Float {
         let p = braceProfile
         guard let i = p.firstIndex(where: { $0.y >= y }), i > 0 else { return y < p[0].y ? p[0].s : p[p.count - 1].s }
         let t = (y - p[i - 1].y) / (p[i].y - p[i - 1].y)
@@ -199,9 +202,9 @@ final class OrthoticsLab {
         return e
     }
 
-    private static func radius(_ sizeIndex: Int) -> Float { 0.031 + 0.007 * Float(sizeIndex) }
+    static func radius(_ sizeIndex: Int) -> Float { 0.031 + 0.007 * Float(sizeIndex) }
 
-    private static func text(_ string: String, size: CGFloat, material: any Material) -> ModelEntity {
+    static func text(_ string: String, size: CGFloat, material: any Material) -> ModelEntity {
         let mesh = MeshResource.generateText(string, extrusionDepth: 0.001, font: .systemFont(ofSize: size, weight: .bold))
         let e = ModelEntity(mesh: mesh, materials: [material])
         e.position = [-mesh.bounds.extents.x / 2 - mesh.bounds.min.x, -mesh.bounds.extents.y / 2 - mesh.bounds.min.y, 0]
@@ -224,11 +227,32 @@ final class OrthoticsLab {
         guard !orthotics.sizes.isEmpty || tape else { return }
 
         let count = orthotics.sizes.count + 1
-        let pitch: Float = 0.16
+        let pitch: Float = SmokeLog.pitch ? 0.17 : 0.16
+        func slot(_ i: Int) -> Float { (Float(i) - Float(count - 1) / 2) * pitch }
+        if SmokeLog.pitch { // trolley, drape and consumables; braces lie on the drape with printed size cards
+            tray.addChild(PropsLook.light)
+            tray.addChild(PropsLook.trolley(width: pitch * Float(count) + 0.1, depth: 0.44, height: tray.position.y))
+            if tape {
+                add(PropsLook.tapeMeasure(), name: Self.tapeName, label: "", at: [slot(0) - 0.03, 0.0185, 0.03],
+                    rest: simd_quatf(angle: 0.5, axis: [0, 1, 0]))
+            }
+            for (i, size) in orthotics.sizes.enumerated() {
+                let range = size.wristCm.map { String(format: "%g", $0) }.joined(separator: "–") + " cm"
+                let r = Self.radius(i), letter = String(size.label.prefix(1))
+                add(PropsLook.brace(radius: r, size: letter), name: Self.orthosisPrefix + size.id, label: "",
+                    at: [slot(i + 1), 0.008 + r * 0.9 * 1.2 * 1.03, -0.02], rest: PropsLook.braceRest(yaw: 1.0),
+                    card: PropsLook.sizeCard(size: letter, range: range))
+            }
+            return
+        }
         let board = ModelEntity(mesh: .generateBox(size: [pitch * Float(count) + 0.04, 0.012, 0.2], cornerRadius: 0.006),
                                 materials: [Self.fabric(UIColor(white: 0.2, alpha: 1), roughness: 0.6)])
         tray.addChild(board)
-        func slot(_ i: Int) -> Float { (Float(i) - Float(count - 1) / 2) * pitch }
+        if AppConfig.realisticRooms { // the dressed rooms have a floor and furniture: stand the board on a dressing trolley
+            let trolley = PropsLook.trolley(width: pitch * Float(count) + 0.1, depth: 0.3, height: tray.position.y - 0.012)
+            trolley.position.y = -0.012
+            tray.addChild(trolley)
+        }
 
         if tape { add(Self.tapeMeasure(), name: Self.tapeName, label: "Tape", at: [slot(0) - 0.02, 0.022, 0]) }
         for (i, size) in orthotics.sizes.enumerated() {
@@ -238,9 +262,11 @@ final class OrthoticsLab {
         }
     }
 
-    private func add(_ item: Entity, name: String, label: String, at position: SIMD3<Float>) {
+    private func add(_ item: Entity, name: String, label: String, at position: SIMD3<Float>,
+                     rest: simd_quatf? = nil, card: Entity? = nil) {
         item.name = name
         item.position = position
+        if let rest { item.orientation = rest }
         // generous pinch target: easier to hit than the mesh itself
         item.components.set(CollisionComponent(shapes: [.generateBox(size: [0.14, 0.19, 0.14])]))
         item.components.set(InputTargetComponent())
@@ -249,10 +275,15 @@ final class OrthoticsLab {
         items[name] = item
         homes[name] = item.transform
 
-        let caption = Entity()
-        caption.addChild(Self.text(label, size: 0.012, material: UnlitMaterial(color: .white)))
-        caption.position = [position.x, 0.02, 0.102] // on the tray's front edge
-        tray.addChild(caption)
+        if let card {
+            card.position = [position.x, 0.006, 0.15]
+            tray.addChild(card)
+        } else if !label.isEmpty {
+            let caption = Entity()
+            caption.addChild(Self.text(label, size: 0.012, material: UnlitMaterial(color: .white)))
+            caption.position = [position.x, 0.02, 0.102] // on the tray's front edge
+            tray.addChild(caption)
+        }
     }
 
     // MARK: Selecting, dragging, dropping
@@ -367,7 +398,7 @@ final class OrthoticsLab {
 
     private static let sortGroup = ModelSortGroup(depthPass: nil)
 
-    private func overlayPart(_ mesh: MeshResource, _ material: UnlitMaterial, _ p: SIMD3<Float>, order: Int32,
+    private func overlayPart(_ mesh: MeshResource, _ material: any Material, _ p: SIMD3<Float>, order: Int32,
                              scale: SIMD3<Float> = [1, 1, 1]) -> ModelEntity {
         let e = ModelEntity(mesh: mesh, materials: [material])
         e.position = p; e.scale = scale
@@ -376,23 +407,57 @@ final class OrthoticsLab {
         return e
     }
 
-    /// Label set off to the side of the anatomy, joined to it by a thin leader line.
-    private func callout(_ string: String, from bone: SIMD3<Float>, to p: SIMD3<Float>, color: UIColor) {
-        let d = p - bone, length = simd_length(d)
-        let leader = overlayPart(.generateCylinder(height: length * 0.82, radius: 0.0008), Self.overlay(color, 1), bone + d * 0.45, order: 3)
+    /// Pill label set off to the side of the anatomy, joined to it by a thin leader line with an anchor dot.
+    /// `offset` is in the patient's space (x = towards the wearer's right, y = up), so labels
+    /// spread out on screen however the forearm is turned.
+    private func callout(_ string: String, detail: String? = nil, from bone: SIMD3<Float>, offset: SIMD3<Float>, color: UIColor) {
+        let d = avatar.map { teaching.convert(direction: offset, from: $0.root) } ?? offset
+        let p = bone + d, length = simd_length(d)
+        let leader = overlayPart(.generateCylinder(height: length, radius: 0.0007), Self.overlay(.white, 0.75), bone + d * 0.5, order: 3)
         leader.orientation = simd_quatf(from: [0, 1, 0], to: d / length)
+        let anchor = Entity()
+        anchor.position = bone
+        anchor.components.set(BillboardComponent())
+        anchor.addChild(ModelEntity(mesh: ZoneMarker.disc(0.0032), materials: [ZoneMarker.flat(.white, 1)]))
+        teaching.addChild(anchor)
         let holder = Entity()
         holder.position = p
         holder.components.set(BillboardComponent())
-        let label = Self.text(string, size: 0.011, material: Self.overlay(color, 1))
-        label.components.set(ModelSortGroupComponent(group: Self.sortGroup, order: 4))
-        holder.addChild(label)
+        let pill = ZoneMarker.pill(title: string, detail: detail, color: color, at: .zero, scale: 1.25)
+        if offset.x < 0 { pill.position.x = -pill.visualBounds(relativeTo: holder).extents.x } // labels on the left end at the leader
+        holder.addChild(pill)
         teaching.addChild(holder)
     }
 
+    /// Ivory, softly lit bone drawn through the skin.
+    private static var boneMaterial: PhysicallyBasedMaterial {
+        var m = PhysicallyBasedMaterial()
+        m.baseColor = .init(tint: UIColor(red: 0.95, green: 0.92, blue: 0.85, alpha: 1))
+        m.roughness = 0.45
+        m.emissiveColor = .init(color: UIColor(red: 0.85, green: 0.9, blue: 1, alpha: 1))
+        m.emissiveIntensity = 0.35
+        m.clearcoat = 0.3
+        m.readsDepth = false
+        return m
+    }
+
+    /// Long bone along Y between `y0` (proximal) and `y1`, radius per point of `profile` (t 0...1).
+    private func longBone(_ profile: [(t: Float, r: Float)], y0: Float, y1: Float, at p: SIMD3<Float>,
+                          flatten: Float = 1, tilt: simd_quatf? = nil, material: any Material) {
+        let rings = profile.map { (y: y0 + (y1 - y0) * $0.t, s: $0.r) }
+        let bone = overlayPart(Self.tube(rings, a: flatten, b: 1, segments: 28), material, p, order: 1)
+        if let tilt { bone.orientation = tilt }
+        for ring in [rings.first!, rings.last!] { // rounded ends
+            let cap = ModelEntity(mesh: .generateSphere(radius: ring.s), materials: [material])
+            cap.position = [0, ring.y, 0]; cap.scale = [flatten, 0.8, 1]
+            cap.components.set(ModelSortGroupComponent(group: Self.sortGroup, order: 1))
+            bone.addChild(cap)
+        }
+    }
+
     /// Schematic wrist skeleton drawn over the injured forearm only: the forearm is washed
-    /// out with a pale shell (the rest of the patient stays as it is), bones are drawn on top,
-    /// the scaphoid is highlighted. With a `reference`, the intended support position is
+    /// out with a dark translucent shell (the rest of the patient stays as it is), bones are
+    /// drawn on top, the scaphoid glows. With a `reference`, the intended support position is
     /// shown as a green outline beside the learner's own, which turns translucent.
     func setTeaching(anatomy: Bool, reference: FittingReference?) {
         Array(teaching.children).forEach { $0.removeFromParent() }
@@ -406,31 +471,67 @@ final class OrthoticsLab {
         let length = avatar.forearmLength
 
         if anatomy {
-            _ = overlayPart(Self.tube([(-length * 0.96, 1.25), (-0.04, 0.9), (0.0, 0.85), (0.05, 1.15), (0.1, 1.1)], a: 0.03, b: 0.036),
-                            Self.overlay(UIColor(red: 0.75, green: 0.88, blue: 1, alpha: 1), 0.55), .zero, order: 0)
-            let bone = Self.overlay(UIColor(white: 0.97, alpha: 1), 1), highlight = Self.overlay(.systemOrange, 1)
+            let skin: [(y: Float, s: Float)] = [(-length * 0.96, 1.25), (-0.04, 0.9), (0.0, 0.85), (0.05, 1.15), (0.1, 1.1)]
+            _ = overlayPart(Self.tube(skin, a: 0.03, b: 0.036), Self.overlay(UIColor(red: 0.04, green: 0.10, blue: 0.18, alpha: 1), 0.62), .zero, order: 0)
+            _ = overlayPart(Self.tube(skin.map { ($0.y, $0.s * 1.06) }, a: 0.03, b: 0.036),
+                            Self.overlay(UIColor(red: 0.45, green: 0.8, blue: 1, alpha: 1), 0.14), .zero, order: 0)
+            let bone = Self.boneMaterial
             let shaft = length * 0.92
-            _ = overlayPart(.generateCylinder(height: shaft, radius: 0.008), bone, [0, -shaft / 2 - 0.004, 0.011], order: 1)   // radius
-            _ = overlayPart(.generateCylinder(height: shaft, radius: 0.006), bone, [0, -shaft / 2 - 0.004, -0.012], order: 1)  // ulna
-            for z in [Float(0.002), -0.009, -0.017] { _ = overlayPart(.generateSphere(radius: 0.0058), bone, [0, 0.010, z], order: 1) }
-            for z in [Float(0.016), 0.006, -0.004, -0.014] { _ = overlayPart(.generateSphere(radius: 0.0058), bone, [0, 0.024, z], order: 1) }
-            for z in [Float(0.022), 0.011, 0, -0.011, -0.021] {
-                _ = overlayPart(.generateCylinder(height: 0.04, radius: 0.0035), bone, [0, 0.054, z], order: 1)
+            // radius: slim neck at the elbow, flaring to the broad distal end at the wrist
+            longBone([(0, 0.0062), (0.08, 0.005), (0.3, 0.0058), (0.7, 0.0068), (0.88, 0.0095), (1, 0.0125)],
+                     y0: -shaft - 0.004, y1: -0.006, at: [0, 0, 0.011], flatten: 0.75, material: bone)
+            _ = overlayPart(.generateSphere(radius: 0.004), bone, [0, -0.002, 0.022], order: 1, scale: [0.8, 1.3, 1]) // radial styloid
+            // ulna: broad olecranon at the elbow, tapering to a small head at the wrist
+            longBone([(0, 0.0105), (0.1, 0.0075), (0.4, 0.0058), (0.85, 0.0048), (1, 0.0062)],
+                     y0: -shaft - 0.012, y1: -0.012, at: [0, 0, -0.012], flatten: 0.8, material: bone)
+            _ = overlayPart(.generateSphere(radius: 0.0028), bone, [0, -0.007, -0.019], order: 1, scale: [0.8, 1.4, 1]) // ulnar styloid
+            // carpals: proximal row (the scaphoid drawn separately) and distal row
+            let carpals: [(SIMD3<Float>, SIMD3<Float>)] = [
+                ([0, 0.009, 0.002], [0.0052, 0.0055, 0.0058]), ([0, 0.008, -0.009], [0.005, 0.005, 0.005]),
+                ([-0.007, 0.009, -0.014], [0.0032, 0.0032, 0.0032]),
+                ([0, 0.024, 0.018], [0.0045, 0.0052, 0.0045]), ([0, 0.025, 0.009], [0.004, 0.005, 0.004]),
+                ([0, 0.026, -0.001], [0.0055, 0.0075, 0.0052]), ([0, 0.025, -0.012], [0.005, 0.0065, 0.005]),
+            ]
+            for (p, s) in carpals { _ = overlayPart(.generateSphere(radius: 1), bone, p, order: 1, scale: s) }
+            // metacarpals fanning out, the thumb's angled to the radial side
+            let rays: [(SIMD3<Float>, SIMD3<Float>)] = [
+                ([0, 0.034, 0.0095], [0, 0.088, 0.012]), ([0, 0.035, 0], [0, 0.092, 0.002]),
+                ([0, 0.034, -0.0095], [0, 0.088, -0.009]), ([0, 0.032, -0.017], [0, 0.08, -0.019]),
+                ([0.002, 0.03, 0.025], [0.006, 0.064, 0.044]),
+            ]
+            for (start, end) in rays {
+                let d = end - start
+                longBone([(0, 0.0042), (0.5, 0.003), (1, 0.0045)], y0: 0, y1: simd_length(d), at: start,
+                         tilt: simd_quatf(from: [0, 1, 0], to: simd_normalize(d)), material: bone)
             }
-            _ = overlayPart(.generateSphere(radius: 0.0088), highlight, [0, 0.010, 0.014], order: 2, scale: [1, 1.5, 1])       // scaphoid
-            callout("Scaphoid", from: [0, 0.010, 0.014], to: [0, 0.03, 0.105], color: .systemOrange)
-            callout("Radius", from: [0, -length * 0.45, 0.011], to: [0, -length * 0.45, 0.095], color: .white)
-            callout("Ulna", from: [0, -length * 0.45, -0.012], to: [0, -length * 0.45, -0.095], color: .white)
+            // the scaphoid: suspected fracture, glowing, with a halo
+            let scaphoidAt = SIMD3<Float>(0, 0.011, 0.014)
+            var hot = Self.boneMaterial
+            hot.baseColor = .init(tint: ZoneMarker.tender)
+            hot.emissiveColor = .init(color: ZoneMarker.tender)
+            hot.emissiveIntensity = 1.4
+            let scaphoid = overlayPart(.generateSphere(radius: 1), hot, scaphoidAt, order: 2, scale: [0.0055, 0.0088, 0.0058])
+            scaphoid.orientation = simd_quatf(angle: -0.5, axis: [1, 0, 0])
+            let halo = Entity()
+            halo.position = scaphoidAt
+            halo.components.set(BillboardComponent())
+            let glow = ModelEntity(mesh: .generatePlane(width: 0.06, height: 0.06), materials: [ZoneMarker.glow(ZoneMarker.tender, 0.55)])
+            glow.components.set(ModelSortGroupComponent(group: Self.sortGroup, order: 0))
+            halo.addChild(glow)
+            teaching.addChild(halo)
+            callout("Scaphoid", detail: "Suspected occult fracture", from: scaphoidAt, offset: [-0.15, -0.04, 0.02], color: ZoneMarker.tender)
+            callout("Radius", from: [0, -length * 0.6, 0.012], offset: [-0.14, 0.05, 0], color: UIColor(white: 0.9, alpha: 1))
+            callout("Ulna", from: [0, -length * 0.75, -0.012], offset: [0.12, 0.07, 0], color: UIColor(white: 0.9, alpha: 1))
         }
         if let reference {
             let index = orthotics.sizes.firstIndex { $0.id == reference.size } ?? 0
             let centre = Float(reference.offsetCm.reduce(0, +) / Double(max(reference.offsetCm.count, 1))) / 100
-            let ghost = Self.brace(radius: Self.radius(index) + 0.004, ghost: Self.overlay(.systemGreen, 0.45))
+            let ghost = Self.brace(radius: Self.radius(index) + 0.004, ghost: Self.overlay(ZoneMarker.clear, 0.45))
             ghost.position = [0, -centre, 0]
             ghost.orientation = simd_quatf(angle: reference.orientation == "thumb_radial" ? 0 : .pi, axis: [0, 1, 0])
             ghost.children.forEach { $0.components.set(ModelSortGroupComponent(group: Self.sortGroup, order: 0)) }
             teaching.addChild(ghost)
-            callout("Intended position", from: [0, -centre, 0.04], to: [0, -centre - 0.03, 0.12], color: .systemGreen)
+            callout("Intended position", from: [0, -centre, 0.04], offset: [-0.12, 0.06, 0], color: ZoneMarker.clear)
         }
         SmokeLog.mark("teaching anatomy=\(anatomy) reference=\(reference?.size ?? "none") parts=\(teaching.children.count)")
     }
@@ -438,9 +539,9 @@ final class OrthoticsLab {
     // MARK: Spatial Clinical Replay
 
     /// Marks the examination zones on the patient: examined (green, or red when it hurt),
-    /// missed (amber), and the step being reviewed (larger, with its recorded contact point).
-    /// Markers sit on the zone entities, so they follow the arm. Only discrete zone events
-    /// exist; nothing here draws a hand path.
+    /// missed (amber), and the step being reviewed (larger, pulsing, labelled). Markers sit on
+    /// the zone entities, so they follow the arm. Only discrete zone events exist; nothing
+    /// here draws a hand path.
     func showReplay(_ zones: [ReplayZone], events: [ExamEvent], current: ExamEvent?) {
         replayMarkers.forEach { $0.removeFromParent() }
         replayMarkers = []
@@ -448,28 +549,21 @@ final class OrthoticsLab {
         for zone in zones {
             guard let entity = avatar.zoneEntities.first(where: { $0.name == zone.zoneId }) else { continue }
             let isCurrent = current?.zoneId == zone.zoneId
-            let color: UIColor = !zone.examined ? .systemOrange : (zone.painLevel ?? 0) >= 5 ? .systemRed : .systemGreen
-            let radius = (entity.visualBounds(relativeTo: entity).extents.x / 2) * (isCurrent ? 1.25 : 0.9)
-            let marker = ModelEntity(mesh: .generateSphere(radius: max(radius, 0.02)),
-                                     materials: [Self.overlay(color, isCurrent ? 0.75 : zone.examined ? 0.4 : 0.28)])
-            marker.components.set(ModelSortGroupComponent(group: Self.sortGroup, order: 5))
+            let color = !zone.examined ? ZoneMarker.missed : (zone.painLevel ?? 0) >= 5 ? ZoneMarker.tender : ZoneMarker.clear
+            let step = events.firstIndex { $0.zoneId == zone.zoneId }.map { "\($0 + 1)" }
+            let detail = !zone.examined ? "Not examined" : (zone.painLevel ?? 0) >= 5 ? "Tender · pain \(zone.painLevel ?? 0)/10" : "Not tender"
+            let labelled = isCurrent || !zone.examined
+            let marker = ZoneMarker.make(color: color, radius: isCurrent ? 0.03 : 0.02, title: labelled ? zone.label : nil,
+                                         detail: labelled ? detail : nil, badge: step ?? "!", emphasis: isCurrent)
             entity.addChild(marker)
             replayMarkers.append(marker)
-
-            let order = events.firstIndex { $0.zoneId == zone.zoneId }.map { "\($0 + 1)" } ?? "missed"
-            let holder = Entity()
-            holder.position = [0, max(radius, 0.02) + 0.022, 0]
-            holder.components.set(BillboardComponent())
-            let label = Self.text(order, size: zone.examined ? 0.02 : 0.011, material: Self.overlay(color, 1))
-            label.components.set(ModelSortGroupComponent(group: Self.sortGroup, order: 6))
-            holder.addChild(label)
-            entity.addChild(holder)
-            replayMarkers.append(holder)
+            if isCurrent { Task { await ZoneMarker.pulse(marker, seconds: 3600) } } else { ZoneMarker.settle(marker) }
 
             if isCurrent, let contact = current?.contact {
-                let dot = ModelEntity(mesh: .generateSphere(radius: 0.006), materials: [Self.overlay(.white, 1)])
+                let dot = Entity()
                 dot.position = contact
-                dot.components.set(ModelSortGroupComponent(group: Self.sortGroup, order: 6))
+                dot.components.set(BillboardComponent())
+                dot.addChild(ModelEntity(mesh: ZoneMarker.disc(0.004), materials: [ZoneMarker.flat(.white, 1)]))
                 entity.addChild(dot)
                 replayMarkers.append(dot)
             }

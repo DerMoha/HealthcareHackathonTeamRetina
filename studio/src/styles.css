@@ -191,3 +191,21 @@ summary { cursor: pointer; font-weight: 600; }
 .score { border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem .8rem; }
 .score-title { font-size: .85rem; font-weight: 600; }
 .score-value { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+
+/* multi-stage journeys */
+.tag-journey { background: var(--accent-soft); border-color: var(--accent); color: var(--text); font-weight: 600; }
+.stage-strip { list-style: none; display: flex; flex-wrap: wrap; gap: .25rem; margin: .3rem 0 0; padding: 0; font-size: .82rem; }
+.stage-strip li { display: inline-flex; align-items: center; gap: .25rem; }
+.stage-strip li + li::before { content: "→"; color: var(--muted); }
+.stages { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .5rem; margin: .4rem 0 0; padding: 0; list-style: none; counter-reset: stage; }
+.stages li { border: 1px solid var(--line); border-radius: var(--radius); padding: .5rem .65rem; counter-increment: stage; }
+.stages li strong::before { content: counter(stage) ". "; color: var(--accent); }
+.effect { font-size: .85rem; color: var(--muted); border-left: 3px solid var(--accent); padding: .1rem 0 .1rem .6rem; margin: 0; }
+.mode-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.mode-toggle button { border: 0; border-radius: 0; }
+.mode-toggle button[aria-pressed=true] { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+.override { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .2rem 1rem; align-items: center; }
+.override input[type=range] { width: 100%; }
+.fixed { margin: .3rem 0 0; padding-left: 1.1rem; font-size: .82rem; color: var(--muted); }
+.seg { display: flex; gap: .35rem; flex-wrap: wrap; margin: .5rem 0; }
+.seg button[aria-pressed=true] { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }

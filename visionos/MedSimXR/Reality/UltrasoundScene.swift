@@ -30,6 +30,10 @@ final class UltrasoundScene {
     private let cart = Entity()
     private let regionRoot = Entity()
     private let gelRoot = Entity()
+    private let couchExtras = Entity() // pitch only: paper sheet, roll, pillow
+    private let cable = Entity() // pitch only: probe cable from the handle back to the cart
+    private let glove = Entity() // pitch only: the learner's gloved right hand on the probe handle (child of the probe)
+    private let arm = Entity() // pitch only: gloved forearm and sleeve running out of frame towards the wearer
     private let highlight = ModelEntity(mesh: .generateCylinder(height: 0.004, radius: 0.06),
                                         materials: [UnlitMaterial(color: .systemTeal)])
     private var probe = Entity()
@@ -68,6 +72,9 @@ final class UltrasoundScene {
             homes[item.name] = home
         }
         root.addChild(regionRoot)
+        root.addChild(couchExtras)
+        root.addChild(cable)
+        if SmokeLog.pitch && Self.pitchHand { buildHand() }
         gelRoot.isEnabled = false
         root.addChild(gelRoot)
         root.isEnabled = false
@@ -83,11 +90,13 @@ final class UltrasoundScene {
         root.isEnabled = info != nil
         reset()
         guard let avatar, info != nil else { return }
-        let faint = Self.overlay(.white, 0.07)
+        // The scan couch's upholstery and paper sheet belong to the room: realistic rooms dress it too.
+        if AppConfig.realisticRooms { PitchAntenatal.dressCouch(avatar.root, extras: couchExtras) } else { Array(couchExtras.children).forEach { $0.removeFromParent() } }
+        let faint = Self.overlay(.white, SmokeLog.pitch ? 0 : 0.07) // pitch shots: no visible hit spheres
         for region in regions {
             guard let anchor = avatar.anchors[region.attachTo] else { continue }
-            let normal = avatar.anchorNormals[region.attachTo] ?? [0, 1, 0]
-            let position = anchor.position(relativeTo: avatar.root)
+            let position = Self.skinPoint(anchor.position(relativeTo: avatar.root))
+            let normal = Self.skinNormal(avatar.anchorNormals[region.attachTo], at: position)
             let zone = ModelEntity(mesh: .generateSphere(radius: region.radius), materials: [faint])
             zone.name = region.id
             zone.position = position + normal * 0.01
@@ -97,8 +106,10 @@ final class UltrasoundScene {
             regionRoot.addChild(zone)
             zoneEntities.append(zone)
 
-            let patch = ModelEntity(mesh: .generateCylinder(height: 0.004, radius: 0.045),
+            let patch = SmokeLog.pitch ? Self.smear() : ModelEntity(mesh: .generateCylinder(height: 0.004, radius: 0.045),
                                     materials: [Self.overlay(UIColor(red: 0.62, green: 0.88, blue: 1, alpha: 1), 0.38, depth: true)])
+            patch.name = region.id
+            patch.isEnabled = !SmokeLog.pitch // pitch: only the smear under the probe shows (see sync)
             patch.position = position + normal * 0.004
             patch.orientation = simd_quatf(from: [0, 1, 0], to: normal)
             gelRoot.addChild(patch)
@@ -110,8 +121,13 @@ final class UltrasoundScene {
     /// Returns true when the placement changed (the caller then re-places the patient).
     @discardableResult
     func arrange(recumbent: Bool) -> Bool {
-        notebook?.position = recumbent ? [0.45, 1.2, 0.5] : [0.42, 1.3, 0.5]
-        notebook?.orientation = simd_quatf(angle: recumbent ? -0.45 : -0.35, axis: [0, 1, 0])
+        if SmokeLog.pitch { // pitch shots: clear of the centred patient, turned to the camera
+            notebook?.position = recumbent ? [0.5, 1.25, 0.5] : [0.74, 1.32, 0.45]
+            notebook?.orientation = simd_quatf(angle: recumbent ? -0.3 : -0.2, axis: [0, 1, 0])
+        } else {
+            notebook?.position = recumbent ? [0.45, 1.2, 0.5] : [0.42, 1.3, 0.5]
+            notebook?.orientation = simd_quatf(angle: recumbent ? -0.45 : -0.35, axis: [0, 1, 0])
+        }
         notebook?.scale = recumbent ? [0.95, 0.95, 0.95] : [1, 1, 1]
         let extra: Float = 0, lateral: Float? = recumbent ? 0.3 : nil
         let changed = Placement.extraDistance != extra || Placement.lateralOverride != lateral
@@ -194,11 +210,20 @@ final class UltrasoundScene {
     func sync(region: String?, scans: Int) {
         guard !dragging else { return }
         touching = region
+        if SmokeLog.pitch {
+            PitchAntenatal.mirror(region: region)
+            gelRoot.children.forEach { $0.isEnabled = $0.name == region }
+            cable.isEnabled = region != nil
+            glove.isEnabled = region != nil
+            arm.isEnabled = region != nil
+            upperArm.isEnabled = region != nil
+        }
         guard let region, let hit = regionPose(region) else { sendHome(probe, animated: true); return }
         guard let avatar else { return }
         if probe.parent !== avatar.root { probe.stopAllAnimations(); probe.setParent(avatar.root, preservingWorldTransform: true) }
-        probe.move(to: Transform(scale: [1, 1, 1], rotation: Self.orientation(normal: hit.normal, turns: scans), translation: hit.position),
-                   relativeTo: avatar.root, duration: 0.25)
+        let pose = Transform(scale: [1, 1, 1], rotation: Self.orientation(normal: hit.normal, turns: scans), translation: hit.position)
+        probe.move(to: pose, relativeTo: avatar.root, duration: 0.25)
+        if SmokeLog.pitch { layCable(from: pose); if Self.pitchHand { layArm(from: pose) } }
     }
 
     func showGel(_ on: Bool) { gelRoot.isEnabled = on }
@@ -211,7 +236,21 @@ final class UltrasoundScene {
 
     private func regionPose(_ id: String) -> (position: SIMD3<Float>, normal: SIMD3<Float>)? {
         guard let avatar, let region = regions.first(where: { $0.id == id }), let anchor = avatar.anchors[region.attachTo] else { return nil }
-        return (anchor.position(relativeTo: avatar.root), avatar.anchorNormals[region.attachTo] ?? [0, 1, 0])
+        let position = Self.skinPoint(anchor.position(relativeTo: avatar.root))
+        return (position, Self.skinNormal(avatar.anchorNormals[region.attachTo], at: position))
+    }
+
+    /// The sidecar's belly normals do not fit the pitch patient's smaller bump (some point at the wearer, so the
+    /// probe lay sideways and the gel stood up in the air). Pitch shots use the inclined front of the belly instead,
+    /// turned a little towards the side the region is on.
+    /// Pitch shots: the sidecar points sit at the hem of the crop top; slide them down the bump onto bare skin.
+    private static func skinPoint(_ p: SIMD3<Float>) -> SIMD3<Float> {
+        SmokeLog.pitch ? p + SIMD3<Float>(0, -0.41, 0.91) * Self.pitchSlide : p
+    }
+
+    private static func skinNormal(_ sidecar: SIMD3<Float>?, at p: SIMD3<Float>) -> SIMD3<Float> {
+        guard SmokeLog.pitch else { return sidecar ?? [0, 1, 0] }
+        return simd_normalize(SIMD3<Float>(max(-0.3, min(0.3, p.x * 5)), 0.91, 0.41))
     }
 
     private func nearestRegion(to p: SIMD3<Float>, within limit: Float) -> (id: String, position: SIMD3<Float>, normal: SIMD3<Float>)? {
@@ -226,7 +265,137 @@ final class UltrasoundScene {
 
     /// Probe up axis (+Y, handle) along the skin normal, turned about it by quarter turns.
     private static func orientation(normal: SIMD3<Float>, turns: Int) -> simd_quatf {
-        simd_quatf(from: [0, 1, 0], to: simd_normalize(normal)) * simd_quatf(angle: Float(turns % 4) * .pi / 2, axis: [0, 1, 0])
+        // pitch shots: the handle leans ~25 degrees towards the sonographer's side, like a held transducer
+        let lean = simd_quatf(angle: SmokeLog.pitch ? 0.44 : 0, axis: [0, 0, 1])
+        // pitch shots: one fixed turn that puts the gripping hand's forearm towards the wearer (no quarter turns)
+        if SmokeLog.pitch { return simd_quatf(from: [0, 1, 0], to: simd_normalize(normal)) * lean * simd_quatf(angle: handYaw, axis: [0, 1, 0]) }
+        return simd_quatf(from: [0, 1, 0], to: simd_normalize(normal)) * lean * simd_quatf(angle: Float(turns % 4) * .pi / 2, axis: [0, 1, 0])
+    }
+
+    // MARK: Pitch hand
+
+    /// Probe turn about its handle so the hand's forearm (+X in probe space) points to the wearer's right side.
+    private static let handYaw: Float = -0.35
+    /// Pitch shots: `-pitchHand off` (or env PITCH_HAND=off) leaves the probe without the learner's gloved hand.
+    static let pitchHand = (AppConfig.launchArgument("-pitchHand") ?? ProcessInfo.processInfo.environment["PITCH_HAND"]) != "off"
+    /// How far the probe slides from the scan points (at the crop-top hem) down the bump, towards the navel.
+    private static let pitchSlide: Float = Float(ProcessInfo.processInfo.environment["PITCH_SLIDE"] ?? "") ?? 0.28
+    /// Where the glove model's cuff stub ends, and its direction (probe space; see scripts/pitch_glove_antenatal2.py).
+    private static let cuffEnd: SIMD3<Float> = [0.088, 0.080, 0.030] + simd_normalize(SIMD3<Float>(1, -0.35, 0.45)) * 0.06
+    private static let cuffDir = simd_normalize(SIMD3<Float>(1, -0.35, 0.45))
+
+    /// Light-blue nitrile: soft sheen, slightly translucent-looking pale blue.
+    private static var nitrile: PhysicallyBasedMaterial {
+        var m = solid(UIColor(red: 0.53, green: 0.72, blue: 0.96, alpha: 1), roughness: 0.42)
+        m.clearcoat = .init(floatLiteral: 0.35); m.clearcoatRoughness = .init(floatLiteral: 0.25)
+        return m
+    }
+
+    private func buildHand() {
+        glove.name = "us_glove"
+        if let model = PitchKit.model("antenatal2_glove") {
+            let b = model.visualBounds(relativeTo: nil)
+            if b.center.z < -0.03 { model.orientation = simd_quatf(angle: .pi / 2, axis: [1, 0, 0]) * model.orientation } // undo the Z-up import turn
+            SmokeLog.mark("pitch glove bounds center=\(b.center) extents=\(b.extents)")
+            func paint(_ e: Entity) {
+                if var m = e.components[ModelComponent.self] { m.materials = m.materials.map { _ in Self.nitrile }; e.components.set(m) }
+                e.children.forEach(paint)
+            }
+            paint(model)
+            glove.addChild(model)
+        }
+        glove.isEnabled = false
+        probe.addChild(glove)
+        // forearm in the glove's cuff, a scrubs sleeve over it, the elbow, and the upper arm running out of frame
+        let fabric = Self.solid(UIColor(red: 0.19, green: 0.28, blue: 0.40, alpha: 1), roughness: 0.95)
+        let forearm = ModelEntity(mesh: Self.tube(length: 0.11, r0: 0.0255, r1: 0.029), materials: [Self.nitrile])
+        let sleeve = ModelEntity(mesh: Self.tube(length: Self.sleeveLength, r0: 0.036, r1: 0.044, cap: true), materials: [fabric])
+        sleeve.position.y = 0.085
+        let hem = ModelEntity(mesh: Self.tube(length: 0.018, r0: 0.039, r1: 0.038, cap: true), materials: [fabric])
+        hem.position.y = 0.083
+        let elbow = ModelEntity(mesh: .generateSphere(radius: 0.046), materials: [fabric])
+        elbow.position.y = 0.085 + Self.sleeveLength
+        for part in [sleeve, hem, elbow] { forearm.addChild(part) }
+        arm.addChild(forearm)
+        upperArm.model = ModelComponent(mesh: Self.tube(length: 1.3, r0: 0.046, r1: 0.058), materials: [fabric])
+        arm.isEnabled = false
+        root.addChild(arm)
+        root.addChild(upperArm)
+        upperArm.isEnabled = false
+    }
+
+    private static let sleeveLength: Float = 0.25
+    private let upperArm = ModelEntity()
+
+    /// Pitch shots: the forearm continues the glove's cuff stub, in the probe's resting pose.
+    private func layArm(from pose: Transform) {
+        guard let avatar else { return }
+        let start = pose.matrix * SIMD4<Float>(Self.cuffEnd - Self.cuffDir * 0.01, 1)
+        let dir = pose.rotation.act(Self.cuffDir)
+        arm.position = root.convert(position: [start.x, start.y, start.z], from: avatar.root)
+        let along = simd_normalize(root.convert(direction: dir, from: avatar.root))
+        arm.orientation = simd_quatf(from: [0, 1, 0], to: along)
+        // upper arm from the elbow down-right towards the wearer, out of the bottom of the frame
+        upperArm.position = arm.position + along * (0.085 + Self.sleeveLength)
+        upperArm.orientation = simd_quatf(from: [0, 1, 0], to: simd_normalize(SIMD3<Float>(0.35, -0.25, 1)))
+    }
+
+    /// Open truncated cone along +Y from radius r0 (y = 0) to r1 (y = length), smooth normals; `cap` closes the start with a disc.
+    private static func tube(length: Float, r0: Float, r1: Float, cap: Bool = false) -> MeshResource {
+        let n = 40
+        var positions: [SIMD3<Float>] = [], normals: [SIMD3<Float>] = [], indices: [UInt32] = []
+        let slope = (r0 - r1) / length
+        for i in 0...n {
+            let a = Float(i) / Float(n) * 2 * .pi
+            let c = cos(a), s = sin(a)
+            positions += [[r0 * c, 0, r0 * s], [r1 * c, length, r1 * s]]
+            let nrm = simd_normalize(SIMD3<Float>(c, slope, s))
+            normals += [nrm, nrm]
+        }
+        for i in 0..<n {
+            let b = UInt32(2 * i)
+            indices += [b, b + 1, b + 2, b + 1, b + 3, b + 2]
+        }
+        if cap {
+            let centre = UInt32(positions.count)
+            positions.append([0, 0, 0]); normals.append([0, -1, 0])
+            for i in 0...n {
+                let a = Float(i) / Float(n) * 2 * .pi
+                positions.append([r0 * cos(a), 0, r0 * sin(a)]); normals.append([0, -1, 0])
+            }
+            for i in 0..<UInt32(n) { indices += [centre, centre + 1 + i, centre + 2 + i] }
+        }
+        var d = MeshDescriptor(name: "tube")
+        d.positions = MeshBuffer(positions); d.normals = MeshBuffer(normals); d.primitives = .triangles(indices)
+        return (try? MeshResource.generate(from: [d])) ?? .generateCylinder(height: length, radius: r0)
+    }
+
+    /// Pitch shots: a sagging cable from the probe handle to the cart's probe port (segmented tube).
+    private func layCable(from pose: Transform) {
+        guard let avatar else { return }
+        let toRoot = { (p: SIMD3<Float>) in self.root.convert(position: p, from: avatar.root) }
+        let m = pose.matrix
+        let tip4 = m * SIMD4<Float>(0, 0.18, 0, 1), up4 = m * SIMD4<Float>(0, 1, 0, 0)
+        let p0 = toRoot([tip4.x, tip4.y, tip4.z]), up = simd_normalize(SIMD3<Float>(up4.x, up4.y, up4.z))
+        let p3 = cart.convert(position: [0.3, 0.72, 0.2], to: root)
+        let p1 = p0 + up * 0.12, p2 = p3 + [0, -0.35, 0.1]
+        let n = 24
+        if cable.children.isEmpty {
+            for _ in 0..<n {
+                cable.addChild(ModelEntity(mesh: .generateCylinder(height: 1, radius: 0.0045),
+                                           materials: [Self.solid(UIColor(white: 0.16, alpha: 1), roughness: 0.55)]))
+            }
+        }
+        func bez(_ t: Float) -> SIMD3<Float> {
+            let u = 1 - t
+            return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3
+        }
+        for (i, seg) in cable.children.enumerated() {
+            let a = bez(Float(i) / Float(n)), b = bez(Float(i + 1) / Float(n))
+            seg.position = (a + b) / 2
+            seg.orientation = simd_quatf(from: [0, 1, 0], to: simd_normalize(b - a))
+            seg.scale = [1, simd_distance(a, b) + 0.004, 1]
+        }
     }
 
     // MARK: Materials
@@ -238,6 +407,28 @@ final class UltrasoundScene {
         m.metallic = .init(floatLiteral: metallic)
         m.faceCulling = .none
         return m
+    }
+
+    /// Pitch shots: clear, glossy gel instead of a flat tinted disc.
+    private static var gel: PhysicallyBasedMaterial {
+        var m = PhysicallyBasedMaterial()
+        m.baseColor = .init(tint: UIColor(red: 0.8, green: 0.92, blue: 1, alpha: 1))
+        m.roughness = .init(floatLiteral: 0.05); m.clearcoat = .init(floatLiteral: 1); m.clearcoatRoughness = .init(floatLiteral: 0.02)
+        m.blending = .transparent(opacity: 0.32)
+        return m
+    }
+
+    /// Pitch shots: one irregular, glossy smear of gel (overlapping flattened blobs) under the probe.
+    private static func smear() -> Entity {
+        let e = Entity()
+        let blobs: [(Float, Float, Float)] = [(0, 0, 0.05), (0.032, 0.022, 0.036), (-0.036, -0.012, 0.034), (0.008, -0.036, 0.028), (-0.02, 0.03, 0.026)]
+        for (x, z, r) in blobs {
+            let blob = ModelEntity(mesh: .generateSphere(radius: r), materials: [gel])
+            blob.position = [x, 0, z]
+            blob.scale = [1, 0.1, 0.82]
+            e.addChild(blob)
+        }
+        return e
     }
 
     private static func overlay(_ color: UIColor, _ opacity: Float, depth: Bool = false) -> UnlitMaterial {
@@ -289,13 +480,14 @@ final class UltrasoundScene {
         }
         let top: Float = 0.024
         poly += [[poly.last!.x, top], [poly.first!.x, top]]
-        let face = ModelEntity(mesh: prism(poly, depth: 0.024), materials: [solid(UIColor(white: 0.93, alpha: 1), roughness: 0.25)])
+        let pitch = SmokeLog.pitch // pitch shots: light-grey curvilinear transducer with a grey lens
+        let face = ModelEntity(mesh: prism(poly, depth: 0.024), materials: [solid(UIColor(white: pitch ? 0.42 : 0.93, alpha: 1), roughness: 0.25)])
         let head = ModelEntity(mesh: prism(poly.map { [$0.x * 1.0, $0.y] }, depth: 0.026),
-                               materials: [solid(UIColor(red: 0.10, green: 0.45, blue: 0.55, alpha: 1), roughness: 0.4)])
+                               materials: [pitch ? PitchAntenatal.gloss(UIColor(white: 0.86, alpha: 1)) : solid(UIColor(red: 0.10, green: 0.45, blue: 0.55, alpha: 1), roughness: 0.4)])
         head.position.y = 0.004
         head.scale = [0.97, 0.9, 1]
         let handle = ModelEntity(mesh: .generateBox(size: [0.05, 0.11, 0.028], cornerRadius: 0.013),
-                                 materials: [solid(UIColor(red: 0.16, green: 0.17, blue: 0.21, alpha: 1), roughness: 0.45)])
+                                 materials: [pitch ? PitchAntenatal.gloss(UIColor(white: 0.9, alpha: 1)) : solid(UIColor(red: 0.16, green: 0.17, blue: 0.21, alpha: 1), roughness: 0.45)])
         handle.position = [0, top + 0.05, 0]
         let band = ModelEntity(mesh: .generateBox(size: [0.052, 0.012, 0.03], cornerRadius: 0.005),
                                materials: [solid(.systemTeal, roughness: 0.4)])
@@ -331,9 +523,11 @@ final class UltrasoundScene {
         cart.position = [-0.9, 0, 0.4]
         cart.orientation = simd_quatf(angle: 0.45, axis: [0, 1, 0])
         root.addChild(cart)
-        let white = Self.solid(UIColor(white: 0.94, alpha: 1), roughness: 0.35)
-        let slate = Self.solid(UIColor(red: 0.20, green: 0.23, blue: 0.28, alpha: 1), roughness: 0.5)
-        let dark = Self.solid(UIColor(white: 0.07, alpha: 1), roughness: 0.4)
+        let pitch = SmokeLog.pitch // pitch shots: glossy moulded plastics
+        let white = pitch ? PitchAntenatal.gloss(UIColor(white: 0.95, alpha: 1)) : Self.solid(UIColor(white: 0.94, alpha: 1), roughness: 0.35)
+        let slate = pitch ? PitchAntenatal.gloss(UIColor(red: 0.36, green: 0.39, blue: 0.44, alpha: 1), roughness: 0.45)
+                          : Self.solid(UIColor(red: 0.20, green: 0.23, blue: 0.28, alpha: 1), roughness: 0.5)
+        let dark = pitch ? PitchAntenatal.gloss(UIColor(white: 0.06, alpha: 1), roughness: 0.3) : Self.solid(UIColor(white: 0.07, alpha: 1), roughness: 0.4)
         func part(_ mesh: MeshResource, _ material: PhysicallyBasedMaterial, _ p: SIMD3<Float>, to parent: Entity? = nil) {
             let m = ModelEntity(mesh: mesh, materials: [material])
             m.position = p
@@ -359,6 +553,7 @@ final class UltrasoundScene {
         monitorMount.name = "ultrasound_monitor_mount"
         monitorMount.position = [0, 1.32, -0.168]
         cart.addChild(monitorMount)
+        if SmokeLog.pitch { PitchAntenatal.dressCart(cart) }
         panelMount.name = "ultrasound_panel_mount"
         panelMount.position = [0, 0.55, 0.31]
         panelMount.scale = [1.5, 1.5, 1.5]

@@ -74,6 +74,45 @@ class UltrasoundInfo(BaseModel):
     regions: list[UltrasoundRegion]
 
 
+class JourneyMember(BaseModel):
+    """An AI member of the medical team. Speaks lines the engine supplies, never free text."""
+    id: str
+    name: str
+    role: str
+
+
+class JourneyAction(BaseModel):
+    """Something the learner can ask the team to do in one place. Its result stays with the engine."""
+    id: str
+    label: str
+    member: str  # JourneyMember.id
+
+
+class JourneyLine(BaseModel):
+    """A scripted line a team member says when the encounter arrives somewhere. No clinical facts."""
+    member: str   # JourneyMember.id
+    speaker: str  # the member's name
+    text: str
+
+
+class JourneyStage(BaseModel):
+    id: str
+    label: str
+    setting: str
+    brief: str
+    team: list[str]                # member ids present here
+    noise: float = 0.0             # 0...1 background noise for the scene
+    arrival: list[JourneyLine] = []  # said in order on arrival (for stages[0]: at session start)
+    actions: list[JourneyAction]
+    investigations: list[str] = []  # investigation ids that can be requested here
+
+
+class JourneyInfo(BaseModel):
+    """Present only for continuous journey cases (roadside -> ambulance -> hospital)."""
+    team: list[JourneyMember]
+    stages: list[JourneyStage]
+
+
 class SessionConfig(BaseModel):
     """What the patient is like in this encounter. Never changes findings or scoring."""
     mood: str
@@ -97,6 +136,7 @@ class CasePublic(BaseModel):
     orthotics: Orthotics = Orthotics()
     catalog: CaseCatalog | None = None
     ultrasound: UltrasoundInfo | None = None  # only cases with a probe and a machine
+    journey: JourneyInfo | None = None        # only continuous journey cases
 
 
 class Health(BaseModel):
@@ -238,6 +278,36 @@ class ScanResult(BaseModel):
     repeat_count: int
 
 
+class StageRequest(BaseModel):
+    stage_id: str
+
+
+class StageResult(BaseModel):
+    stage_id: str
+    label: str
+    index: int    # 0-based position of the new stage
+    count: int
+    arrival: list[JourneyLine]  # what the team says on arrival, in order
+    voice_context: str          # context-only note for the voice agent ("" = none)
+
+
+class TeamActionRequest(BaseModel):
+    action_id: str
+
+
+class TeamActionResult(BaseModel):
+    stage_id: str
+    action_id: str
+    label: str
+    member: JourneyMember
+    done: bool               # false: a prerequisite is missing; nothing was done
+    response: str            # what the team member says
+    result: str | None       # what was done or measured (shown to the learner); null when not done
+    patient_response: str    # may be empty: the patient says nothing
+    voice_context: str       # a spoken event when patient_response is set, else a context-only note
+    repeat_count: int        # times done in this stage, this one included
+
+
 class InteractionRequest(BaseModel):
     role: Literal["learner", "patient"]
     text: str
@@ -362,6 +432,15 @@ class Feedback(BaseModel):
 
 class TokenResponse(BaseModel):
     token: str
+
+
+class VoiceUsage(BaseModel):
+    """ElevenLabs account credits (all usage of the account, not only the patient agent). Display only."""
+    tier: str | None = None
+    used: int
+    limit: int
+    remaining: int
+    next_reset_unix: int | None = None
 
 
 class ConversationSummary(BaseModel):

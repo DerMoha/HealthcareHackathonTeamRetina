@@ -15,6 +15,8 @@ SNUFFBOX = "right_anatomical_snuffbox"
 def library(tmp_path, monkeypatch):
     monkeypatch.setenv("MEDSIM_STUDIO_DB", str(tmp_path / "library.json"))
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    for var in ("AWS_ACCESS_KEY_ID", "AWS_PROFILE"):  # keep Bedrock out of the deterministic tests
+        monkeypatch.delenv(var, raising=False)
     studio.LIVE.clear()
     director.HUB.clear()
 
@@ -44,7 +46,8 @@ def event(client, sid, kind, event_id=None, **params):
 # P0 authoring
 
 def test_catalog_lists_only_supported_options(client):
-    t = client.get("/studio/catalog").json()[0]
+    t = next(t for t in client.get("/studio/catalog").json() if t["template_id"] == "wrist_trauma_001")
+    assert t["kind"] == "single" and t["stages"] == []
     assert [e["id"] for e in t["environments"]] == ["outpatient_clinic", "emergency_department", "community_clinic"]
     assert {e["id"] for e in t["unsupported_environments"]} == {"sports_sideline", "ambulance"}
     assert all(e["reason"] for e in t["unsupported_environments"])
@@ -93,8 +96,9 @@ def test_definition_is_complete_and_reproducible(client):
     assert "hidden" not in a and "marked_tenderness" not in json.dumps(a)
 
 
-def test_template_text_passes_its_own_clinical_rule():
-    t, case = studio.template("wrist_trauma_001"), main.SCENARIOS["wrist_trauma_001"]
+@pytest.mark.parametrize("tid", ["wrist_trauma_001", "road_trauma_journey_001", "trail_trauma_journey_001"])
+def test_template_text_passes_its_own_clinical_rule(tid):
+    t, case = studio.template(tid), main.SCENARIOS[tid]
     texts = [h["text"] for h in t["hints"]] + [l for v in t["bystander"]["lines"].values() for l in v] \
         + list(t["personalities"].values()) + [t["summary"], t["teammate"]["arrival_line"]]
     assert [x for x in texts if studio.clinical_claim(x, case, t)] == []
@@ -104,7 +108,7 @@ def test_template_text_passes_its_own_clinical_rule():
 
 def test_library_versions_review_states_and_sharing(client):
     seeded = client.get("/studio/scenarios").json()
-    assert {s["scenario_id"] for s in seeded} == {"scn_demo_clinic", "scn_demo_walkin"}
+    assert {s["scenario_id"] for s in seeded} == {"scn_demo_clinic", "scn_demo_walkin", "scn_demo_trail"}
     assert all(s["review_state"] == "experimental" and s["published_version"] == 1 for s in seeded)
 
     d = client.post("/studio/scenarios", json=config()).json()
@@ -335,7 +339,7 @@ def test_assist_is_deterministic_without_credentials(client):
     body = {"template_id": "wrist_trauma_001", "environment": "community_clinic", "difficulty": "challenging",
             "crowdedness": "busy", "tools": ["measuring_tape"], "bystander": "anxious_relative"}
     a, b = client.post("/studio/assist", json=body).json(), client.post("/studio/assist", json=body).json()
-    assert a == b and a["source"] == "template" and a["model"] is None
+    assert a == b and a["source"] == "demo" and a["model"] is None
     assert "safe_plan_without_imaging" in a["learning_objectives"] and "imaging_reasoning" not in a["learning_objectives"]
     assert len(a["bystander_lines"]) == 4
     # the draft is usable as it is
@@ -344,6 +348,18 @@ def test_assist_is_deterministic_without_credentials(client):
                  narrative={k: a[k] for k in ("description", "patient_personality", "bystander_lines")})
     assert client.post("/studio/validate", json=cfg).json()["valid"]
     assert client.post("/studio/assist", json=body | {"template_id": "nope"}).status_code == 404
+
+
+def test_demo_drafts_are_clean_for_every_choice():
+    import itertools
+    for t in studio.templates():
+        case = main.SCENARIOS[t["case_id"]]
+        for env, diff, crowd, by in itertools.product(*(
+                [o["id"] for o in t[k]] for k in ("environments", "difficulties", "crowdedness", "bystander_behaviors"))):
+            d = assist.template_draft(assist.AssistRequest(template_id=t["template_id"], environment=env, difficulty=diff,
+                                                           crowdedness=crowd, bystander=by), t)
+            assert all(not studio.clinical_claim(x, case, t) for x in [d.description, d.patient_personality, *d.bystander_lines])
+            assert len(d.description) < 600 and all(len(x) <= 160 for x in d.bystander_lines)
 
 
 def test_ai_draft_with_clinical_claims_is_rejected(monkeypatch):
@@ -356,7 +372,7 @@ def test_ai_draft_with_clinical_claims_is_rejected(monkeypatch):
             def parse(self, **kw):
                 return types.SimpleNamespace(stop_reason="end_turn", parsed_output=assist.AssistDraft(
                     description=text, patient_personality="Quiet.", bystander_lines=["Is it going to be okay?"],
-                    learning_objectives=["focused_history", "invented_objective"]))
+                    learning_objectives=["focused_history", "imaging_reasoning", "invented_objective"]))
         mod = types.ModuleType("anthropic")
         mod.Anthropic = lambda **kw: types.SimpleNamespace(messages=Messages())
         mod.APIError = RuntimeError
@@ -365,10 +381,69 @@ def test_ai_draft_with_clinical_claims_is_rejected(monkeypatch):
     req = assist.AssistRequest(template_id="wrist_trauma_001", environment="outpatient_clinic", difficulty="standard",
                                crowdedness="quiet", tools=ALL_TOOLS, bystander="calm_relative")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setenv("MEDSIM_LIVE_AI", "1")
     monkeypatch.setitem(sys.modules, "anthropic", fake("A patient with a scaphoid fracture."))
     bad = assist.draft(req, main.SCENARIOS)
     assert bad.source == "template" and "rejected" in bad.notes[0] and "scaphoid" in bad.notes[0]
     monkeypatch.setitem(sys.modules, "anthropic", fake("A calm afternoon clinic with time to talk."))
     ok = assist.draft(req, main.SCENARIOS)
-    assert ok.source == "llm" and ok.requires_review and ok.learning_objectives == ["focused_history"]
+    assert ok.source == "llm" and ok.requires_review and ok.learning_objectives == ["focused_history", "imaging_reasoning"]
     assert "invented_objective" in ok.notes[1]
+    no_kit = assist.draft(req.model_copy(update={"tools": ["measuring_tape"]}), main.SCENARIOS)
+    assert no_kit.learning_objectives == ["focused_history"] and "imaging_reasoning" in no_kit.notes[1]
+
+
+# Journey cases in the generator
+
+def journey_config(**over):
+    base = dict(template_id="road_trauma_journey_001", title="Night roadside", environment="night_rain",
+                difficulty="standard", crowdedness="moderate", tools=["xray_forearm", "bloods"],
+                learning_objectives=["handover"], seed=3)
+    return base | over
+
+
+def test_journey_template_is_in_the_catalog_with_its_places(client):
+    t = next(t for t in client.get("/studio/catalog").json() if t["template_id"] == "road_trauma_journey_001")
+    assert t["kind"] == "journey"
+    assert [s["id"] for s in t["stages"]] == ["scene", "ambulance", "hospital"]
+    assert all(s["team"] and s["actions"] for s in t["stages"])
+    assert [d["id"] for d in t["dimensions"]] == ["core", "management"]  # no wrist support to score
+    assert "open fracture" not in json.dumps(t).lower()
+
+
+def test_journey_scenario_shapes_noise_and_investigations_per_place(client):
+    d = client.post("/studio/scenarios", json=journey_config(advanced={"stage_noise": {"hospital": 0.9}})).json()
+    noise = {s["id"]: s["noise"] for s in d["journey"]["stages"]}
+    assert noise == {"scene": 0.75, "ambulance": 0.55, "hospital": 0.9}  # case + night rain 0.1 + onlookers 0.1
+    listed = next(x for x in client.get("/studio/scenarios").json() if x["scenario_id"] == d["scenario_id"])
+    assert listed["kind"] == "journey" and listed["stages"][0] == "At the roadside"
+    client.post(f"/studio/scenarios/{d['scenario_id']}/publish")
+    s = client.post("/sessions", json={"case_id": "road_trauma_journey_001", "scenario_code": d["code"]}).json()
+    case = s["case"]
+    assert [st["noise"] for st in case["journey"]["stages"]] == [0.75, 0.55, 0.9]
+    assert {i["id"] for i in case["investigations"]} == {"rt_xray_forearm", "rt_bloods"}  # CT left out
+    assert s["scenario"]["environment_label"] == "Night, heavy rain"
+
+
+def test_advanced_overrides_are_validated_and_applied(client):
+    bad = client.post("/studio/validate", json=journey_config(advanced={"stage_noise": {"moon": 0.2}})).json()
+    assert any(i["field"] == "advanced.stage_noise" and i["severity"] == "error" for i in bad["issues"])
+    wrist = client.post("/studio/validate", json=config(advanced={"stage_noise": {"scene": 0.2}})).json()
+    assert "only applies to journey" in json.dumps(wrist)
+    d = client.post("/studio/preview", json=config(
+        bystander="anxious_relative", difficulty="guided",
+        advanced={"hint_policy": "off", "interject_every_s": 45, "crowd_figures": 5})).json()
+    assert d["difficulty"]["hint_policy"] == "off"
+    assert d["companions"]["bystander"]["interject_every_s"] == 45
+    assert len(d["environment"]["crowd"]["figures"]) == 5
+
+
+def test_concurrent_first_loads_of_an_empty_library_do_not_fail(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from app import studio
+    from app.sessions import load_scenarios
+    monkeypatch.setenv("MEDSIM_STUDIO_DB", str(tmp_path / "library.json"))
+    lib = studio.Library(load_scenarios())
+    with ThreadPoolExecutor(8) as pool:  # each sees no file, seeds and saves at once
+        list(pool.map(lambda _: lib._load(), range(16)))
+    assert json.loads((tmp_path / "library.json").read_text()) and not list(tmp_path.glob("*.tmp"))

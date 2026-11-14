@@ -59,9 +59,9 @@
     { "id": "challenging", "label": "Challenging", "hint_policy": "off", "description": "No coaching unless the instructor switches it on during the session." }
   ],
   "crowdedness": [
-    { "id": "quiet", "label": "Quiet", "noise": 0.0, "figures": 0 },
-    { "id": "moderate", "label": "Moderate", "noise": 0.25, "figures": 2 },
-    { "id": "busy", "label": "Busy", "noise": 0.5, "figures": 4 }
+    { "id": "quiet", "label": "Quiet", "noise": 0.0, "figures": 0, "scene": "Nobody is waiting outside and there is time to talk." },
+    { "id": "moderate", "label": "Moderate", "noise": 0.25, "figures": 2, "scene": "A few people come and go, and a phone rings now and then." },
+    { "id": "busy", "label": "Busy", "noise": 0.5, "figures": 4, "scene": "The waiting area is full and the noise carries into the room." }
   ],
   "bystander_behaviors": [
     { "id": "none", "label": "No bystander" },
@@ -128,5 +128,41 @@
     "diagnos*", "avascular*", "necrosis", "non-union", "nonunion", "snuffbox", "snuff box",
     "x-ray shows", "x-ray showed", "mri shows", "mri showed", "ct shows", "ct showed",
     "blood pressure", "heart rate", "pulse of", "saturation*", "temperature of"
-  ]
+  ],
+  "demo_draft": {
+    "_doc": "Offline stand-in for the AI drafting assistant (assist.py): hand-written, non-clinical, combined per choice. Used unless MEDSIM_LIVE_AI=1.",
+    "scenes": {
+      "outpatient_clinic": "A bright outpatient room with the blinds half down, a box of gloves on the counter and the hum of the air vent filling the gaps in conversation.",
+      "emergency_department": "A curtained bay in a busy emergency department: monitors chime next door, trolleys rattle past and the curtain never quite closes.",
+      "community_clinic": "A cramped consulting room in a small walk-in clinic, its thin door letting through the reception phone and names being called. Nothing can be scanned in this building, so every decision about what to send on rests with the student."
+    },
+    "bystander": {
+      "calm": "{name} sits in the corner holding the coat and the bag, steady and quiet, ready to fill in a detail if asked.",
+      "anxious": "{name} will not sit down, hovers by the couch and cuts in whenever there is a pause, so the consultation has to hold together around the interruptions."
+    },
+    "pressure": {
+      "guided": "Coaching appears on its own, which makes this a good first run of the case.",
+      "standard": "Coaching only comes when the student asks for it.",
+      "challenging": "There is no coaching at all, and the student sets the pace and structure alone."
+    },
+    "personalities": {
+      "guided": "Open and chatty, Alex fills silences, adds small asides and answers fully once asked; easy to warm up, a little embarrassed about the fuss.",
+      "standard": "Polite but on edge, Alex answers what is asked in plain sentences, winces before speaking and relaxes noticeably when things are explained before they happen.",
+      "challenging": "Guarded and clipped, Alex gives one-line answers, glances at the door, and only opens up after a calm introduction and a clear reason for each question."
+    },
+    "lines": {
+      "calm": [
+        "Do you want me to step out, or is it fine if I stay?",
+        "I've got your phone, Alex, don't worry about it.",
+        "Shall I tell them about the bike, or do you want to?",
+        "Take your time. We're not in a rush."
+      ],
+      "anxious": [
+        "Sorry, can I just ask, how long is this going to take?",
+        "Everyone out there looks like they've been waiting for hours. Are you on your own today?",
+        "Can you say that again? I missed half of it with that phone ringing.",
+        "I'm not trying to get in the way. I'm just worried, that's all."
+      ]
+    }
+  }
 }

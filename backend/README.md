@@ -40,6 +40,7 @@ Copy `../.env.example` to `../.env` (repo root). Real environment variables win 
   audio body in, `{"text": ...}` out, via ElevenLabs Scribe `scribe_v2`). The app falls back to
   Apple speech recognition on 503 or any other failure.
 - `MEDSIM_SCENARIOS_DIR`: override the scenarios folder (default `../scenarios`).
+- `MEDSIM_TRACE=0`: turn off the test-run trace. By default every HTTP exchange (bodies included, secrets masked) and every director/runtime WebSocket frame is appended to `logs/events.jsonl`, and `logs/sessions/<id>.json` holds each session's latest full state (plus the scored debrief once diagnosed), so a restart loses nothing. `MEDSIM_LOG_DIR` moves the folder.
 
 ## Reaching the backend from the Vision Pro
 

@@ -1,18 +1,20 @@
 """FastAPI app: routes only; logic lives in sessions/examination/evaluation."""
 import os
 import re
+import time
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from . import evaluation, examination, fitting, studio, studio_routes, ultrasound
+from . import director, evaluation, examination, fitting, journey, studio, studio_routes, tracelog, ultrasound
 from .models import (ConversationSummary, DiagnoseRequest, ExamineRequest, ExamineResult, Feedback, Health,
                      InteractionCount, InteractionRequest, FitAck, FitRequest, FittingCheckRequest,
                      FittingCheckResult, GelResult, MeasurementRequest, ScanRequest, ScanResult, MeasurementResult, InvestigationRequest, InvestigationResult, SessionCreate, SessionInfo,
-                     TokenResponse, TranscriptionResponse, CasePublic)
+                     StageRequest, StageResult, TeamActionRequest, TeamActionResult,
+                     TokenResponse, TranscriptionResponse, CasePublic, VoiceUsage)
 from .sessions import SESSIONS, Session, create_session, load_scenarios, now_iso, public_case, resolve_config
 
 VERSION = "0.1.0"
@@ -38,6 +40,35 @@ app.include_router(_studio_router)
 _STUDIO_UI = Path(__file__).resolve().parents[2] / "studio" / "dist"
 if _STUDIO_UI.is_dir():  # built instructor interface (cd studio && npm run build)
     app.mount("/app", StaticFiles(directory=_STUDIO_UI, html=True), name="studio-ui")
+
+
+@app.middleware("http")
+async def trace(request: Request, call_next):
+    """Test-run trace (tracelog.py): request and response bodies, timing, and a session snapshot."""
+    path = request.url.path
+    if not tracelog.enabled() or path == "/health" or path.startswith("/app"):
+        return await call_next(request)
+    started = time.perf_counter()
+    raw = await request.body()
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        tracelog.event("http_error", method=request.method, path=path, error=f"{type(e).__name__}: {e}",
+                       request=tracelog.body(raw, request.headers.get("content-type")))
+        raise
+    out = b"".join([chunk async for chunk in response.body_iterator])
+    tracelog.event("http", method=request.method, path=path, query=str(request.url.query) or None,
+                   client=request.client.host if request.client else None, status=response.status_code,
+                   ms=round((time.perf_counter() - started) * 1000, 1),
+                   request=tracelog.body(raw, request.headers.get("content-type")),
+                   response=tracelog.body(out, response.headers.get("content-type")))
+    m = re.match(r"/sessions/([^/]+)", path)
+    s = SESSIONS.get(m.group(1)) if m else None
+    if s is not None:  # after diagnosis the snapshot also keeps the scored debrief
+        tracelog.snapshot(s, studio.LIVE.get(s.id),
+                          debrief=director.debrief(SCENARIOS[s.case_id], s) if s.diagnosis is not None else None)
+    return Response(out, status_code=response.status_code, headers=dict(response.headers),
+                    media_type=response.media_type)
 
 
 def _session(session_id: str) -> Session:
@@ -114,10 +145,31 @@ def examine(session_id: str, req: ExamineRequest):
 def investigations(session_id: str, req: InvestigationRequest):
     s = _session(session_id)
     _need(s, "investigation", req.investigation_id, "That investigation")
+    blocked = journey.investigation_error(SCENARIOS[s.case_id], s, req.investigation_id)
+    if blocked:
+        raise HTTPException(409, blocked)
     result = examination.investigate(SCENARIOS[s.case_id], s, req.investigation_id)
     if result is None:
         raise HTTPException(404, f"Unknown investigation '{req.investigation_id}'")
     return result
+
+
+@app.post("/sessions/{session_id}/stage", response_model=StageResult)
+def stage(session_id: str, req: StageRequest):
+    s = _session(session_id)
+    try:
+        return journey.advance(SCENARIOS[s.case_id], s, req.stage_id)
+    except journey.JourneyError as e:
+        raise HTTPException(e.status, e.detail)
+
+
+@app.post("/sessions/{session_id}/team-actions", response_model=TeamActionResult)
+def team_actions(session_id: str, req: TeamActionRequest):
+    s = _session(session_id)
+    try:
+        return journey.team_action(SCENARIOS[s.case_id], s, req.action_id)
+    except journey.JourneyError as e:
+        raise HTTPException(e.status, e.detail)
 
 
 @app.post("/sessions/{session_id}/measurements", response_model=MeasurementResult)
@@ -203,6 +255,30 @@ def conversation_token():
         # Never echo the upstream body or key; status code is enough to debug.
         raise HTTPException(502, f"ElevenLabs rejected the token request (HTTP {r.status_code}).")
     return TokenResponse(token=r.json()["token"])
+
+
+@app.get("/elevenlabs/usage", response_model=VoiceUsage)
+def voice_usage():
+    """Credits used and left on the ElevenLabs account, for the app's Settings. Needs only ELEVENLABS_API_KEY."""
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        raise HTTPException(503, "ElevenLabs is not configured: set ELEVENLABS_API_KEY.")
+    try:
+        r = httpx.get("https://api.elevenlabs.io/v1/user/subscription", headers={"xi-api-key": key}, timeout=10)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Could not reach ElevenLabs ({type(e).__name__}).")
+    if r.status_code != 200:
+        # Never echo the upstream body or key; status code is enough to debug.
+        raise HTTPException(502, f"ElevenLabs rejected the usage request (HTTP {r.status_code}).")
+    try:
+        body = r.json()
+        used, limit = int(body["character_count"]), int(body["character_limit"])
+        reset = body.get("next_character_count_reset_unix")
+        reset = int(reset) if reset is not None else None
+    except (ValueError, KeyError, TypeError):
+        raise HTTPException(502, "ElevenLabs sent an unexpected usage response.")
+    tier = body.get("tier") if isinstance(body.get("tier"), str) else None
+    return VoiceUsage(tier=tier, used=used, limit=limit, remaining=max(0, limit - used), next_reset_unix=reset)
 
 
 _CONVERSATION_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")

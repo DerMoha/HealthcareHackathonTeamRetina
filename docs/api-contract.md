@@ -32,6 +32,7 @@ See `scenarios/wrist_trauma_001.json`. Top-level keys:
 | `scripted_dialogue[]` → `id,learner,patient` | yes | offline fallback dialogue |
 | `scripted_dialogue[].patient_by_mood` | resolved by the engine | optional `{mood: line}`; replaces `patient` for that mood. Same clinical content, different manner |
 | `hidden.diagnosis`, `hidden.next_steps`, `hidden.rubric` | **no** | scoring |
+| `journey` (optional) | team and places: yes; responses, results, `requires` only via the endpoints | continuous journey case, see §8 |
 
 ### `catalog` (optional) and `persona`
 
@@ -69,6 +70,9 @@ sequence (interactions and examinations share one monotonically increasing `seq`
 | `examined_any` | any zone in `zones` was examined | `rule` |
 | `diagnosis_or_learner_said` | submitted diagnosis, the notebook's assessment section, or any learner turn contains a keyword; if `requires_examined` is set, at least one of those zones must also have been examined | `keyword` |
 | `diagnosis_matches` | diagnosis contains an `accepted_keywords` entry → full points; else a `partial_keywords` entry → half points (rounded down), `met=false`; else 0 | `rule` |
+| `team_action_any` | journey: one of `actions` was DONE by the team, while in one of `stages` (any stage when omitted); evidence `"<stage label>: <action label>"` | `rule` |
+| `learner_said_in_stage` | journey: a learner turn said while in one of `stages` contains a keyword | `keyword` |
+| `examined_after_action` | journey: one of `zones` was examined after the first DONE team action among `actions` (any stage) | `rule` |
 
 A criterion may carry `note_keywords`: phrases that count as the learner having *written the item down* in the notebook (same matching rule). They never award points; see §6 `documentation`.
 
@@ -307,3 +311,52 @@ The voice agent never decides fit: it receives `voice_note` (context) and `voice
 - `Feedback.replay`: `[{zone_id, label, important, examined, finding, pain_level, explanation}]`, one per examination zone, **empty before a diagnosis**. `explanation` is the zone's `teaching.contribution` if examined, else `teaching.missed`.
 - The app records each examination itself (`ExamEvent`: zone, action, finding, pain, seconds since start, patient pose, contact point in the zone's space when there was one, and the source: gaze-and-pinch, fingertip, fallback button, scripted test). Only `AppModel.examine` creates events; speech, tool calls and notes cannot. Only discrete zone events exist; no hand path is stored or drawn.
 - `POST /sessions/{id}/fitting` now also returns `comfortable`, `patient_response`, `voice_context`, `animation`: what the patient says unprompted when the fit is uncomfortable. The app waits 1.3 s after the last adjustment, speaks it once, and does not repeat the same complaint. It is not recorded as a comfort check.
+
+## 8. Continuous journey cases (`road_trauma_journey_001`, `trail_trauma_journey_001`)
+
+`trail_trauma_journey_001` is the forest-trail variant of the road case: same stage ids, team, action ids, investigation ids, findings and rubric; only the mechanism, the first stage's label/setting ("On the trail", "Forest trail, …") and the wording differ.
+
+A journey case moves through places in order (roadside → ambulance → emergency department) with an AI medical team. Every team line, measurement and result comes from the engine (`backend/app/journey.py`, mirrored in `OfflineClinicalEngine`); the voice model only routes requests. Engine state: `Session.stages` (moves after the first stage) and `Session.team_actions` (`seq, stage_id, action_id, done`), on the shared `seq`.
+
+### Scenario `journey`
+```json
+"journey": {
+  "team": [{"id": "sam", "name": "Sam", "role": "Paramedic"}],
+  "stages": [{
+    "id": "scene", "label": "At the roadside", "setting": "…", "brief": "…",
+    "team": ["sam", "lena"], "noise": 0.55, "investigations": [],
+    "arrival": [{"member": "sam", "text": "I'm Sam…"}],
+    "voice_context": "[Context only, do not speak now. You are now …]",
+    "actions": [{"id": "iv_analgesia", "label": "Give IV pain relief", "member": "lena",
+                 "requires": ["iv_access"], "blocked_response": "I'll need IV access first.",
+                 "response": "…", "result": "IV morphine 5 mg …", "patient_response": "…"}]
+  }]
+}
+```
+- The session starts in `stages[0]`. Action ids are unique within a stage and may repeat across stages with different results (`observations`).
+- `requires`: every listed action must have been DONE before (any stage), else the member answers `blocked_response` and the request is recorded with `done: false`.
+- An investigation listed in some stage's `investigations` can only be requested there (`409` elsewhere). Investigations listed nowhere are always available.
+
+### `CasePublic.journey` (null for other cases)
+`{ team: [{id,name,role}], stages: [{id,label,setting,brief,team,noise,arrival:[{member,speaker,text}],actions:[{id,label,member}],investigations}] }`. No responses, results, `requires`, `blocked_response` or stage `voice_context`.
+
+### `POST /sessions/{id}/stage`
+`{ "stage_id": "ambulance" }` → `{ stage_id, label, index, count, arrival: [{member,speaker,text}], voice_context }`. Only the next stage: `409` for skipping, going back or moving past the last stage; `404` unknown stage or a case without a journey. The app sends `voice_context` to the agent as a contextual update (never spoken) and speaks `arrival` in order.
+
+### `POST /sessions/{id}/team-actions`
+`{ "action_id": "observations" }` →
+```json
+{ "stage_id": "scene", "action_id": "observations", "label": "Take a set of observations",
+  "member": {"id": "lena", "name": "Lena", "role": "Emergency medical technician"},
+  "done": true, "response": "First set: heart rate 112, …", "result": "HR 112 · BP 124/78 · …",
+  "patient_response": "", "voice_context": "[Context only, do not speak now. Lena (…) just said: \"…\"]",
+  "repeat_count": 1 }
+```
+- `404` unknown action (or no journey), `409` action exists but not in the current stage.
+- `voice_context`: when `patient_response` is set, a spoken event (`[<name> (<role>) is helping you. Say out loud right now, … "<patient_response>"]`, sent with `sendExaminationEvent`); otherwise the context-only note above (sent with `sendContext`). `result` is null and `patient_response` empty when `done` is false. `repeat_count` = DONE requests of this action in this stage.
+- Team lines are **not** transcript turns and never earn keyword points.
+
+### Client tool `request_team_action(action)`
+Returns `success: …`, `blocked: <member> could not do it yet and said: …` or `failure: …`. The app validates the id against the current stage before calling the engine. Setup: `elevenlabs/setup.md` §5d.
+
+Swift: `ClinicalEngine.advanceStage(_:)`, `requestTeamAction(_:)` (default implementations throw for engines without journeys); `VoiceService.onTeamAction`. Parity fixtures: `backend/tests/fixtures/journey_parity_{input,expected}.json`.

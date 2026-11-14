@@ -1,0 +1,33 @@
+{
+  "_doc": "Fixed journey run for Swift/Python parity (case_id). Steps are applied in order against a fresh session; journey_parity_expected.json holds the public case, each stage/team/investigation result in order (errors as {\"error\": status}), and the final /diagnose response (session_id replaced by \"SESSION\"). The run asks for antibiotics at the roadside (409), checks the hand BEFORE the splint, has IV pain relief refused for lack of a cannula, says part of the handover in the ambulance, tries the X-ray in the ambulance (409), skips the scene photograph and tetanus, and writes a closed-fracture plan (unsafe).",
+  "case_id": "road_trauma_journey_001",
+  "config": {"mood": "nervous", "avatar": "female"},
+  "steps": [
+    {"op": "interaction", "role": "learner", "text": "Hello, I'm a medical student working with the ambulance crew. Can you tell me your name?"},
+    {"op": "interaction", "role": "patient", "text": "Jordan."},
+    {"op": "team", "action_id": "scene_safety"},
+    {"op": "team", "action_id": "iv_antibiotics"},
+    {"op": "examine", "body_part": "rt_right_hand"},
+    {"op": "team", "action_id": "haemorrhage_control"},
+    {"op": "examine", "body_part": "rt_forearm_wound"},
+    {"op": "team", "action_id": "splint_arm"},
+    {"op": "stage", "stage_id": "hospital"},
+    {"op": "stage", "stage_id": "ambulance"},
+    {"op": "team", "action_id": "iv_analgesia"},
+    {"op": "team", "action_id": "observations"},
+    {"op": "team", "action_id": "observations"},
+    {"op": "interaction", "role": "learner", "text": "Handover for the hospital: 34-year-old cyclist knocked off by a car."},
+    {"op": "investigate", "investigation_id": "rt_xray_forearm"},
+    {"op": "team", "action_id": "iv_access"},
+    {"op": "team", "action_id": "iv_analgesia"},
+    {"op": "stage", "stage_id": "hospital"},
+    {"op": "interaction", "role": "learner", "text": "Any allergies?"},
+    {"op": "team", "action_id": "iv_antibiotics"},
+    {"op": "investigate", "investigation_id": "rt_xray_forearm"},
+    {"op": "stage", "stage_id": "hospital"},
+    {"op": "diagnose", "diagnosis": "Fractured right radius and ulna",
+     "notes": {"history": "Cyclist hit by a car, landed on the right arm.",
+               "examination": "Bleeding wound over the right forearm. Fingers pink, sensation intact.",
+               "assessment": "Closed fracture, displaced on X-ray. Orthopaedic review."}}
+  ]
+}

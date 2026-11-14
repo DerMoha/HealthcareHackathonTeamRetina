@@ -229,6 +229,32 @@ def test_token_success(client, monkeypatch):
     assert client.get("/elevenlabs/conversation-token").json() == {"token": "t"}
 
 
+def test_usage_maps_subscription(client, monkeypatch):
+    import httpx
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "sk-secret")
+    body = {"tier": "free", "character_count": 12000, "character_limit": 10000,
+            "next_character_count_reset_unix": 1700000000, "xi_api_key": "sk-secret"}
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: httpx.Response(200, json=body))
+    r = client.get("/elevenlabs/usage")
+    assert r.json() == {"tier": "free", "used": 12000, "limit": 10000, "remaining": 0, "next_reset_unix": 1700000000}
+
+
+def test_usage_errors_hide_key(client, monkeypatch):
+    import httpx
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    assert client.get("/elevenlabs/usage").status_code == 503
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "sk-secret")
+    for upstream in (httpx.Response(401, json={"detail": "sk-secret"}), httpx.Response(200, json={"tier": "free"})):
+        monkeypatch.setattr(httpx, "get", lambda *a, _r=upstream, **k: _r)
+        r = client.get("/elevenlabs/usage")
+        assert r.status_code == 502 and "sk-secret" not in r.text
+
+    def boom(*a, **k):
+        raise httpx.ConnectTimeout("t")
+    monkeypatch.setattr(httpx, "get", boom)
+    assert client.get("/elevenlabs/usage").status_code == 502
+
+
 def test_transcribe_unconfigured_503(client, monkeypatch):
     monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
     r = client.post("/elevenlabs/transcribe", content=b"audio", headers={"content-type": "audio/mp4"})
@@ -752,3 +778,26 @@ def test_case_without_catalog_gets_calm_male_defaults():
     assert sessions.public_case(plain).catalog is None
     cfg = sessions.resolve_config(plain, None, None)
     assert sessions.public_case(plain, cfg).voice_context == plain["voice_context"]  # no persona: nothing appended
+
+
+def test_trace_logs_exchanges_and_snapshots_the_session(client, sid, trace_dir, monkeypatch):
+    monkeypatch.setenv("MEDSIM_TRACE", "1")
+    say(client, sid, "Where does it hurt?")
+    client.post(f"/sessions/{sid}/diagnose", json={"diagnosis": "distal radius fracture"})
+    client.get("/elevenlabs/conversation-token")  # masked if it ever returns a token
+    lines = [json.loads(l) for l in (trace_dir / "events.jsonl").read_text().splitlines()]
+    talk = next(l for l in lines if l["path"].endswith("/interactions"))
+    assert talk["status"] == 200 and talk["request"]["text"] == "Where does it hurt?" and talk["response"] == {"count": 1}
+    snap = json.loads((trace_dir / "sessions" / f"{sid}.json").read_text())
+    assert snap["session"]["interactions"][0]["text"] == "Where does it hurt?"
+    assert snap["session"]["diagnosis"] == "distal radius fracture" and snap["debrief"]["feedback"]
+    from app import tracelog
+    assert tracelog._redact({"token": "abc", "n": [{"api_key": "k"}]}) == {"token": "***", "n": [{"api_key": "***"}]}
+
+
+def test_trace_cuts_big_bodies_but_keeps_the_metadata(client, trace_dir, monkeypatch):
+    monkeypatch.setenv("MEDSIM_TRACE", "1")
+    client.get("/cases")  # well over the body limit
+    line = json.loads((trace_dir / "events.jsonl").read_text().splitlines()[-1])
+    assert line["path"] == "/cases" and line["status"] == 200 and line["pid"]
+    assert line["response"]["chars"] > len(line["response"]["truncated"])

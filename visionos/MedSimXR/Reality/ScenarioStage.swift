@@ -1,5 +1,6 @@
 import AVFoundation
 import RealityKit
+import SwiftUI
 import UIKit
 
 /// Something a companion says out loud. Never a transcript turn, so it cannot earn points.
@@ -14,33 +15,191 @@ struct SceneLine: Identifiable, Equatable {
 /// `ScenarioRuntime` whenever it changes (session start, instructor events); with no
 /// scenario the room is exactly the fixed default one.
 ///
-/// The people are deliberately plain figures and the noise is synthesised: this shows that
-/// the scenario reached the scene, it is not an attempt at a realistic ward.
+/// In a procedural place the people are deliberately plain figures. In a dressed place (realistic
+/// rooms, EnvironmentSet.dresses) the place shows the crew and the onlookers itself (PitchDressing.people),
+/// so here they get only their names and speech, and the bystander and helper are posed avatars
+/// (PitchCrowd) at the place's free spots: every person appears once. The noise is synthesised.
 @MainActor
 final class ScenarioStage {
     let root = Entity()
     private var ambient: AVAudioPlayer?
     private let synth = AVSpeechSynthesizer()
     private var bubble: Entity?
+    /// Speech bubble height per crew member in a dressed place (above their name caption).
+    private var speechHeights: [String: Float] = [:]
     private var bubbleTask: Task<Void, Never>?
     private var speakers: [String: Entity] = [:]
+    /// Journey cases: the place sign and the medical team there. Separate from `root` so a
+    /// Studio scenario rebuild never removes it.
+    private let journeyRoot = Entity()
+    private var journeySpeakers: [String: Entity] = [:]
+    private var journeyNoise = 0.0
+    private var journeyStatus = "no journey"
+    /// The dressed place the people stand in; nil = a procedural place (plain stand-in figures).
+    private var dressed: EnvironmentSet.Kind?
+    private var scenario: ScenarioRuntime?
+    private var journey: (stage: JourneyStage, team: [JourneyMember], position: Int, count: Int)?
 
     private static let bystanderSpot: SIMD3<Float> = [0.85, 0, -0.1]   // the patient's left, wearer's right
     private static let helperSpot: SIMD3<Float> = [-1.3, 0, -0.3]      // behind the equipment tray
+    /// Team members stand behind the patient, either side (patient faces +Z, the wearer is in front).
+    private static let teamSpots: [(SIMD3<Float>, Float)] = [([-1.05, 0, -0.45], 0.6), ([1.05, 0, -0.45], -0.6),
+                                                             ([0, 0, -1.25], 0)]
+    private static let teamShirts: [UIColor] = [.systemGreen, .systemYellow, .systemBlue, .systemTeal]
 
     func install(on avatar: PatientAvatar) {
         root.name = "scenario_stage"
         avatar.root.addChild(root)
+        journeyRoot.name = "journey_stage"
+        avatar.root.addChild(journeyRoot)
+        self.avatar = avatar
     }
 
     /// One line for the smoke log and the acknowledgement sent back to the instructor.
     private(set) var status = "no scenario"
 
+    /// The place the people are in now: `kind` when it is a dressed place, nil for a procedural one.
+    /// A change re-places the companions (each place has its own free spots and outfits) and the team's names.
+    func setPlace(_ kind: EnvironmentSet.Kind?) {
+        let kind = SmokeLog.pitch ? nil : kind // pitch shots: the stage as it always was
+        guard kind != dressed else { return }
+        let wasDressed = dressed != nil
+        dressed = kind
+        if let j = journey { showJourney(j.stage, team: j.team, position: j.position, count: j.count) }
+        if scenario != nil, kind != nil || wasDressed { sync(scenario) }
+    }
+
+    /// Journey case: sign for the current place, the team members there, and its noise.
+    /// `stage` nil (other cases) clears it.
+    func showJourney(_ stage: JourneyStage?, team: [JourneyMember], position: Int, count: Int) {
+        Array(journeyRoot.children).forEach { $0.removeFromParent() }
+        journeySpeakers = [:]; speechHeights = [:]
+        journey = stage.map { ($0, team, position, count) }
+        guard let stage else {
+            if journeyNoise > 0, !hasScenario { ambient?.stop(); ambient = nil }
+            journeyNoise = 0
+            journeyStatus = "no journey"
+            showInjury(nil)
+            return
+        }
+        let place = Self.pitchPlace(stage)
+        let sign = Self.titleCard(place, position: position, count: count)
+        sign.position = [0, 2.3, -0.6]
+        if SmokeLog.pitch { sign.position.x = -0.35; sign.scale = [0.8, 0.8, 0.8] } // pitch: clear of the ambulance grab pole and the conversation card
+        else if dressed == .ambulance { sign.position = [0, 1.88, -0.25]; sign.scale = [0.8, 0.8, 0.8] } // under the dressed compartment's 2.15 m ceiling
+        sign.components.set(BillboardComponent()) // square on to the wearer wherever they stand
+        journeyRoot.addChild(sign)
+        if sign.name != "journey_title_card" { // ImageRenderer can come back empty early in a launch: retry, then swap in the card
+            Task { @MainActor in
+                for _ in 0..<5 {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    guard let parent = sign.parent else { return }
+                    let card = Self.titleCard(place, position: position, count: count)
+                    guard card.name == "journey_title_card" else { continue }
+                    card.transform = sign.transform
+                    card.components.set(BillboardComponent())
+                    parent.addChild(card); sign.removeFromParent()
+                    return
+                }
+            }
+        }
+        for (i, member) in team.enumerated() where dressed != nil {
+            // The dressed place shows the crew member; their name and speech hang above them. Nobody
+            // there for them (Sam drives the ambulance): their lines come from behind the patient.
+            let anchor = Entity()
+            let spot = dressed.flatMap { PitchDressing.crewSpot($0, member.id) }
+            anchor.position = spot ?? [0.2 * Float(i), 0, -1.2]
+            if spot != nil {
+                let caption = Self.text("\(member.name) · \(member.role)", size: 0.03, color: .white)
+                let height = dressed.map { PitchDressing.crewCaptionHeight($0, member.id) } ?? 1.9
+                caption.position = [0, height, 0]
+                speechHeights[member.name] = height + 0.08 // just above the name, so a kneeling medic's line stays low
+                caption.components.set(BillboardComponent())
+                anchor.addChild(caption)
+            }
+            journeyRoot.addChild(anchor)
+            journeySpeakers[member.name] = anchor
+        }
+        for (i, member) in team.enumerated() where dressed == nil {
+            let (spot, turn) = Self.teamSpots[i % Self.teamSpots.count]
+            let figure = Self.person(shirt: Self.teamShirts[i % Self.teamShirts.count], height: 1.74,
+                                     label: "\(member.name) · \(member.role)")
+            figure.position = spot
+            figure.isEnabled = !SmokeLog.pitch // pitch shots: the crew speaks in subtitles instead of stand-in bodies
+            figure.orientation = simd_quatf(angle: turn, axis: [0, 1, 0])
+            journeyRoot.addChild(figure)
+            journeySpeakers[member.name] = figure
+        }
+        journeyNoise = stage.noise
+        if !hasScenario { setNoise(stage.noise, seed: UInt64(7 + position)) }
+        journeyStatus = "journey=\(stage.id) team=\(team.map(\.name)) noise=\(String(format: "%.2f", stage.noise))"
+        SmokeLog.mark("stage journey \(journeyStatus) noisePlaying=\(ambient?.isPlaying ?? false)")
+    }
+
+    private var hasScenario = false
+
+    /// Pitch `-pitchEnv forest`: the first stage is on a forest trail, not at the roadside.
+    private static func pitchPlace(_ stage: JourneyStage) -> JourneyStage {
+        guard SmokeLog.pitch, PitchCrowd.forest, stage.id == "scene" else { return stage }
+        var trail = stage
+        trail.label = "On the trail"
+        trail.setting = "Forest trail, a mountain bike off the path, hikers around"
+        return trail
+    }
+
+    // MARK: Injured patient (journey cases)
+
+    /// What the patient's injury looks like now. nil = no visible injury (other cases).
+    struct Injury: Equatable {
+        /// A saline-soaked dressing covers the wound (else it is an open, bleeding wound).
+        var dressed: Bool
+        /// The arm is in a splint from the hand to above the elbow.
+        var splinted: Bool
+    }
+
+    private weak var avatar: PatientAvatar?
+    private var injuryParts: [Entity] = []
+
+    /// Wound on the right forearm, then a dressing over it and a splint, as the team treats it.
+    /// Plain shapes on the forearm and wrist anchors, so they follow the arm in every pose.
+    func showInjury(_ injury: Injury?) {
+        injuryParts.forEach { $0.removeFromParent() }
+        injuryParts = []
+        guard let injury, let avatar else { return }
+        func add(_ mesh: MeshResource, _ color: UIColor, to anchor: String, at offset: SIMD3<Float>, scale: SIMD3<Float> = [1, 1, 1]) {
+            guard let parent = avatar.anchors[anchor] else { return }
+            let part = ModelEntity(mesh: mesh, materials: [SimpleMaterial(color: color, isMetallic: false)])
+            part.position = offset
+            part.scale = scale
+            part.components.remove(CollisionComponent.self) // never blocks an examination pinch
+            parent.addChild(part)
+            injuryParts.append(part)
+        }
+        let blood = UIColor(red: 0.55, green: 0.02, blue: 0.03, alpha: 1)
+        if injury.splinted {
+            add(.generateBox(size: [0.11, 0.42, 0.11], cornerRadius: 0.03), UIColor(red: 0.95, green: 0.55, blue: 0.1, alpha: 1),
+                to: "right_forearm", at: [0, -0.05, 0])
+        } else if injury.dressed {
+            add(.generateCylinder(height: 0.09, radius: 0.047), UIColor(white: 0.96, alpha: 1), to: "right_forearm", at: [0, 0, 0])
+            add(.generateSphere(radius: 0.018), blood, to: "right_forearm", at: [0, 0, 0.044], scale: [1.4, 1, 0.4])
+        } else {
+            // Open wound: a dark bleeding patch on the skin, a fragment showing, blood running towards the hand.
+            add(.generateSphere(radius: 0.03), blood, to: "right_forearm", at: [0, 0, 0.036], scale: [1.2, 1.6, 0.35])
+            add(.generateBox(size: [0.012, 0.03, 0.012], cornerRadius: 0.004), UIColor(white: 0.93, alpha: 1),
+                to: "right_forearm", at: [0, 0.004, 0.045])
+            add(.generateSphere(radius: 0.012), blood, to: "right_wrist", at: [0, 0, 0.03], scale: [1, 2.2, 0.4])
+        }
+        SmokeLog.mark("injury shown dressed=\(injury.dressed) splinted=\(injury.splinted) parts=\(injuryParts.count)")
+    }
+
     func sync(_ scenario: ScenarioRuntime?) {
         Array(root.children).forEach { $0.removeFromParent() }
         speakers = [:]; bubble = nil
+        self.scenario = scenario
+        hasScenario = scenario != nil
         guard let s = scenario else {
-            ambient?.stop(); ambient = nil
+            // A journey keeps the noise of its current place.
+            if journeyNoise > 0 { setNoise(journeyNoise, seed: 7) } else { ambient?.stop(); ambient = nil }
             status = "no scenario"
             return
         }
@@ -48,7 +207,14 @@ final class ScenarioStage {
         sign.position = [0, 2.05, -0.6]
         root.addChild(sign)
 
-        if let b = s.bystander {
+        if let b = s.bystander, let place = dressed {
+            let anxious = b.mood == "anxious"
+            let figure = Self.dressedPerson(.m, outfit: PitchDressing.outfits(place).bystander,
+                                            at: PitchDressing.spots(place).bystander, pose: anxious ? .standWorried : .standRelaxed,
+                                            label: "\(b.name) · \(b.roleLabel)\(anxious ? " · anxious" : "")")
+            root.addChild(figure)
+            speakers[b.name] = figure
+        } else if let b = s.bystander {
             let anxious = b.mood == "anxious"
             let figure = Self.person(shirt: anxious ? .systemOrange : .systemGreen, height: 1.68,
                                      label: "\(b.name) · \(b.roleLabel)\(anxious ? " · anxious" : "")")
@@ -57,7 +223,12 @@ final class ScenarioStage {
             root.addChild(figure)
             speakers[b.name] = figure
         }
-        if s.teammate.present {
+        if s.teammate.present, let place = dressed {
+            let figure = Self.dressedPerson(.f, outfit: PitchDressing.outfits(place).helper, at: PitchDressing.spots(place).helper,
+                                            pose: .armsCrossed, label: "\(s.teammate.name) · \(s.teammate.roleLabel)")
+            root.addChild(figure)
+            speakers[s.teammate.name] = figure
+        } else if s.teammate.present {
             let figure = Self.person(shirt: .systemIndigo, height: 1.72, label: "\(s.teammate.name) · \(s.teammate.roleLabel)")
             figure.position = Self.helperSpot
             figure.orientation = simd_quatf(angle: 0.6, axis: [0, 1, 0])
@@ -67,7 +238,9 @@ final class ScenarioStage {
         // People in the background: more of them as the noise goes up.
         let extra = max(0, Int((s.noiseLevel * 6).rounded()) - s.crowdFigures.count)
         let crowd = s.crowdFigures + (0..<extra).map { ScenarioRuntime.Figure(angleDeg: 135 + Float($0) * 31, distanceM: 3.6) }
-        for (i, f) in crowd.enumerated() {
+        // A dressed place shows the crowd itself (onlookers at the roadside / on the trail; indoors the
+        // crowd is the noise from outside the room).
+        for (i, f) in crowd.enumerated() where dressed == nil {
             let figure = Self.person(shirt: UIColor(white: 0.45 + 0.08 * CGFloat(i % 3), alpha: 1), height: 1.6 + 0.05 * Float(i % 3), label: nil)
             let a = f.angleDeg * .pi / 180
             figure.position = [sin(a) * f.distanceM, 0, cos(a) * f.distanceM]
@@ -78,6 +251,13 @@ final class ScenarioStage {
         status = "sign=\(s.environmentId) figures=\(speakers.count + crowd.count) "
             + "bystander=\(s.bystander?.mood ?? "none") helper=\(s.teammate.present) "
             + "noise=\(String(format: "%.2f", s.noiseLevel)) noisePlaying=\(ambient?.isPlaying ?? false)"
+            + " people=\(dressed.map { "dressed:\($0.rawValue)" } ?? "stand-ins")"
+    }
+
+    /// Background figures a Studio scenario asks for (its crowd plus more as the noise rises); a dressed
+    /// roadside or trail shows this many onlookers.
+    static func crowdCount(_ s: ScenarioRuntime) -> Int {
+        max(s.crowdFigures.count, Int((s.noiseLevel * 6).rounded()))
     }
 
     /// Speaks the line with the system voice and shows it above whoever said it.
@@ -88,8 +268,10 @@ final class ScenarioStage {
         synth.speak(utterance)
 
         bubble?.removeFromParent()
-        let text = Self.text("\(line.speaker): \u{201C}\(line.text)\u{201D}", size: 0.028, color: .systemYellow)
-        text.position = (speakers[line.speaker]?.position ?? [0, 0, 0]) + [0, 2.0, 0.05]
+        if SmokeLog.pitch { return } // the pitch conversation card shows the line instead
+        let text = Self.bubbleText("\(line.speaker): \u{201C}\(line.text)\u{201D}")
+        let speaker = speakers[line.speaker] ?? journeySpeakers[line.speaker]
+        text.position = (speaker?.position ?? [0, 0, 0]) + [0, speechHeights[line.speaker] ?? 2.0, 0.05]
         root.addChild(text)
         bubble = text
         bubbleTask?.cancel()
@@ -98,7 +280,7 @@ final class ScenarioStage {
             guard !Task.isCancelled, self?.bubble === text else { return }
             text.removeFromParent()
         }
-        SmokeLog.mark("scene line speaker=\(line.speaker) shown=\(speakers[line.speaker] != nil) text=\"\(line.text)\"")
+        SmokeLog.mark("scene line speaker=\(line.speaker) shown=\(speaker != nil) text=\"\(line.text)\"")
     }
 
     func stop() {
@@ -145,6 +327,19 @@ final class ScenarioStage {
 
     // MARK: Meshes
 
+    /// A Studio companion in a dressed place: a posed avatar (PitchCrowd) facing the patient, name above.
+    private static func dressedPerson(_ gender: PitchCrowd.Gender, outfit: String, at p: SIMD3<Float>, pose: PitchCrowd.BakedPose,
+                                      label: String) -> Entity {
+        let e = Entity()
+        e.position = p
+        PitchCrowd.person(pose, gender, outfit: outfit, in: e, at: .zero, facing: [-p.x, 0, 0.6 - p.z])
+        let caption = text(label, size: 0.03, color: .white)
+        caption.position = [0, 1.9, 0]
+        caption.components.set(BillboardComponent())
+        e.addChild(caption)
+        return e
+    }
+
     private static func person(shirt: UIColor, height: Float, label: String?) -> Entity {
         let e = Entity()
         let body = ModelEntity(mesh: .generateCylinder(height: height * 0.52, radius: 0.17),
@@ -165,7 +360,51 @@ final class ScenarioStage {
         return e
     }
 
+    /// The place sign: a title card drawn by SwiftUI onto a plane, crisp at any distance.
+    private static func titleCard(_ stage: JourneyStage, position: Int, count: Int) -> Entity {
+        let renderer = ImageRenderer(content: StageTitleCard(stage: stage, position: position, count: count))
+        renderer.scale = 3
+        guard let image = renderer.cgImage,
+              let texture = try? TextureResource(image: image, options: .init(semantic: .color)) else {
+            return text("Stage \(position + 1) of \(count)  ·  \(stage.label)", size: 0.05, color: .white)
+        }
+        var material = UnlitMaterial()
+        material.color = .init(tint: .white, texture: .init(texture))
+        material.blending = .transparent(opacity: .init(floatLiteral: 1))
+        let width: Float = 1.65
+        let plane = ModelEntity(mesh: .generatePlane(width: width, height: width * Float(image.height) / Float(image.width)),
+                                materials: [material])
+        plane.name = "journey_title_card"
+        return plane
+    }
+
     /// Centred text that always reads from the front of the room.
+    /// A spoken line above its speaker: wrapped to a short column, on a dark plate, turned to the wearer.
+    /// The holder's origin is the bottom centre, so long lines grow upwards instead of across the room.
+    private static func bubbleText(_ string: String) -> Entity {
+        var lines: [String] = [], current = ""
+        for word in string.split(separator: " ") {
+            if !current.isEmpty, current.count + word.count + 1 > 38 { lines.append(current); current = "" }
+            current += current.isEmpty ? String(word) : " " + word
+        }
+        if !current.isEmpty { lines.append(current) }
+        let mesh = MeshResource.generateText(lines.joined(separator: "\n"), extrusionDepth: 0.001,
+                                             font: .systemFont(ofSize: 0.028, weight: .semibold))
+        let b = mesh.bounds, pad: Float = 0.025
+        let model = ModelEntity(mesh: mesh, materials: [UnlitMaterial(color: .systemYellow)])
+        model.position = [-(b.min.x + b.extents.x / 2), pad - b.min.y, 0.002]
+        var plateMaterial = UnlitMaterial(color: UIColor(white: 0.05, alpha: 1))
+        plateMaterial.blending = .transparent(opacity: 0.7)
+        let plate = ModelEntity(mesh: .generatePlane(width: b.extents.x + 2 * pad, height: b.extents.y + 2 * pad, cornerRadius: 0.02),
+                                materials: [plateMaterial])
+        plate.position = [0, (b.extents.y + 2 * pad) / 2, 0]
+        let holder = Entity()
+        holder.addChild(plate)
+        holder.addChild(model)
+        holder.components.set(BillboardComponent())
+        return holder
+    }
+
     private static func text(_ string: String, size: CGFloat, color: UIColor) -> Entity {
         let mesh = MeshResource.generateText(string, extrusionDepth: 0.001, font: .systemFont(ofSize: size, weight: .semibold))
         let model = ModelEntity(mesh: mesh, materials: [UnlitMaterial(color: color)])
@@ -173,5 +412,56 @@ final class ScenarioStage {
         let holder = Entity()
         holder.addChild(model)
         return holder
+    }
+}
+
+/// Stage sign of a journey case: where the encounter is now, and how far along the journey.
+private struct StageTitleCard: View {
+    let stage: JourneyStage
+    let position: Int
+    let count: Int
+
+    private var symbol: String {
+        switch stage.id {
+        case "scene" where EnvironmentSet.Kind.resolve([stage.setting]) == .forest: "bicycle"
+        case "scene": "car.side.rear.and.collision.and.car.side.front"
+        case "ambulance": "staroflife.fill"
+        default: "cross.case.fill"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 26) {
+            Image(systemName: symbol)
+                .font(.system(size: 44, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 104, height: 104)
+                .background(LinearGradient(colors: [Color(red: 0.1, green: 0.72, blue: 0.7), Color(red: 0.03, green: 0.45, blue: 0.5)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing),
+                            in: .rect(cornerRadius: 26))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    Text("STAGE \(position + 1) OF \(count)")
+                        .font(.system(size: 21, weight: .heavy)).tracking(2.4)
+                        .foregroundStyle(Color(red: 0.35, green: 0.9, blue: 0.85))
+                    HStack(spacing: 6) {
+                        ForEach(0..<count, id: \.self) { i in
+                            Capsule().fill(i <= position ? Color(red: 0.35, green: 0.9, blue: 0.85) : .white.opacity(0.22))
+                                .frame(width: i == position ? 56 : 30, height: 9)
+                        }
+                    }
+                }
+                Text(stage.label).font(.system(size: 50, weight: .bold)).foregroundStyle(.white)
+                Text(stage.setting).font(.system(size: 25, weight: .medium)).foregroundStyle(.white.opacity(0.78)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.leading, 26).padding(.trailing, 44).padding(.vertical, 24)
+        .frame(width: 900, alignment: .leading)
+        .background(LinearGradient(colors: [Color(red: 0.08, green: 0.1, blue: 0.13).opacity(0.97),
+                                            Color(red: 0.04, green: 0.05, blue: 0.07).opacity(0.95)],
+                                   startPoint: .top, endPoint: .bottom),
+                    in: .rect(cornerRadius: 36))
+        .overlay(RoundedRectangle(cornerRadius: 36).strokeBorder(.white.opacity(0.16), lineWidth: 2))
+        .environment(\.colorScheme, .dark)
     }
 }

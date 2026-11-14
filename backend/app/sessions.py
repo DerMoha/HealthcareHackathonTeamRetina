@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .models import CaseCatalog, CasePublic, SessionConfig, UltrasoundInfo
+from .models import CaseCatalog, CasePublic, JourneyInfo, SessionConfig, UltrasoundInfo
 
 
 def now_iso() -> str:
@@ -55,6 +55,22 @@ def ultrasound_of(s: dict) -> UltrasoundInfo | None:
     return UltrasoundInfo(regions=[{k: r[k] for k in ("id", "label", "attach_to", "radius")} for r in us["regions"]])
 
 
+def journey_of(s: dict) -> JourneyInfo | None:
+    """Public team and places of a journey case: no responses, results or prerequisites (journey.py)."""
+    j = s.get("journey")
+    if j is None:
+        return None
+    names = {m["id"]: m["name"] for m in j["team"]}
+    return JourneyInfo(
+        team=[{k: m[k] for k in ("id", "name", "role")} for m in j["team"]],
+        stages=[{"id": st["id"], "label": st["label"], "setting": st["setting"], "brief": st["brief"],
+                 "team": st["team"], "noise": st.get("noise", 0.0),
+                 "arrival": [{"member": a["member"], "speaker": names.get(a["member"], a["member"]), "text": a["text"]}
+                             for a in st.get("arrival", [])],
+                 "actions": [{k: a[k] for k in ("id", "label", "member")} for a in st["actions"]],
+                 "investigations": st.get("investigations", [])} for st in j["stages"]])
+
+
 def resolve_config(s: dict, mood: str | None, avatar: str | None) -> SessionConfig:
     """Requested values validated against the case; omitted ones come from the case defaults.
     Raises ValueError (-> HTTP 422) for a value the case does not allow."""
@@ -100,6 +116,7 @@ def public_case(s: dict, config: SessionConfig | None = None) -> CasePublic:
         investigations=[{"id": i["id"], "label": i["label"]} for i in s.get("investigations", [])],
         catalog=catalog_of(s),
         ultrasound=ultrasound_of(s),
+        journey=journey_of(s),
     )
 
 
@@ -118,6 +135,8 @@ class Session:
     checks: list[dict] = field(default_factory=list)        # seq, check
     gels: list[dict] = field(default_factory=list)          # seq
     scans: list[dict] = field(default_factory=list)         # seq, region_id, view_id (or None), gel, quality
+    stages: list[dict] = field(default_factory=list)        # seq, stage_id (moves after the first stage)
+    team_actions: list[dict] = field(default_factory=list)  # seq, stage_id, action_id, done
     diagnosis: str | None = None
     notes: dict | None = None  # see models.Notes (set on diagnose)
 

@@ -50,6 +50,14 @@ class Narrative(BaseModel):
     source: Literal["template", "instructor", "llm"] = "template"
 
 
+class Advanced(BaseModel):
+    """Advanced-mode overrides. Each one is optional; unset means "what the basic choices imply"."""
+    hint_policy: Literal["auto", "on_request", "off"] | None = None   # coaching, instead of the difficulty's
+    interject_every_s: int | None = Field(None, ge=10, le=120)       # how often the bystander speaks up
+    crowd_figures: int | None = Field(None, ge=0, le=8)              # background figures, instead of the crowd level's
+    stage_noise: dict[str, float] = Field(default_factory=dict)      # journey: stage id -> noise 0..1
+
+
 class ScenarioConfig(BaseModel):
     """What the instructor chooses. Every id must exist in the template."""
     template_id: str
@@ -62,6 +70,7 @@ class ScenarioConfig(BaseModel):
     teammate: str = "none"
     learning_objectives: list[str]
     narrative: Narrative = Narrative()
+    advanced: Advanced = Advanced()
     seed: int | None = Field(None, ge=0, le=2**31 - 1)
 
 
@@ -115,6 +124,7 @@ class ScenarioDefinition(BaseModel):
     clinical_rules: dict        # case_id, immutable_facts, findings_sha256, statement, constraints[]
     assessment: dict            # dimensions[DimensionRule], learning_objectives[{id,label}], note
     narrative: dict             # description, patient_personality, source, ai_generated
+    journey: dict | None = None # journey cases: stages[{id,label,setting,team[],noise,actions}] in the case's fixed order
     origin: dict | None = None  # set on import / duplicate
 
 
@@ -170,9 +180,26 @@ def catalog(cases: dict[str, dict]) -> list[dict]:
         keys = ("template_id", "case_id", "label", "summary", "clinical_review", "environments",
                 "unsupported_environments", "equipment", "difficulties", "crowdedness",
                 "bystander_behaviors", "teammate_behaviors", "learning_objectives")
-        out.append({k: t[k] for k in keys} | {"hints": [h["text"] for h in t["hints"]],
-                                              "dimensions": [d.model_dump() for d in assessability(case, t, {e["id"] for e in t["equipment"]})]})
+        out.append({k: t[k] for k in keys} | {
+            "hints": [h["text"] for h in t["hints"]],
+            "dimensions": [d.model_dump() for d in assessability(case, t, {e["id"] for e in t["equipment"]})],
+            "kind": "journey" if case.get("journey") else "single",
+            "stages": journey_stages(case),
+            "patient": {"name": case["patient"]["name"], "age": case["patient"]["age"]},
+            "fixed_facts": IMMUTABLE_FACTS,
+        })
     return out
+
+
+def journey_stages(case: dict, noise: dict[str, float] | None = None) -> list[dict]:
+    """The places of a journey case in their fixed order (empty for a single-room case)."""
+    j = case.get("journey")
+    if not j:
+        return []
+    names = {m["id"]: f"{m['name']} ({m['role']})" for m in j["team"]}
+    return [{"id": s["id"], "label": s["label"], "setting": s["setting"], "team": [names[m] for m in s["team"]],
+             "noise": (noise or {}).get(s["id"], s.get("noise", 0.0)), "actions": len(s["actions"])}
+            for s in j["stages"]]
 
 
 def forbidden_terms(case: dict, t: dict) -> list[str]:
@@ -222,10 +249,12 @@ def assessability(case: dict, t: dict, available: set[str]) -> list[DimensionRul
                          achievable_max=core, not_assessable=[])]
     for dim, possible, reason in (
         ("management", lambda c: _management_possible(c, invs), "The investigation it depends on is not available in this scenario."),
-        ("fitting", lambda c: _fitting_possible(c, sizes, tape, hidden["fitting"]["reference"]),
+        ("fitting", lambda c: _fitting_possible(c, sizes, tape, hidden.get("fitting", {}).get("reference", {})),
          "The equipment it depends on is not available in this scenario."),
     ):
-        spec = hidden[dim] if dim == "management" else hidden[dim]["rubric"]
+        spec = hidden.get(dim) if dim == "management" else (hidden.get(dim) or {}).get("rubric")
+        if not spec:  # this case does not score that dimension (e.g. no wrist support in a journey)
+            continue
         blocked = [{"id": c["id"], "label": c["label"], "points": c["points"], "reason": reason}
                    for c in spec["criteria"] if not possible(c["check"])]
         out.append(DimensionRule(id=dim, title=spec["title"], max_score=spec["max_score"],
@@ -296,6 +325,17 @@ def validate(config: ScenarioConfig, cases: dict[str, dict]) -> list[Issue]:
     if n.bystander_lines and config.bystander == "none":
         warn("narrative.bystander_lines", "Bystander lines are set but no bystander is in the scenario.")
 
+    a = config.advanced
+    stage_ids = {s["id"] for s in (case.get("journey") or {}).get("stages", [])}
+    for sid, level in a.stage_noise.items():
+        if sid not in stage_ids:
+            err("advanced.stage_noise", f"'{sid}' is not a place in this case." if stage_ids
+                else "Per-place noise only applies to journey cases.")
+        elif not 0 <= level <= 1:
+            err("advanced.stage_noise", f"Noise for '{sid}' must be between 0 and 100%.")
+    if a.interject_every_s is not None and config.bystander == "none":
+        warn("advanced.interject_every_s", "A bystander interval is set but no bystander is in the scenario.")
+
     if not any(i.severity == "error" for i in issues):
         for d in assessability(case, t, available):
             for b in d.not_assessable:
@@ -348,8 +388,16 @@ def generate(config: ScenarioConfig, cases: dict[str, dict], scenario_id: str | 
             lines[mood] = list(n.bystander_lines)
         bystander = {"name": b["name"], "role_label": b["role_label"], "mood": mood, "lines": lines,
                      "interject_every_s": rng.choice([20, 25, 30])}
+        if config.advanced.interject_every_s:
+            bystander["interject_every_s"] = config.advanced.interject_every_s
+    count = crowd["figures"] if config.advanced.crowd_figures is None else config.advanced.crowd_figures
     figures = [{"angle_deg": round(rng.uniform(100, 260)), "distance_m": round(rng.uniform(2.2, 3.4), 1)}
-               for _ in range(crowd["figures"])]
+               for _ in range(count)]
+    ambient = round(min(1.0, env["ambient_level"] + crowd["noise"]), 2)
+    # Places keep the case's noise plus the setting's and crowd's, unless set per place.
+    stages = journey_stages(case)
+    stage_noise = {s["id"]: config.advanced.stage_noise.get(s["id"], round(min(1.0, s["noise"] + ambient), 2))
+                   for s in stages}
     dims = assessability(case, t, available)
     hints = [{"id": h["id"], "text": h["text"]} for h in t["hints"] if _hint_fits(h, t, available)]
 
@@ -361,13 +409,14 @@ def generate(config: ScenarioConfig, cases: dict[str, dict], scenario_id: str | 
         seed=seed, config=config,
         environment={"id": env["id"], "label": env["label"], "brief": env["brief"],
                      "setting_context": env["setting_context"],
-                     "ambient_level": round(min(1.0, env["ambient_level"] + crowd["noise"]), 2),
+                     "ambient_level": ambient,
                      "crowd": {"id": crowd["id"], "label": crowd["label"], "figures": figures}},
         resources=resources,
         companions={"bystander": bystander,
                     "teammate": {"name": t["teammate"]["name"], "role_label": t["teammate"]["role_label"],
                                  "present": config.teammate == "nurse_present"}},
-        difficulty={"id": level["id"], "label": level["label"], "hint_policy": level["hint_policy"],
+        difficulty={"id": level["id"], "label": level["label"],
+                    "hint_policy": config.advanced.hint_policy or level["hint_policy"],
                     "description": level["description"], "hints": hints},
         clinical_rules={
             "case_id": case["case_id"], "immutable_facts": IMMUTABLE_FACTS, "findings_sha256": findings_hash(case),
@@ -382,6 +431,7 @@ def generate(config: ScenarioConfig, cases: dict[str, dict], scenario_id: str | 
         narrative={"description": n.description or t["summary"],
                    "patient_personality": n.patient_personality or t["personalities"][level["id"]],
                    "source": n.source, "ai_generated": n.source == "llm"},
+        journey={"stages": journey_stages(case, stage_noise)} if stages else None,
         origin=origin,
     )
 
@@ -412,6 +462,11 @@ SEEDS = [
         tools=["measuring_tape", "wrist_support_small", "wrist_support_large"],
         learning_objectives=["consent_and_empathy", "systematic_examination", "safe_plan_without_imaging",
                              "communication_under_pressure"])),
+    ("scn_demo_trail", ScenarioConfig(
+        template_id="trail_trauma_journey_001", title="Forest trail with hikers (standard)", environment="daytime",
+        difficulty="standard", crowdedness="moderate", bystander="calm_relative", seed=303,
+        tools=["xray_forearm", "ct_head", "bloods"],
+        learning_objectives=["scene_safety", "team_working", "reassess_on_move", "handover", "imaging_reasoning"])),
 ]
 
 
@@ -428,7 +483,7 @@ class Library:
         if path.is_file():
             return json.loads(path.read_text(encoding="utf-8"))
         data = {}
-        for sid, config in SEEDS:  # two variants of the same case, published as experimental
+        for sid, config in SEEDS:  # two wrist variants and the forest-trail journey, published as experimental
             if template(config.template_id) and template(config.template_id)["case_id"] in self.cases:
                 d = generate(config, self.cases, scenario_id=sid)
                 d.review.state = "experimental"
@@ -439,7 +494,7 @@ class Library:
     def _save(self, data: dict) -> None:
         path = _db_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
+        tmp = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")  # own temp file: concurrent first loads all seed and save
         tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")
         tmp.replace(path)
 
@@ -465,7 +520,9 @@ class Library:
                         "published_version": rec["published_version"], "template_id": d.config.template_id,
                         "environment": d.environment["label"], "difficulty": d.difficulty["label"],
                         "crowdedness": d.environment["crowd"]["label"], "created_at": d.created_at,
-                        "ai_generated": d.narrative["ai_generated"], "origin": d.origin})
+                        "ai_generated": d.narrative["ai_generated"], "origin": d.origin,
+                        "kind": "journey" if d.journey else "single",
+                        "stages": [st["label"] for st in (d.journey or {}).get("stages", [])]})
         return sorted(out, key=lambda s: s["created_at"], reverse=True)
 
     def get(self, scenario_id: str, version: int | None = None) -> ScenarioDefinition:
@@ -643,7 +700,12 @@ def shape_case(case: CasePublic, live: Live) -> CasePublic:
     if live.teammate_present:
         context.append(t["teammate"]["context"])
     context.append(f"Your manner: {d.narrative['patient_personality']}")
-    return case.model_copy(update={
+    update = {}
+    if case.journey and d.journey:
+        noise = {st["id"]: st["noise"] for st in d.journey["stages"]}
+        update["journey"] = case.journey.model_copy(update={"stages": [
+            st.model_copy(update={"noise": noise.get(st.id, st.noise)}) for st in case.journey.stages]})
+    return case.model_copy(update=update | {
         "learner_brief": brief,
         "voice_context": case.voice_context + "\n\nENCOUNTER SETTING (manner and surroundings only; "
                                               "it never changes the facts above):\n" + "\n".join(f"- {c}" for c in context),

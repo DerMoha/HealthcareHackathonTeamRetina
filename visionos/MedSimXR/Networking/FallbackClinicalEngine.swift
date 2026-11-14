@@ -79,6 +79,16 @@ final class FallbackClinicalEngine: ClinicalEngine {
         return try await route({ try await primary.scan(regionId: regionId, gelApplied: gelApplied) }, shadow: { try shadow.get() })
     }
 
+    func advanceStage(_ stageId: String) async throws -> StageResult {
+        let shadow = await Result { try await offline.advanceStage(stageId) }
+        return try await route({ try await primary.advanceStage(stageId) }, shadow: { try shadow.get() })
+    }
+
+    func requestTeamAction(_ actionId: String) async throws -> TeamActionResult {
+        let shadow = await Result { try await offline.requestTeamAction(actionId) }
+        return try await route({ try await primary.requestTeamAction(actionId) }, shadow: { try shadow.get() })
+    }
+
     func recordInteraction(_ turn: TranscriptTurn) async {
         await offline.recordInteraction(turn)
         if usingPrimary { await primary.recordInteraction(turn) }

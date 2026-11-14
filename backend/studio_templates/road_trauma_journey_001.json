@@ -1,0 +1,156 @@
+{
+  "_doc": "MedSim Studio template for the continuous journey case road_trauma_journey_001 (roadside -> ambulance -> emergency department). Everything an instructor can choose is listed here; nothing here adds or changes clinical findings, team results, the order of the places or scoring rules of the case. Hints and companion lines are generic good-practice prompts and non-clinical speech. Not reviewed by a clinician.",
+  "template_id": "road_trauma_journey_001",
+  "case_id": "road_trauma_journey_001",
+  "label": "Road accident: cyclist, roadside to hospital (journey)",
+  "summary": "Jordan, 34, is knocked off a bicycle by a car. The student works with the ambulance crew at the roadside, stays with Jordan in the ambulance and hands over to the emergency team at the hospital.",
+  "clinical_review": "Case content is not clinician-reviewed.",
+  "brief_base": "Jordan, 34, has been knocked off a bicycle by a car. Work with the ambulance crew at the roadside, look after Jordan in the ambulance and hand over at the hospital. Record your assessment and plan in the notebook.",
+  "environments": [
+    {
+      "id": "daytime",
+      "label": "Daytime, dry road",
+      "ambient_level": 0.0,
+      "brief": "Setting: a weekday afternoon, dry weather.",
+      "setting_context": "It is a dry weekday afternoon.",
+      "unsupported_equipment": []
+    },
+    {
+      "id": "night_rain",
+      "label": "Night, heavy rain",
+      "ambient_level": 0.1,
+      "brief": "Setting: late evening, dark and raining heavily at the roadside.",
+      "setting_context": "It is late in the evening, dark and raining heavily. You are cold and wet at the roadside.",
+      "unsupported_equipment": []
+    },
+    {
+      "id": "rural_long_transfer",
+      "label": "Country road, long transfer (no CT on site)",
+      "ambient_level": 0.05,
+      "brief": "Setting: a quiet country road; the nearest hospital is a small one without a CT scanner.",
+      "setting_context": "The accident happened on a quiet country road far from a big hospital.",
+      "unsupported_equipment": ["ct_head"]
+    }
+  ],
+  "unsupported_environments": [
+    {
+      "id": "single_room",
+      "label": "One clinic room",
+      "reason": "This case is a journey across three places (roadside, ambulance, emergency department) with a different team in each. It cannot be squeezed into a single room."
+    },
+    {
+      "id": "next_day_clinic",
+      "label": "Seen the next day",
+      "reason": "The reviewed timeline is the first hour after the accident. A next-day visit would need a different history and findings."
+    }
+  ],
+  "equipment": [
+    {"id": "xray_forearm", "label": "Forearm X-ray (at the hospital)", "kind": "investigation", "ref": "rt_xray_forearm"},
+    {"id": "ct_head", "label": "CT head (at the hospital)", "kind": "investigation", "ref": "rt_ct_head"},
+    {"id": "bloods", "label": "Blood tests (at the hospital)", "kind": "investigation", "ref": "rt_bloods"}
+  ],
+  "difficulties": [
+    {"id": "guided", "label": "Guided", "hint_policy": "auto", "description": "Coaching hints appear on their own as the journey goes on."},
+    {"id": "standard", "label": "Standard", "hint_policy": "on_request", "description": "Coaching hints only when the student asks for one."},
+    {"id": "challenging", "label": "Challenging", "hint_policy": "off", "description": "No coaching unless the instructor switches it on during the session."}
+  ],
+  "crowdedness": [
+    {"id": "quiet", "label": "No onlookers", "noise": 0.0, "figures": 0, "scene": "The road is empty apart from the crew."},
+    {"id": "moderate", "label": "A few onlookers", "noise": 0.1, "figures": 2, "scene": "A couple of passers-by have stopped to watch."},
+    {"id": "busy", "label": "A crowd gathers", "noise": 0.2, "figures": 4, "scene": "A small crowd gathers, talking and filming on their phones."}
+  ],
+  "bystander_behaviors": [
+    {"id": "none", "label": "No bystander"},
+    {"id": "calm_relative", "label": "Calm driver of the car", "mood": "calm"},
+    {"id": "anxious_relative", "label": "Distressed driver who interrupts", "mood": "anxious"}
+  ],
+  "bystander": {
+    "name": "Chris",
+    "role_label": "Driver of the car",
+    "context": "Chris, the driver of the car that hit you, has stopped and is standing nearby.",
+    "anxious_context": "Chris, the driver of the car, is distressed and keeps interrupting. It makes you a little tense, but the facts of what happened do not change.",
+    "lines": {
+      "calm": [
+        "I've parked the car safely. Tell me if I can help.",
+        "I called the ambulance straight away.",
+        "I'll wait here and give my details to the police."
+      ],
+      "anxious": [
+        "I didn't see him, he came out of nowhere. Is he going to be all right?",
+        "Should I be doing something? Tell me what to do.",
+        "Oh no, oh no. This is all my fault.",
+        "Sorry. I'll stay out of the way."
+      ]
+    }
+  },
+  "teammate_behaviors": [
+    {"id": "none", "label": "Only the ambulance and hospital teams"},
+    {"id": "nurse_present", "label": "A fellow student rides along from the start"}
+  ],
+  "teammate": {
+    "name": "Noor",
+    "role_label": "Fellow student",
+    "arrival_line": "Hi, I'm Noor, I'm on the ride-along too. Tell me what you need and I'll get it.",
+    "delivery_line": "Done: {item} can be requested now.",
+    "context": "Another student called Noor is on the ride-along and helps the student."
+  },
+  "personalities": {
+    "guided": "Shaken but talkative; answers fully when asked.",
+    "standard": "Shaken and in pain; answers what is asked.",
+    "challenging": "Frightened and short with people; answers only what is asked and needs to be calmed first."
+  },
+  "learning_objectives": [
+    {"id": "scene_safety", "label": "Check the scene is safe and do a structured first look at the patient"},
+    {"id": "team_working", "label": "Work with the team: ask clearly for what you need and listen to what they report"},
+    {"id": "reassess_on_move", "label": "Reassess the patient after every move and every treatment"},
+    {"id": "handover", "label": "Give a clear, structured handover at the hospital"},
+    {"id": "imaging_reasoning", "label": "Choose investigations at the hospital and say what they change", "needs_kind": "investigation"},
+    {"id": "communication_under_pressure", "label": "Keep communicating clearly with a distressed bystander and a noisy scene"}
+  ],
+  "hints": [
+    {"id": "introduce", "text": "Introduce yourself to the patient and the crew, and check the scene is safe.", "when": {"type": "no_learner_turns"}},
+    {"id": "permission", "text": "Before you touch the patient, ask for permission.", "when": {"type": "no_examination"}},
+    {"id": "ask_team", "text": "You are not alone: ask the team out loud for what you need, for example a set of observations.", "when": {"type": "always"}},
+    {"id": "compare", "text": "Examine more than one area, and look again after the team has treated the patient.", "when": {"type": "examined_fewer_than", "count": 2}},
+    {"id": "acknowledge_pain", "text": "If an examination hurt, acknowledge it before you carry on.", "when": {"type": "pain_not_acknowledged"}},
+    {"id": "imaging", "text": "At the hospital, decide which investigations would change what happens next.", "when": {"type": "not_ordered"}, "needs_kind": "investigation"},
+    {"id": "write_plan", "text": "Write your assessment and plan in the notebook, then submit.", "when": {"type": "always"}}
+  ],
+  "forbidden_terms": ["diagnos*", "bone visible", "deformed", "deformity", "x-ray shows", "x-ray showed", "ct shows", "ct showed", "blood pressure", "heart rate", "pulse of", "saturation*", "temperature of", "haemorrhag*", "hemorrhag*"],
+  "demo_draft": {
+    "_doc": "Offline stand-in for the AI drafting assistant (assist.py): hand-written, non-clinical, combined per choice. Used unless MEDSIM_LIVE_AI=1.",
+    "scenes": {
+      "daytime": "A dry weekday afternoon: traffic crawls past the scene, a police officer waves cars around the bicycle and the crew work in plain view of the pavement.",
+      "night_rain": "Late evening in heavy rain, the road lit only by headlights and blue strobes on wet tarmac. Cold hands and rain in the eyes make every task slower, then the cramped, swaying ambulance and the bright trauma bay follow.",
+      "rural_long_transfer": "A quiet country road far from a big hospital, with birdsong, a long drive ahead and a small receiving hospital without a scanner at the end of it, so the time in the ambulance matters."
+    },
+    "bystander": {
+      "calm": "{name}, the driver, has parked up safely and stands back, answering questions clearly and offering to help.",
+      "anxious": "{name}, the driver, is shaken, keeps walking back over and asks the same questions again, pulling attention away from the crew."
+    },
+    "pressure": {
+      "guided": "Coaching appears on its own as the journey moves from place to place.",
+      "standard": "Coaching only comes when the student asks, so each handover depends on the student's own structure.",
+      "challenging": "There is no coaching at all: the student has to lead the team, the move and the handover alone."
+    },
+    "personalities": {
+      "guided": "Shaken but talkative, Jordan answers fully, apologises for the fuss and follows instructions as soon as they are explained.",
+      "standard": "Shaken and sore, Jordan speaks in short sentences, asks what is happening, and calms when told plainly what comes next.",
+      "challenging": "Frightened and short with people, Jordan snaps when talked over and only settles once someone introduces themselves and stays with him."
+    },
+    "lines": {
+      "calm": [
+        "Where's best for me to stand so I'm not in your way?",
+        "I've got the police on the phone, they're five minutes out.",
+        "Do you want me to keep people back a bit?",
+        "I'll follow the ambulance if that helps with anything."
+      ],
+      "anxious": [
+        "He just came out of nowhere, I swear I didn't see him.",
+        "Is he going to be all right? Somebody tell me something.",
+        "Should I be doing something? I feel useless standing here.",
+        "Do I need to call someone for him? His family?"
+      ]
+    }
+  }
+}

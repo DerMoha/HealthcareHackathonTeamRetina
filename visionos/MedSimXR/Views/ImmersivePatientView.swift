@@ -10,6 +10,15 @@ struct ImmersivePatientView: View {
     @State private var lab = OrthoticsLab()
     @State private var us = UltrasoundScene()
     @State private var stage = ScenarioStage()
+    @State private var place = EnvironmentSet()
+    @State private var panels = MovablePanels()
+
+    /// Everything the scene's own tap and drag handle: all but the panel grab bars, which
+    /// ManipulationComponent moves.
+    private static let scene: QueryPredicate<Entity> = {
+        MovablePanels.GrabBar.registerComponent() // a query on an unregistered component traps
+        return !.has(MovablePanels.GrabBar.self)
+    }()
 
     var body: some View {
         RealityView { content, attachments in
@@ -17,10 +26,15 @@ struct ImmersivePatientView: View {
             content.add(avatar.root)
             if let notebook = attachments.entity(for: "notebook") {
                 // Beside the patient (the wearer's right), at chest height, turned to the wearer.
-                notebook.position = [0.42, 1.3, 0.5]
-                notebook.orientation = simd_quatf(angle: -0.35, axis: [0, 1, 0])
-                avatar.root.addChild(notebook)
-                us.notebook = notebook
+                us.notebook = SmokeLog.pitch // pitch: clear of the centred patient, facing the camera
+                    ? panels.add(notebook, to: avatar.root, at: [0.74, 1.32, 0.45], yaw: -0.2, scale: 1.1)
+                    : panels.add(notebook, to: avatar.root, at: [0.42, 1.3, 0.5], yaw: -0.35)
+            }
+            if let viewer = attachments.entity(for: "viewer") {
+                // Further out than the notebook and nearer the wearer, so both can be read side by side.
+                // Pitch: left of the patient instead, inside the simulator's fixed view.
+                if SmokeLog.pitch { panels.add(viewer, to: avatar.root, at: [-0.36, 1.36, 0.8], yaw: 0.3, scale: 1.3) }
+                else { panels.add(viewer, to: avatar.root, at: [1.0, 1.3, 0.75], yaw: -0.6) }
             }
             avatar.rebuildZones(model.zones)
             avatar.startIdle()
@@ -36,34 +50,59 @@ struct ImmersivePatientView: View {
             us.build(model.ultrasound)
             us.setEnabled(model.phase == .running)
             if us.arrange(recumbent: avatar.isRecumbent) { model.recenter() }
-            if let monitor = attachments.entity(for: "usMonitor") {
-                monitor.scale = [1.3, 1.3, 1.3]
-                us.monitorMount.addChild(monitor)
+            if SmokeLog.pitch, let n = us.notebook { // pitch (uinotebook): the notebook ~1 m from the fixed camera, nearly square to it
+                let (p, s): (SIMD3<Float>, Float) = avatar.isRecumbent ? ([0.36, 1.45, 0.6], 1.0)
+                    : AppConfig.launchArgument("-scenario")?.contains("journey") == true ? ([0.72, 1.42, 0.85], 1.12) : ([0.64, 1.22, 0.55], 1.12)
+                n.transform = Transform(scale: .init(repeating: s), rotation: simd_quatf(angle: 0.1, axis: [0, 1, 0]), translation: p)
             }
-            if let panel = attachments.entity(for: "usPanel") { us.panelMount.addChild(panel) }
+            if let caption = attachments.entity(for: "pitchCaption") {
+                // Beside the head on the wearer's right; above the couch for a reclining patient.
+                caption.position = avatar.isRecumbent ? [0.2, 1.75, 0.2] : [0.8, 1.46, 0.3] // low enough to hide the clinic wall cabinet edge behind it
+                caption.scale = [1.4, 1.4, 1.4]
+                avatar.root.addChild(caption)
+            }
+            if let adapt = attachments.entity(for: "pitchAdapt") { // the watch panel: left of the patient, turned to the camera
+                adapt.position = [-0.9, 1.5, 0.3]
+                adapt.orientation = simd_quatf(angle: 0.3, axis: [0, 1, 0])
+                adapt.scale = [1.6, 1.6, 1.6]
+                avatar.root.addChild(adapt)
+            }
+            if let monitor = attachments.entity(for: "usMonitor") {
+                panels.add(monitor, to: us.monitorMount, scale: 1.3)
+            }
+            if let panel = attachments.entity(for: "usPanel") { panels.add(panel, to: us.panelMount) }
             lab.onMeasure = { id, value in Task { await model.measure(id, valueCm: value) } }
             lab.onPlace = { size, offset in Task { await model.placeOrthosis(size: size, offsetCm: offset) } }
             lab.build(model.session?.case.orthotics ?? Orthotics())
+            // Above the tray, scaled to be readable from the examination position.
             if let panel = attachments.entity(for: "fitting") {
-                panel.position = [-0.62, 1.38, 0.5] // above the tray
-                panel.scale = [1.5, 1.5, 1.5] // readable from the examination position
-                panel.orientation = simd_quatf(angle: 0.35, axis: [0, 1, 0])
-                avatar.root.addChild(panel)
+                panels.add(panel, to: avatar.root, at: SmokeLog.pitch ? [-0.72, 1.5, 0.5] : [-0.62, 1.38, 0.5], yaw: 0.35, scale: 1.5)
             }
+            // The debrief replay: same spot (the fitting panel is gone by then), movable on its own.
+            if let panel = attachments.entity(for: "replay") {
+                panels.add(panel, to: avatar.root, at: [-0.62, 1.38, 0.5], yaw: 0.35, scale: 1.5)
+            }
+            panels.markHomes()
+            panels.updates = content.subscribe(to: SceneEvents.Update.self) { [panels] _ in panels.layout() }
+            place.install(on: avatar)
+            showPlace()
             stage.install(on: avatar)
             stage.sync(model.scenario)
+            stage.showInjury(model.visibleInjury)
             model.stageStatus = stage.status
             SmokeLog.mark("immersive scene built zones=\(avatar.zoneEntities.count)")
         } attachments: {
             Attachment(id: "notebook") { NotebookView().environment(model) }
+            Attachment(id: "viewer") { NotebookView.ViewerPanel().environment(model) }
             Attachment(id: "usMonitor") { UltrasoundMonitorView().environment(model) }
             Attachment(id: "usPanel") { UltrasoundPanel().environment(model) }
-            Attachment(id: "fitting") {
-                VStack { FittingPanel(); ReplayPanel() }.environment(model)
-            }
+            Attachment(id: "fitting") { FittingPanel().environment(model) }
+            Attachment(id: "replay") { ReplayPanel().environment(model) }
+            if SmokeLog.pitch { Attachment(id: "pitchCaption") { PitchCaption() } }
+            if PitchAdaptive.on { Attachment(id: "pitchAdapt") { PitchAdaptPanel() } }
         }
         .gesture(
-            SpatialTapGesture().targetedToAnyEntity().onEnded { value in
+            SpatialTapGesture().targetedToEntity(where: Self.scene).onEnded { value in
                 let id = value.entity.name
                 let world = value.convert(value.location3D, from: .local, to: .scene)
                 if us.item(value.entity) != nil { // probe or gel bottle: pick up (on the belly: lift off)
@@ -97,7 +136,7 @@ struct ImmersivePatientView: View {
         )
         .gesture(
             // Move a tray item through the room; letting go over the forearm snaps it on.
-            DragGesture().targetedToAnyEntity()
+            DragGesture().targetedToEntity(where: Self.scene)
                 .onChanged { value in
                     if let item = us.item(value.entity) { // probe or gel bottle follows the hand
                         guard model.phase == .running else { return }
@@ -119,6 +158,8 @@ struct ImmersivePatientView: View {
             lab.sync(model.fit) // equipment delivered mid-session: a support already on the arm stays there
         }
         .modifier(StageSync(stage: stage))
+        .modifier(PlaceSync(show: showPlace, place: place))
+        .modifier(PitchAdaptSync(avatar: avatar))
         .onChange(of: model.session?.sessionId) { lab.build(model.session?.case.orthotics ?? Orthotics()) }
         .modifier(UltrasoundSync(model: model, us: us))
         .onChange(of: model.activeAvatarModel) { _, variant in
@@ -128,12 +169,21 @@ struct ImmersivePatientView: View {
                 model.behavior.attach(animated: avatar.isAnimated, recumbent: avatar.isRecumbent) { await avatar.apply($0) }
                 await avatar.apply(model.behavior.machine, snap: true)
                 avatar.rebuildZones(model.zones)
+                showPlace() // the seat follows the new model's seat height
                 us.build(model.ultrasound)
                 us.setEnabled(model.phase == .running)
                 lab.avatarChanged(fit: model.fit)
             }
         }
         .onChange(of: model.selectedTool) { _, tool in lab.select(tool); us.select(tool) }
+        .onChange(of: model.phase) { _, phase in // pitch (uinotebook): the larger debrief, more central
+            guard SmokeLog.pitch, phase == .feedback, let n = us.notebook else { return }
+            let journey = AppConfig.launchArgument("-scenario")?.contains("journey") == true
+            // Seated clinic patient: right of the head so the face stays visible.
+            n.transform = Transform(scale: .init(repeating: avatar.isRecumbent ? 0.85 : journey ? 0.9 : 0.85), rotation: simd_quatf(angle: 0.1, axis: [0, 1, 0]),
+                                    translation: avatar.isRecumbent ? [0.44, 1.53, 0.55] : journey ? [0.71, 1.47, 0.85] : [0.66, 1.25, 0.55])
+            panels.markHomes()
+        }
         .onChange(of: model.labCommand) { _, command in
             if let command { lab.run(command); model.selectedTool = nil }
         }
@@ -154,6 +204,7 @@ struct ImmersivePatientView: View {
         .task(id: model.recenterToken) {
             let t = await placement.transform()
             avatar.root.move(to: t, relativeTo: nil, duration: 0.4)
+            panels.reset() // re-centring also brings moved panels back beside the patient
             SmokeLog.mark("placed at \(t.translation) tracked=\(t != Placement.fallback)")
         }
         .onChange(of: model.zones) { _, zones in
@@ -171,7 +222,44 @@ struct ImmersivePatientView: View {
             guard fingertip else { return }
             await FingertipExaminer().run(avatar: avatar, model: model)
         }
-        .onDisappear { avatar.stopIdle(); stage.stop(); model.stageStatus = "immersive scene not open" }
+        .onDisappear { avatar.stopIdle(); stage.stop(); place.stop(); model.stageStatus = "immersive scene not open" }
+    }
+
+    /// The room for the current place. Road, trail, ambulance and resus bring their own seat for the
+    /// patient, so the clinic stool hides there. The scenario stage learns whether the place is dressed,
+    /// so the people in it appear once (the place's crew and onlookers, the stage's companions).
+    private func showPlace() {
+        guard place.root.parent != nil else { return } // not installed yet: the scene's setup shows it once the patient has loaded
+        let kind = model.environmentKind
+        avatar.furnitureHidden = kind.bringsSeat
+        place.show(kind, seat: avatar.seatHeight, cast: Self.cast(model))
+        stage.setPlace(place.dressed ? kind : nil)
+        model.stageStatus = stage.status
+    }
+
+    /// Who a dressed place shows: the journey members of the current stage (none outside a journey), as
+    /// many onlookers as the Studio scenario's crowd (the place's default without one), and whether a
+    /// Studio bystander takes an onlooker's spot. Pitch shots: the default cast.
+    static func cast(_ model: AppModel) -> PitchDressing.Cast {
+        guard !SmokeLog.pitch else { return .init() }
+        return .init(crew: Set(model.teamPresent.map(\.id)), onlookers: model.scenario.map(ScenarioStage.crowdCount),
+                     speaker: model.scenario?.bystander != nil)
+    }
+}
+
+/// Rebuilds the room when the place changes (another case, the next journey stage, a Studio environment).
+private struct PlaceSync: ViewModifier {
+    @Environment(AppModel.self) private var model
+    @AppStorage(AppConfig.realisticRoomsKey) private var realistic = true
+    let show: () -> Void
+    let place: EnvironmentSet
+
+    func body(content: Content) -> some View {
+        content.onChange(of: model.environmentKind) { show() }
+            .onChange(of: ImmersivePatientView.cast(model)) { show() } // stage team, Studio crowd: the people only
+            .onChange(of: realistic) { show() }
+            .onChange(of: Pitch.shared.hideRoom) { _, hide in place.root.isEnabled = !hide } // pitch: the wearer's own room
+            .background { if SmokeLog.pitch { PitchDemo() } } // runs in the space: the window closes
     }
 }
 
@@ -190,6 +278,15 @@ private struct StageSync: ViewModifier {
             }
             .onChange(of: model.sceneLine) { _, line in if let line { stage.say(line) } }
             .onChange(of: model.phase) { _, phase in if phase != .running { stage.stop() } }
+            .onChange(of: model.currentStage, initial: true) { showJourney() }
+            .onChange(of: model.session?.sessionId) { showJourney(); stage.showInjury(model.visibleInjury) }
+            .onChange(of: model.visibleInjury) { _, injury in stage.showInjury(injury) }
+    }
+
+    private func showJourney() {
+        stage.showJourney(model.currentStage, team: model.teamPresent, position: model.stageIndex,
+                          count: model.journey?.stages.count ?? 0)
+        stage.showInjury(model.visibleInjury) // showJourney(nil) clears it; a journey keeps it
     }
 }
 

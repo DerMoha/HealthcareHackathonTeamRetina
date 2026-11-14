@@ -1,0 +1,871 @@
+{
+  "case": {
+    "case_id": "trail_trauma_journey_001",
+    "title": "Trail accident: Jordan, 34, from forest trail to hospital",
+    "learner_brief": "You are a medical student on a ride-along shift with the ambulance service. A mountain biker has crashed on a forest trail and was found by hikers; the crew reached him along a forest fire road. Work with paramedic Sam and technician Lena on the trail: make sure the scene is safe, assess and treat Jordan, and get him ready to be carried to the ambulance on the track. Stay with him in the ambulance, reassess him on the way and pre-alert the hospital. In the emergency department, hand over to Dr Omar and nurse Priya, request what he needs, and write your assessment and plan in the notebook. Ask the team out loud, or use the team buttons, whenever you want them to do something. Move to the next place with the journey button when you are ready.",
+    "patient": {
+      "name": "Jordan",
+      "age": 34,
+      "appearance": "Mountain biker in a helmet, a muddy riding jersey and gloves, standing at the edge of a forest trail by a tree, holding the right arm against the body.",
+      "personality": "Shaken and in pain, but alert and cooperative."
+    },
+    "voice_context": "CASE FACTS (all you know as the patient; they replace any example details elsewhere in your instructions):\n- You are Jordan, 34, a bicycle courier, right-handed.\n- About twenty minutes ago you were riding your mountain bike fast downhill on a forest trail. Your front wheel hit a tree root, you went over the handlebars and landed on your outstretched right arm. No car or other rider was involved; you were riding alone. Two hikers found you and called the ambulance. You were wearing a helmet. You did not hit your head hard, you did not black out and you remember everything. Your neck and back do not hurt.\n- Your right forearm, just above the wrist, hurts badly: 8 out of 10, much worse if anyone moves it. It looks bent, there is a cut on it that is bleeding, and you think you saw something white in the cut. You hold it against your body.\n- The fingers of your right hand feel a little tingly, but you can feel touch and move them.\n- No other pain: no chest pain, no trouble breathing, no tummy pain, your legs are fine. You feel shaky and a bit sick.\n- Medical history: mild asthma, you rarely need your blue inhaler. Allergies: penicillin, it gave you a bad rash as a child. No other medicines. You last ate a sandwich about two hours ago. Your last tetanus injection was at school, you think about 18 years ago.\n- You do not know what is wrong in medical terms. Only say what you see and feel (\"it's bent\", \"it's bleeding\") and never use medical words for injuries.\n- THE JOURNEY: you begin at the edge of the forest trail, standing by a tree, with your bike lying off the path and the hikers nearby. The crew came up a forest fire road; later they take you along the trail to the ambulance waiting on the track, you travel in the back of the ambulance and then arrive at the hospital emergency department. A message starting \"[Context only, do not speak now. You are now\" tells you when the place changes; from then on you are there.\n- THE MEDICAL TEAM: Sam (paramedic, leads the crew) and Lena (emergency medical technician) on the trail and in the ambulance; Priya (emergency nurse) and Dr Omar (emergency registrar) at the hospital. The student is a medical student working with them. The team members speak for themselves; you never speak for them.\n- TEAM ACTION IDS for the tool request_team_action, by place. Trail: scene_safety, observations, haemorrhage_control, photograph_wound, splint_arm, analgesia. Ambulance: observations, splint_arm, iv_access, iv_analgesia, pre_alert. Hospital: observations, iv_access, iv_antibiotics, tetanus, orthopaedic_referral.\n- INVESTIGATION IDS for the tool order_investigation, only at the hospital: rt_xray_forearm, rt_ct_head, rt_bloods.\n\nHOW YOU COME ACROSS (manner only; it never changes the facts above):\n- You are a woman: if pronouns come up, they are she/her. Your name stays Jordan.\n- Mood: frightened. You are scared and in a lot of pain. You speak quickly, and at natural moments you ask whether your arm will be okay or whether you will need an operation. Calm, clear explanations settle you a little; if people talk over you or ignore you, you get more frightened. This changes only how you talk, never the facts.",
+    "zones": [
+      {
+        "id": "rt_forearm_wound",
+        "label": "Right forearm",
+        "attach_to": "right_forearm",
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "radius": 0.05
+      },
+      {
+        "id": "rt_right_hand",
+        "label": "Right hand and fingers",
+        "attach_to": "right_wrist",
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "radius": 0.045
+      },
+      {
+        "id": "rt_left_wrist",
+        "label": "Left wrist",
+        "attach_to": "left_wrist",
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "radius": 0.045
+      }
+    ],
+    "scripted_dialogue": [
+      {
+        "id": "rt_greeting",
+        "learner": "Hello, I'm a medical student working with the ambulance crew. Can you tell me your name?",
+        "patient": "Jordan. I'm Jordan. Oh God, my arm... is it going to be okay?"
+      },
+      {
+        "id": "rt_mechanism",
+        "learner": "Can you tell me what happened?",
+        "patient": "I hit a root going downhill and went over the handlebars. I landed on my right arm."
+      },
+      {
+        "id": "rt_head_neck",
+        "learner": "Did you hit your head or black out? Does your neck hurt?",
+        "patient": "I had my helmet on. I didn't black out, and my neck's fine. It's just my arm."
+      },
+      {
+        "id": "rt_pain",
+        "learner": "Where does it hurt, and how bad is the pain out of ten?",
+        "patient": "My right forearm, just above the wrist. It's an eight. It's bleeding, there's so much blood..."
+      },
+      {
+        "id": "rt_other_injuries",
+        "learner": "Do you have any pain anywhere else, in your chest, tummy, back or legs?",
+        "patient": "No, nothing else hurts. I just feel a bit shaky and sick."
+      },
+      {
+        "id": "rt_allergies",
+        "learner": "Do you have any allergies, take any medicines or have any medical problems?",
+        "patient": "I'm allergic to penicillin, it gave me a rash. I've got mild asthma, but I hardly use my inhaler."
+      },
+      {
+        "id": "rt_last_meal",
+        "learner": "When did you last eat or drink?",
+        "patient": "I had a sandwich about two hours ago."
+      },
+      {
+        "id": "rt_tetanus",
+        "learner": "When did you last have a tetanus injection?",
+        "patient": "At school, I think. That's about eighteen years ago."
+      },
+      {
+        "id": "rt_permission",
+        "learner": "I need to look at your arm and check your hand. Is that okay?",
+        "patient": "Okay... okay. Please be really careful."
+      },
+      {
+        "id": "rt_empathy",
+        "learner": "I'm sorry, I know that hurts. We'll get you something for the pain.",
+        "patient": "Thanks. Please, anything for the pain."
+      },
+      {
+        "id": "rt_explain_transfer",
+        "learner": "We're going to carry you to the ambulance on the track and take you to the hospital, and I'll stay with you.",
+        "patient": "Okay... thank you. Will I need an operation?"
+      }
+    ],
+    "investigations": [
+      {
+        "id": "rt_xray_forearm",
+        "label": "Right forearm radiographs, including wrist and elbow"
+      },
+      {
+        "id": "rt_ct_head",
+        "label": "CT of the head"
+      },
+      {
+        "id": "rt_bloods",
+        "label": "Blood tests: full blood count, kidney function, clotting, group and save"
+      }
+    ],
+    "orthotics": {
+      "measurements": [],
+      "sizes": [],
+      "tightness": []
+    },
+    "catalog": {
+      "summary": "A mountain biker is hurt in a crash on a forest trail. Treat him on the trail with the ambulance crew, look after him in the ambulance and hand him over to the emergency team at the hospital.",
+      "icon": "bicycle",
+      "setting": "Forest trail, ambulance and emergency department",
+      "skills": [
+        "Scene safety & primary survey",
+        "Working with a team",
+        "Handover",
+        "Emergency management"
+      ],
+      "allowed_moods": [
+        "calm",
+        "nervous"
+      ],
+      "allowed_avatars": [
+        "male",
+        "female"
+      ],
+      "default_mood": "calm",
+      "default_avatar": "male",
+      "avatar_model": null
+    },
+    "ultrasound": null,
+    "journey": {
+      "team": [
+        {
+          "id": "sam",
+          "name": "Sam",
+          "role": "Paramedic"
+        },
+        {
+          "id": "lena",
+          "name": "Lena",
+          "role": "Emergency medical technician"
+        },
+        {
+          "id": "priya",
+          "name": "Priya",
+          "role": "Emergency nurse"
+        },
+        {
+          "id": "omar",
+          "name": "Dr Omar",
+          "role": "Emergency registrar"
+        }
+      ],
+      "stages": [
+        {
+          "id": "scene",
+          "label": "On the trail",
+          "setting": "Forest trail, a mountain bike off the path, hikers around",
+          "brief": "Make sure it is safe, assess Jordan, control the bleeding, and get the arm ready for the carry to the ambulance.",
+          "team": [
+            "sam",
+            "lena"
+          ],
+          "noise": 0.3,
+          "arrival": [
+            {
+              "member": "sam",
+              "speaker": "Sam",
+              "text": "I'm Sam, I'm leading the crew today. We came up the fire road and the ambulance is waiting on the track. Lena and I will follow your lead with this patient. Tell us what you need."
+            }
+          ],
+          "actions": [
+            {
+              "id": "scene_safety",
+              "label": "Check the scene is safe",
+              "member": "sam"
+            },
+            {
+              "id": "observations",
+              "label": "Take a set of observations",
+              "member": "lena"
+            },
+            {
+              "id": "haemorrhage_control",
+              "label": "Control the bleeding (direct pressure and a dressing)",
+              "member": "sam"
+            },
+            {
+              "id": "photograph_wound",
+              "label": "Photograph the wound",
+              "member": "lena"
+            },
+            {
+              "id": "splint_arm",
+              "label": "Splint the arm",
+              "member": "sam"
+            },
+            {
+              "id": "analgesia",
+              "label": "Give pain relief",
+              "member": "sam"
+            }
+          ],
+          "investigations": []
+        },
+        {
+          "id": "ambulance",
+          "label": "In the ambulance",
+          "setting": "Back of the ambulance on the way to hospital, about fifteen minutes out",
+          "brief": "Reassess Jordan on the way, treat what needs treating, and pre-alert the hospital.",
+          "team": [
+            "lena",
+            "sam"
+          ],
+          "noise": 0.35,
+          "arrival": [
+            {
+              "member": "lena",
+              "speaker": "Lena",
+              "text": "We've carried him along the trail to the track and he's on the stretcher, strapped in. Sam's driving, about fifteen minutes to the hospital. I'm right here if you need anything."
+            }
+          ],
+          "actions": [
+            {
+              "id": "observations",
+              "label": "Repeat the observations",
+              "member": "lena"
+            },
+            {
+              "id": "splint_arm",
+              "label": "Splint the arm",
+              "member": "lena"
+            },
+            {
+              "id": "iv_access",
+              "label": "Put in an IV cannula",
+              "member": "lena"
+            },
+            {
+              "id": "iv_analgesia",
+              "label": "Give IV pain relief",
+              "member": "lena"
+            },
+            {
+              "id": "pre_alert",
+              "label": "Pre-alert the hospital",
+              "member": "sam"
+            }
+          ],
+          "investigations": []
+        },
+        {
+          "id": "hospital",
+          "label": "In the emergency department",
+          "setting": "Emergency department, major trauma bay",
+          "brief": "Hand over to the emergency team, request what Jordan needs, and write your assessment and plan.",
+          "team": [
+            "omar",
+            "priya"
+          ],
+          "noise": 0.25,
+          "arrival": [
+            {
+              "member": "omar",
+              "speaker": "Dr Omar",
+              "text": "Hi, I'm Omar, the emergency registrar, and this is Priya. Go ahead with your handover when you're ready."
+            }
+          ],
+          "actions": [
+            {
+              "id": "observations",
+              "label": "Take a set of observations",
+              "member": "priya"
+            },
+            {
+              "id": "iv_access",
+              "label": "Put in an IV cannula",
+              "member": "priya"
+            },
+            {
+              "id": "iv_antibiotics",
+              "label": "Give IV antibiotics",
+              "member": "priya"
+            },
+            {
+              "id": "tetanus",
+              "label": "Give a tetanus booster",
+              "member": "priya"
+            },
+            {
+              "id": "orthopaedic_referral",
+              "label": "Refer to the orthopaedic team",
+              "member": "omar"
+            }
+          ],
+          "investigations": [
+            "rt_xray_forearm",
+            "rt_ct_head",
+            "rt_bloods"
+          ]
+        }
+      ]
+    }
+  },
+  "config": {
+    "mood": "nervous",
+    "avatar": "female"
+  },
+  "results": [
+    {
+      "stage_id": "scene",
+      "action_id": "scene_safety",
+      "label": "Check the scene is safe",
+      "member": {
+        "id": "sam",
+        "name": "Sam",
+        "role": "Paramedic"
+      },
+      "done": true,
+      "response": "The hikers are stopping anyone riding down from above, and the ground here is firm and level. We're safe to work here.",
+      "result": "Scene safe: hikers stopping riders on the trail above, firm level ground, no other casualties.",
+      "patient_response": "",
+      "voice_context": "[Context only, do not speak now. Sam (Paramedic) just said: \"The hikers are stopping anyone riding down from above, and the ground here is firm and level. We're safe to work here.\"]",
+      "repeat_count": 1
+    },
+    {
+      "error": 409
+    },
+    {
+      "stage_id": "scene",
+      "action_id": "haemorrhage_control",
+      "label": "Control the bleeding (direct pressure and a dressing)",
+      "member": {
+        "id": "sam",
+        "name": "Sam",
+        "role": "Paramedic"
+      },
+      "done": true,
+      "response": "Firm pressure on, and a saline-soaked dressing over the wound. The bleeding's controlled.",
+      "result": "Bleeding controlled with direct pressure and a saline-soaked dressing.",
+      "patient_response": "Argh! Okay... okay. It's not bleeding as much now.",
+      "voice_context": "[Sam (Paramedic) is helping you. Say out loud right now, in one short sentence, something with this meaning: \"Argh! Okay... okay. It's not bleeding as much now.\"]",
+      "repeat_count": 1
+    },
+    {
+      "stage_id": "scene",
+      "action_id": "splint_arm",
+      "label": "Splint the arm",
+      "member": {
+        "id": "sam",
+        "name": "Sam",
+        "role": "Paramedic"
+      },
+      "done": true,
+      "response": "Vacuum splint on, from the hand to above the elbow. Worth checking his fingers again now it's on.",
+      "result": "Right arm immobilised in a vacuum splint, hand to above the elbow.",
+      "patient_response": "Ow... that's better, actually. It feels more supported.",
+      "voice_context": "[Sam (Paramedic) is helping you. Say out loud right now, in one short sentence, something with this meaning: \"Ow... that's better, actually. It feels more supported.\"]",
+      "repeat_count": 1
+    },
+    {
+      "error": 409
+    },
+    {
+      "stage_id": "ambulance",
+      "label": "In the ambulance",
+      "index": 1,
+      "count": 3,
+      "arrival": [
+        {
+          "member": "lena",
+          "speaker": "Lena",
+          "text": "We've carried him along the trail to the track and he's on the stretcher, strapped in. Sam's driving, about fifteen minutes to the hospital. I'm right here if you need anything."
+        }
+      ],
+      "voice_context": "[Context only, do not speak now. You are now lying back on the stretcher in the back of the ambulance on the way to hospital; the crew carried you along the trail to it. Lena, the technician, is beside you and Sam is driving. The ride is a bit bumpy. The student is still with you.]"
+    },
+    {
+      "stage_id": "ambulance",
+      "action_id": "iv_analgesia",
+      "label": "Give IV pain relief",
+      "member": {
+        "id": "lena",
+        "name": "Lena",
+        "role": "Emergency medical technician"
+      },
+      "done": false,
+      "response": "I'll need IV access first. Shall I put a cannula in?",
+      "result": null,
+      "patient_response": "",
+      "voice_context": "[Context only, do not speak now. Lena (Emergency medical technician) just said: \"I'll need IV access first. Shall I put a cannula in?\"]",
+      "repeat_count": 0
+    },
+    {
+      "stage_id": "ambulance",
+      "action_id": "observations",
+      "label": "Repeat the observations",
+      "member": {
+        "id": "lena",
+        "name": "Lena",
+        "role": "Emergency medical technician"
+      },
+      "done": true,
+      "response": "Second set: heart rate 104, blood pressure 120 over 76, breathing 18, sats 98 percent on air, GCS 15.",
+      "result": "HR 104 · BP 120/76 · RR 18 · SpO2 98% on air · GCS 15 · temp 36.5 °C",
+      "patient_response": "",
+      "voice_context": "[Context only, do not speak now. Lena (Emergency medical technician) just said: \"Second set: heart rate 104, blood pressure 120 over 76, breathing 18, sats 98 percent on air, GCS 15.\"]",
+      "repeat_count": 1
+    },
+    {
+      "stage_id": "ambulance",
+      "action_id": "observations",
+      "label": "Repeat the observations",
+      "member": {
+        "id": "lena",
+        "name": "Lena",
+        "role": "Emergency medical technician"
+      },
+      "done": true,
+      "response": "Second set: heart rate 104, blood pressure 120 over 76, breathing 18, sats 98 percent on air, GCS 15.",
+      "result": "HR 104 · BP 120/76 · RR 18 · SpO2 98% on air · GCS 15 · temp 36.5 °C",
+      "patient_response": "",
+      "voice_context": "[Context only, do not speak now. Lena (Emergency medical technician) just said: \"Second set: heart rate 104, blood pressure 120 over 76, breathing 18, sats 98 percent on air, GCS 15.\"]",
+      "repeat_count": 2
+    },
+    {
+      "error": 409
+    },
+    {
+      "stage_id": "ambulance",
+      "action_id": "iv_access",
+      "label": "Put in an IV cannula",
+      "member": {
+        "id": "lena",
+        "name": "Lena",
+        "role": "Emergency medical technician"
+      },
+      "done": true,
+      "response": "Eighteen gauge in the left forearm, and I've taken bloods for the hospital.",
+      "result": "IV cannula (18 G) in the left forearm; blood samples taken for the hospital.",
+      "patient_response": "Ouch. Okay.",
+      "voice_context": "[Lena (Emergency medical technician) is helping you. Say out loud right now, in one short sentence, something with this meaning: \"Ouch. Okay.\"]",
+      "repeat_count": 1
+    },
+    {
+      "stage_id": "ambulance",
+      "action_id": "iv_analgesia",
+      "label": "Give IV pain relief",
+      "member": {
+        "id": "lena",
+        "name": "Lena",
+        "role": "Emergency medical technician"
+      },
+      "done": true,
+      "response": "Morphine, five milligrams IV, with an anti-sickness drug. Tell me if you feel drowsy, Jordan.",
+      "result": "IV morphine 5 mg and an antiemetic given.",
+      "patient_response": "Mm... that's much better. Thank you.",
+      "voice_context": "[Lena (Emergency medical technician) is helping you. Say out loud right now, in one short sentence, something with this meaning: \"Mm... that's much better. Thank you.\"]",
+      "repeat_count": 1
+    },
+    {
+      "stage_id": "hospital",
+      "label": "In the emergency department",
+      "index": 2,
+      "count": 3,
+      "arrival": [
+        {
+          "member": "omar",
+          "speaker": "Dr Omar",
+          "text": "Hi, I'm Omar, the emergency registrar, and this is Priya. Go ahead with your handover when you're ready."
+        }
+      ],
+      "voice_context": "[Context only, do not speak now. You are now on a trolley in a bay of the hospital emergency department. Priya, a nurse, and Dr Omar, the emergency doctor, are with you; the ambulance crew have left. The student is still with you.]"
+    },
+    {
+      "stage_id": "hospital",
+      "action_id": "iv_antibiotics",
+      "label": "Give IV antibiotics",
+      "member": {
+        "id": "priya",
+        "name": "Priya",
+        "role": "Emergency nurse"
+      },
+      "done": true,
+      "response": "IV antibiotics are going in now. I've checked his allergy band and used the alternative on our trauma protocol.",
+      "result": "IV antibiotics given (penicillin allergy checked, protocol alternative used).",
+      "patient_response": "",
+      "voice_context": "[Context only, do not speak now. Priya (Emergency nurse) just said: \"IV antibiotics are going in now. I've checked his allergy band and used the alternative on our trauma protocol.\"]",
+      "repeat_count": 1
+    },
+    {
+      "investigation_id": "rt_xray_forearm",
+      "label": "Right forearm radiographs, including wrist and elbow",
+      "modality": "X-ray",
+      "title": "Right forearm, AP and lateral, including wrist and elbow",
+      "report": "Comminuted, displaced fractures of the distal third of the radius and ulna with dorsal angulation of about 25 degrees. Small foci of soft-tissue gas adjacent to the fracture, in keeping with the clinically open wound. The wrist and elbow joints are congruent; no dislocation. No radiopaque foreign body.",
+      "impression": "Displaced distal-third fractures of the radius and ulna; soft-tissue gas consistent with an open injury.",
+      "image": null,
+      "image_credit": "Simulated report only. No example image is shown for this study because no suitably licensed image matching the case was available.",
+      "ordered_at": "TIME",
+      "repeat_count": 1
+    },
+    {
+      "error": 409
+    }
+  ],
+  "feedback": {
+    "session_id": "SESSION",
+    "case_id": "trail_trauma_journey_001",
+    "diagnosis_submitted": "Fractured right radius and ulna",
+    "total_score": 55,
+    "max_score": 100,
+    "summary": "You made sure the scene was safe before working. However, you did not ask about a head injury, loss of consciousness or neck pain after going over the handlebars at speed. Partly correct. The forearm is fractured, but the wound over it is what matters most: name it an open (compound) fracture, because that changes the management.",
+    "transcript_available": true,
+    "diagnostic_assessment": {
+      "verdict": "partial",
+      "explanation": "Partly correct. The forearm is fractured, but the wound over it is what matters most: name it an open (compound) fracture, because that changes the management.",
+      "expected": "Open fracture of the distal right radius and ulna after a mountain-bike fall on a forest trail (over the handlebars onto an outstretched arm), bleeding controlled, haemodynamically stable, neurovascularly intact"
+    },
+    "categories": [
+      {
+        "id": "scene",
+        "title": "On the trail",
+        "score": 25,
+        "max_score": 35,
+        "criteria": [
+          {
+            "id": "scene_safety",
+            "label": "Made sure the scene was safe",
+            "met": true,
+            "points": 5,
+            "max_points": 5,
+            "method": "rule",
+            "evidence": "On the trail: Check the scene is safe",
+            "comment": "You made sure the scene was safe before working.",
+            "area": null
+          },
+          {
+            "id": "introduction",
+            "label": "Introduced themselves",
+            "met": true,
+            "points": 5,
+            "max_points": 5,
+            "method": "keyword",
+            "evidence": "Hello, I'm a medical student working with the ambulance crew. Can you tell me your name?",
+            "comment": "You introduced yourself.",
+            "area": null
+          },
+          {
+            "id": "head_and_neck",
+            "label": "Asked about head injury and neck pain",
+            "met": false,
+            "points": 0,
+            "max_points": 5,
+            "method": "keyword",
+            "evidence": null,
+            "comment": "You did not ask about a head injury, loss of consciousness or neck pain after going over the handlebars at speed.",
+            "area": null
+          },
+          {
+            "id": "haemorrhage_control",
+            "label": "Controlled the bleeding",
+            "met": true,
+            "points": 10,
+            "max_points": 10,
+            "method": "rule",
+            "evidence": "On the trail: Control the bleeding (direct pressure and a dressing)",
+            "comment": "You had the bleeding controlled with pressure and a dressing on the trail.",
+            "area": null
+          },
+          {
+            "id": "observations_scene",
+            "label": "Had a first set of observations taken",
+            "met": false,
+            "points": 0,
+            "max_points": 5,
+            "method": "rule",
+            "evidence": null,
+            "comment": "No baseline observations were taken on the trail.",
+            "area": null
+          },
+          {
+            "id": "splinted",
+            "label": "Had the arm splinted before or during transfer",
+            "met": true,
+            "points": 5,
+            "max_points": 5,
+            "method": "rule",
+            "evidence": "On the trail: Splint the arm",
+            "comment": "You had the injured arm splinted for the journey.",
+            "area": null
+          }
+        ]
+      },
+      {
+        "id": "transfer",
+        "title": "In the ambulance",
+        "score": 15,
+        "max_score": 30,
+        "criteria": [
+          {
+            "id": "neurovascular_after_splint",
+            "label": "Checked the hand after splinting",
+            "met": false,
+            "points": 0,
+            "max_points": 10,
+            "method": "rule",
+            "evidence": null,
+            "comment": "You did not check the hand's circulation, sensation and movement after the arm was splinted.",
+            "area": null
+          },
+          {
+            "id": "pain_relief",
+            "label": "Had pain relief given before arrival",
+            "met": true,
+            "points": 5,
+            "max_points": 5,
+            "method": "rule",
+            "evidence": "In the ambulance: Give IV pain relief",
+            "comment": "You made sure Jordan had pain relief before reaching hospital.",
+            "area": null
+          },
+          {
+            "id": "repeat_observations",
+            "label": "Reassessed the observations on the way",
+            "met": true,
+            "points": 5,
+            "max_points": 5,
+            "method": "rule",
+            "evidence": "In the ambulance: Repeat the observations",
+            "comment": "You had the observations repeated on the way to hospital.",
+            "area": null
+          },
+          {
+            "id": "pre_alert",
+            "label": "Pre-alerted the hospital",
+            "met": false,
+            "points": 0,
+            "max_points": 5,
+            "method": "rule",
+            "evidence": null,
+            "comment": "The hospital was not pre-alerted.",
+            "area": null
+          },
+          {
+            "id": "allergies",
+            "label": "Asked about allergies",
+            "met": true,
+            "points": 5,
+            "max_points": 5,
+            "method": "keyword",
+            "evidence": "Any allergies?",
+            "comment": "You asked about allergies before drugs were given in hospital.",
+            "area": null
+          }
+        ]
+      },
+      {
+        "id": "hospital",
+        "title": "In the emergency department",
+        "score": 15,
+        "max_score": 35,
+        "criteria": [
+          {
+            "id": "handover",
+            "label": "Gave a structured handover",
+            "met": false,
+            "points": 0,
+            "max_points": 10,
+            "method": "keyword",
+            "evidence": null,
+            "comment": "You did not hand over to the emergency team. Use a structured handover such as ATMIST.",
+            "area": null
+          },
+          {
+            "id": "antibiotics",
+            "label": "Had IV antibiotics given",
+            "met": true,
+            "points": 10,
+            "max_points": 10,
+            "method": "rule",
+            "evidence": "In the emergency department: Give IV antibiotics",
+            "comment": "You had IV antibiotics given promptly.",
+            "area": null
+          },
+          {
+            "id": "tetanus",
+            "label": "Gave tetanus cover",
+            "met": false,
+            "points": 0,
+            "max_points": 5,
+            "method": "rule",
+            "evidence": null,
+            "comment": "Tetanus cover was not given, although his last injection was about 18 years ago.",
+            "area": null
+          },
+          {
+            "id": "diagnosis",
+            "label": "Named the injury correctly",
+            "met": false,
+            "points": 5,
+            "max_points": 10,
+            "method": "rule",
+            "evidence": null,
+            "comment": "You did not name the injury as an open fracture.",
+            "area": null
+          }
+        ]
+      }
+    ],
+    "strengths": [
+      "You made sure the scene was safe before working.",
+      "You introduced yourself.",
+      "You had the bleeding controlled with pressure and a dressing on the trail.",
+      "You had the injured arm splinted for the journey.",
+      "You made sure Jordan had pain relief before reaching hospital.",
+      "You had the observations repeated on the way to hospital.",
+      "You asked about allergies before drugs were given in hospital.",
+      "You had IV antibiotics given promptly."
+    ],
+    "missed": [
+      "You did not ask about a head injury, loss of consciousness or neck pain after going over the handlebars at speed.",
+      "No baseline observations were taken on the trail.",
+      "You did not check the hand's circulation, sensation and movement after the arm was splinted.",
+      "The hospital was not pre-alerted.",
+      "You did not hand over to the emergency team. Use a structured handover such as ATMIST.",
+      "Tetanus cover was not given, although his last injection was about 18 years ago.",
+      "You did not name the injury as an open fracture."
+    ],
+    "relevant_findings": [
+      "Right hand: circulation, sensation and movement: warm pink fingers capillary refill 2 s radial pulse present sensation and movement intact (pain 2/10)",
+      "Right distal forearm: wound over a deformity: deformity with a bleeding wound and bone visible (pain 9/10)"
+    ],
+    "next_steps": [
+      "Control bleeding, photograph the wound, cover it with a saline-soaked dressing and splint the limb before moving the patient.",
+      "Check circulation, sensation and movement beyond the injury before and after every splinting or manipulation.",
+      "Give IV antibiotics as soon as possible (within an hour of injury), checking allergies first, and give tetanus cover if it is not up to date.",
+      "Keep the patient nil by mouth and refer urgently to orthopaedics for wound debridement and fixation; involve plastic surgery for the soft tissues if needed.",
+      "Use a structured handover (for example ATMIST: age, time, mechanism such as over the handlebars at speed onto an outstretched arm, injuries, signs, treatment) when you hand the patient over."
+    ],
+    "documentation": [
+      {
+        "criterion_id": "allergies",
+        "label": "Asked about allergies",
+        "status": "undocumented",
+        "comment": "You did this, but did not write it down."
+      }
+    ],
+    "management": {
+      "title": "Investigation and management",
+      "score": 14,
+      "max_score": 20,
+      "criteria": [
+        {
+          "id": "imaging_requested",
+          "label": "Requested radiographs of the injured forearm",
+          "met": true,
+          "points": 4,
+          "max_points": 4,
+          "method": "rule",
+          "evidence": "Right forearm radiographs, including wrist and elbow",
+          "comment": "You requested radiographs of the injured forearm including the joints above and below.",
+          "area": "investigation"
+        },
+        {
+          "id": "result_interpreted",
+          "label": "Interpreted the radiographs",
+          "met": true,
+          "points": 4,
+          "max_points": 4,
+          "method": "keyword",
+          "evidence": "Fractured right radius and ulna",
+          "comment": "You interpreted the radiographs: displaced fractures of both forearm bones, consistent with an open injury.",
+          "area": "interpretation"
+        },
+        {
+          "id": "definitive_care",
+          "label": "Planned urgent orthopaedic surgery",
+          "met": true,
+          "points": 6,
+          "max_points": 6,
+          "method": "keyword",
+          "evidence": "closed fracture, displaced on x-ray. orthopaedic review.",
+          "comment": "You planned urgent orthopaedic review for debridement and fixation.",
+          "area": "management"
+        },
+        {
+          "id": "antibiotics_plan",
+          "label": "Planned antibiotics and tetanus cover",
+          "met": false,
+          "points": 0,
+          "max_points": 4,
+          "method": "keyword",
+          "evidence": null,
+          "comment": "Your plan did not mention antibiotics or tetanus cover.",
+          "area": "management"
+        },
+        {
+          "id": "no_unsafe_discharge",
+          "label": "Avoided an unsafe plan",
+          "met": false,
+          "points": 0,
+          "max_points": 2,
+          "method": "keyword",
+          "evidence": null,
+          "comment": "Your notes treat the injury as minor or closed. An open fracture needs admission, antibiotics and surgery.",
+          "area": "safety"
+        }
+      ]
+    },
+    "investigations": [
+      "Right forearm radiographs, including wrist and elbow: Displaced distal-third fractures of the radius and ulna; soft-tissue gas consistent with an open injury."
+    ],
+    "fitting": {
+      "title": "",
+      "score": 0,
+      "max_score": 0,
+      "criteria": [],
+      "final_fit": null,
+      "reference": null,
+      "explanation": null
+    },
+    "replay": [
+      {
+        "zone_id": "rt_forearm_wound",
+        "label": "Right distal forearm: wound over a deformity",
+        "important": true,
+        "examined": true,
+        "finding": "deformity with a bleeding wound and bone visible",
+        "pain_level": 9,
+        "explanation": "A bleeding wound over a deformity with bone visible makes this an open fracture: it needs haemorrhage control, a photograph, a saline-soaked dressing, a splint and early antibiotics."
+      },
+      {
+        "zone_id": "rt_right_hand",
+        "label": "Right hand: circulation, sensation and movement",
+        "important": true,
+        "examined": true,
+        "finding": "warm pink fingers capillary refill 2 s radial pulse present sensation and movement intact",
+        "pain_level": 2,
+        "explanation": "Checking circulation, sensation and movement beyond the injury, and again after splinting, shows the limb is not at risk and that the splint did not compromise it."
+      },
+      {
+        "zone_id": "rt_left_wrist",
+        "label": "Left wrist (radial pulse, uninjured side)",
+        "important": false,
+        "examined": false,
+        "finding": null,
+        "pain_level": null,
+        "explanation": "The uninjured wrist was not checked. Its radial pulse is a quick sign of circulation and a comparison for the injured side."
+      }
+    ],
+    "scan_review": [],
+    "disclaimer": "Educational simulation only. Not a clinical diagnostic tool. Transcript-based criteria use simple keyword heuristics."
+  }
+}

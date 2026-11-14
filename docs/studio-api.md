@@ -18,6 +18,11 @@ companions. It never holds clinical facts; those stay in `scenarios/<case_id>.js
   "learning_objectives": ["focused_history"],            // at least one
   "narrative": { "description": "", "patient_personality": "", "bystander_lines": [],
                  "source": "template" },                 // template | instructor | llm; all optional
+  "advanced": {                                          // optional, the generator's Advanced mode; null/absent = default
+    "hint_policy": "auto" | "on_request" | "off",        //   coaching, instead of the difficulty's
+    "interject_every_s": 45,                             //   10-120, bystander interval instead of the seeded 20/25/30
+    "crowd_figures": 5,                                  //   0-8, instead of the crowd level's count
+    "stage_noise": { "hospital": 0.6 } },                //   journey cases only: place id -> 0..1
   "seed": 7 }                                            // optional; chosen at random when null
 
 // Issue
@@ -47,6 +52,8 @@ companions. It never holds clinical facts; those stay in `scenarios/<case_id>.js
                                    "achievable_max", "not_assessable": [{ "id", "label", "points", "reason" }] }],
                   "learning_objectives": [{ "id", "label" }], "note": "..." },
   "narrative": { "description", "patient_personality", "source", "ai_generated": false },
+  // Journey cases: places in the case's fixed order. Default noise = case noise + environment + crowd.
+  "journey": null | { "stages": [{ "id", "label", "setting", "team": ["Sam (Paramedic)"], "noise": 0.65, "actions": 6 }] },
   "origin": null | { "duplicated_from" | "imported_from": "...", "version", "claimed_review_state" } }
 ```
 
@@ -54,7 +61,7 @@ companions. It never holds clinical facts; those stay in `scenarios/<case_id>.js
 
 | | |
 |---|---|
-| `GET /studio/catalog` | `[Template]`: `template_id, case_id, label, summary, clinical_review, environments[{id,label,brief,unsupported_equipment[]}], unsupported_environments[{id,label,reason}], equipment[{id,label,kind}], difficulties[{id,label,hint_policy,description}], crowdedness[{id,label,noise,figures}], bystander_behaviors[{id,label}], teammate_behaviors[{id,label}], learning_objectives[{id,label,needs_kind?}], hints[text], dimensions[...]` |
+| `GET /studio/catalog` | `[Template]`: `template_id, case_id, label, summary, clinical_review, environments[{id,label,brief,unsupported_equipment[]}], unsupported_environments[{id,label,reason}], equipment[{id,label,kind}], difficulties[{id,label,hint_policy,description}], crowdedness[{id,label,noise,figures}], bystander_behaviors[{id,label}], teammate_behaviors[{id,label}], learning_objectives[{id,label,needs_kind?}], hints[text], dimensions[...], kind: "single" \| "journey", stages[{id,label,setting,team[],noise,actions}], patient{name,age}, fixed_facts[]`. Dimensions a case does not score (e.g. fitting in a journey) are left out. |
 | `POST /studio/validate` | body `ScenarioConfig` → `{ "valid": bool, "issues": [Issue] }`. A body that breaks the schema itself (title under 3 characters, wrong types) is a standard FastAPI `422` with a list in `detail`. |
 | `POST /studio/preview` | body `ScenarioConfig` → the `ScenarioDefinition` it would produce (id `scn_preview`, nothing saved). 422 with issues if invalid. |
 | `POST /studio/assist` | body `{ template_id, environment, difficulty, crowdedness, tools[], bystander, focus }` → `{ source: "llm" | "template", model, description, patient_personality, bystander_lines[], learning_objectives[], notes[], requires_review }`. Uses the LLM only when `ANTHROPIC_API_KEY` is set; otherwise deterministic. |
@@ -62,6 +69,11 @@ companions. It never holds clinical facts; those stay in `scenarios/<case_id>.js
 Unsupported choices are errors with a reason, for example choosing `sports_sideline`, or X-ray
 in `community_clinic`. Free text (`title`, `narrative.*`) is rejected when it names a finding,
 a result or the diagnosis. Equipment that makes a criterion unearnable is a warning.
+
+Journey cases (`kind: "journey"`, templates `road_trauma_journey_001` and its forest-trail variant `trail_trauma_journey_001`): the places, their order and
+the team are part of the case and cannot be configured. A launched session gets each place's
+scenario noise in `case.journey.stages[].noise` and only the chosen investigations. Library and
+published rows carry `kind` and `stages` (place labels) so lists can filter and badge them.
 
 ## Library
 
@@ -81,7 +93,9 @@ a result or the diagnosis. Equipment that makes a criterion unearnable is a warn
 
 Storage: `backend/data/studio_library.json` (override `MEDSIM_STUDIO_DB`). On first use it is
 seeded with two published, experimental variants of `wrist_trauma_001`:
-`LKGLZX` "Quiet clinic, full kit (guided)" and `5344E7` "Busy walk-in, limited kit (challenging)".
+`LKGLZX` "Quiet clinic, full kit (guided)" and `5344E7` "Busy walk-in, limited kit (challenging)",
+and one of `trail_trauma_journey_001`: `7B46EL` "Forest trail with hikers (standard)". An existing
+library file is not re-seeded: delete it (or point `MEDSIM_STUDIO_DB` elsewhere) to get the new entry.
 
 ## Launch
 

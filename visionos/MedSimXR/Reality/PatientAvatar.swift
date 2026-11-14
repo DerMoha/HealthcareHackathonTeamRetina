@@ -216,6 +216,10 @@ final class PatientAvatar {
     private(set) var anchorNormals: [String: SIMD3<Float>] = [:]
     /// True while a patient lying on a couch is shown (not the seated models).
     private(set) var isRecumbent = false
+    /// Height of the seat the model sits on (stool or couch top), avatar space.
+    private(set) var seatHeight: Float = 0.5
+    /// Journey cases hide the clinic stool: the surroundings bring their own seat (wall, stretcher, trolley).
+    var furnitureHidden = false { didSet { stoolParts.forEach { $0.isEnabled = !furnitureHidden } } }
 
     /// True when the skinned model is in use and can be posed.
     var isAnimated: Bool { skinned != nil }
@@ -246,7 +250,9 @@ final class PatientAvatar {
             SmokeLog.mark("avatar variant=\(variant) loaded=procedural")
             return
         }
-        for name in variant == "Patient" ? ["Patient"] : [variant, "Patient"] {
+        // pitch shots: a 20-week bump (same build, PREG=0.6) instead of the late-pregnancy one
+        let pitchModel = SmokeLog.pitch && variant == "Patient_pregnant" ? ["antenatal_patient"] : []
+        for name in pitchModel + (variant == "Patient" ? ["Patient"] : [variant, "Patient"]) {
             guard Bundle.main.url(forResource: name, withExtension: "usdz") != nil,
                   let json = Bundle.main.url(forResource: name, withExtension: "json"),
                   let data = try? Data(contentsOf: json),
@@ -273,6 +279,8 @@ final class PatientAvatar {
         if size.z > size.y { model.orientation = simd_quatf(angle: -.pi / 2, axis: [1, 0, 0]) }
         if let couch = sidecar.couch { buildCouch(couch) } else { buildStool(seatHeight: sidecar.seatHeight) }
         isRecumbent = sidecar.couch != nil
+        seatHeight = sidecar.couch?.seatHeight ?? sidecar.seatHeight
+        stoolParts.forEach { $0.isEnabled = !furnitureHidden }
         for (name, p) in sidecar.anchors where p.count == 3 {
             if anchors[name] == nil { // belly points and the like: plain markers on the root
                 let marker = Entity()
@@ -308,6 +316,7 @@ final class PatientAvatar {
                 forearmLength = simd_distance(point(e), point(w))
             }
             for name in Self.anchorJoints.keys { anchorRest[name] = anchors[name]?.transformMatrix(relativeTo: root) }
+            if SmokeLog.pitch, sidecar.couch != nil { posePitchCouch() }
         }
         let b = model.visualBounds(relativeTo: root)
         SmokeLog.mark("avatar usdz joints=\(restJoints.count) size=\(b.extents) minY=\(b.min.y)")
@@ -322,7 +331,7 @@ final class PatientAvatar {
         stoolParts.forEach { $0.removeFromParent() }
         stoolParts = []
         for name in extraAnchors { anchors[name]?.removeFromParent(); anchors[name] = nil }
-        extraAnchors = []; anchorNormals = [:]; isRecumbent = false
+        extraAnchors = []; anchorNormals = [:]; isRecumbent = false; seatHeight = 0.5
         for (visual, component) in hiddenVisuals { visual.components.set(component) }
         hiddenVisuals = []
         for (name, transform) in proceduralAnchors { anchors[name]?.transform = transform }
@@ -330,7 +339,7 @@ final class PatientAvatar {
         skinned = nil
         model = nil
         restJoints = []; parentRotation = []; parentIndex = []; restWorld = []
-        jointIndex = [:]; jointDelta = [:]; anchorRest = [:]
+        jointIndex = [:]; jointDelta = [:]; anchorRest = [:]; pitchPose = [:]
         meshToRoot = matrix_identity_float4x4
         loadedModel = nil
     }
@@ -421,6 +430,35 @@ final class PatientAvatar {
         }
     }
 
+    /// Pitch shots only: joint offsets for the scan-couch pose, kept on top of every behaviour pose.
+    private var pitchPose: [String: simd_quatf] = [:]
+
+    /// Pitch shots: Sarah's left hand rests up on her collarbone instead of across her lower chest (where the
+    /// probe goes). Bends the left elbow so the forearm points from the elbow to just in front of the clavicle.
+    private func posePitchCouch() {
+        let names = jointIndex.keys.filter { $0.contains("clav") || $0.hasSuffix("arm_l") || $0 == "hand_l" }
+        SmokeLog.mark("pitch couch pose joints=\(names.sorted())")
+        guard let e = jointIndex["lowerarm_l"], let w = jointIndex["hand_l"], let c = jointIndex["clavicle_l"] ?? jointIndex["neck_01"] else { return }
+        func p(_ i: Int) -> SIMD3<Float> { let v = restWorld[i].columns.3; return [v.x, v.y, v.z] }
+        let toMesh = meshToRoot.inverse
+        let front4 = toMesh * SIMD4<Float>(anchorNormals["abdomen_upper"] ?? [0, 1, 0], 0)
+        let front = simd_normalize(SIMD3<Float>(front4.x, front4.y, front4.z))
+        let target = p(c) * 0.7 + p(jointIndex["neck_01"] ?? c) * 0.3 + front * Self.pitchHandLift
+        let delta = simd_quatf(from: simd_normalize(p(w) - p(e)), to: simd_normalize(target - p(e)))
+        pitchPose = ["lowerarm_l": delta]
+        jointDelta["lowerarm_l"] = delta
+        applyJoints()
+    }
+    private static let pitchHandLift: Float = 0.07
+
+    /// Pitch shots (adaptive difficulty concept): drifting off, head dropped and shoulders slumped.
+    func pitchDrowsy(_ on: Bool) async {
+        let joints = ["head": Float(24), "spine_02": 10, "spine_01": 6]
+        let target = joints.mapValues { Self.rot(on ? $0 : 0, [1, 0, 0]) }
+        if on { pitchPose.merge(target) { $1 } } else { for k in joints.keys { pitchPose[k] = nil } }
+        await tweenJoints(target, duration: 1.2)
+    }
+
     /// Eases joints to model-space rotation offsets (Blender axes: X = patient's left, -Y = front, Z = up).
     /// `lean` adds a forward torso lean that peaks mid-way. Stops where it is when cancelled.
     private func tweenJoints(_ target: [String: simd_quatf], duration: Double, lean: Float = 0) async {
@@ -445,7 +483,7 @@ final class PatientAvatar {
     /// Moves the body to the behaviour's pose. `snap` skips the animation (first appearance).
     func apply(_ behavior: PatientBehavior, snap: Bool = false) async {
         guard isAnimated else { return }
-        await tweenJoints(behavior.pose.mapValues { Self.rot($0, [1, 0, 0]) },
+        await tweenJoints(behavior.pose.mapValues { Self.rot($0, [1, 0, 0]) }.merging(pitchPose) { $1 },
                           duration: snap ? 0 : behavior.state.duration, lean: snap ? 0 : behavior.lean)
         guard !Task.isCancelled, let rest = anchorRest["right_wrist"], let wrist = anchors["right_wrist"] else { return }
         let moved = simd_distance(wrist.position(relativeTo: root), [rest.columns.3.x, rest.columns.3.y, rest.columns.3.z])

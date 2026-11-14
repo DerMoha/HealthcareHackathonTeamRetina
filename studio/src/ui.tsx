@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { ApiError, type Issue, type ReviewState } from './api'
+import { ApiError, type CaseKind, type Issue, type ReviewState } from './api'
 
 const REVIEW_LABEL: Record<ReviewState, string> = {
   draft: 'Draft',
@@ -66,5 +66,22 @@ export function Meter({ value, label }: { value: number; label: string }) {
       <div className="meter-fill" style={{ width: `${pct}%` }} />
       <span className="meter-text">{pct}%</span>
     </div>
+  )
+}
+
+/** "Journey · 3 places" for multi-stage cases, "Single encounter" otherwise. */
+export function KindBadge({ kind, stages }: { kind?: CaseKind; stages?: number }) {
+  return kind === 'journey'
+    ? <span className="tag tag-journey">Multi-stage journey{stages ? ` · ${stages} places` : ''}</span>
+    : <span className="tag">Single encounter</span>
+}
+
+/** The places of a journey in order: Roadside → Ambulance → Hospital. */
+export function StageStrip({ stages }: { stages: string[] }) {
+  if (!stages.length) return null
+  return (
+    <ol className="stage-strip" aria-label="Places, in order">
+      {stages.map((s, i) => <li key={i}>{s}</li>)}
+    </ol>
   )
 }

@@ -5,7 +5,7 @@ import uuid
 from fastapi import APIRouter, Body, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
-from . import assist, director, studio
+from . import assist, director, studio, tracelog
 from .sessions import SESSIONS, Session
 from .studio import ReviewRequest, ScenarioConfig, ScenarioDefinition, StudioError
 
@@ -42,7 +42,9 @@ def build(scenarios: dict[str, dict]) -> APIRouter:
         return {"code": d.code, "scenario_id": d.scenario_id, "version": d.version, "title": d.title,
                 "description": d.narrative["description"], "review_state": d.review.state,
                 "environment": d.environment["label"], "difficulty": d.difficulty["label"],
-                "crowdedness": d.environment["crowd"]["label"], "case_id": d.source_template["case_id"]}
+                "crowdedness": d.environment["crowd"]["label"], "case_id": d.source_template["case_id"],
+                "kind": "journey" if d.journey else "single",
+                "stages": [st["label"] for st in (d.journey or {}).get("stages", [])]}
 
     # Authoring
     @router.get("/studio/catalog")
@@ -171,6 +173,7 @@ def build(scenarios: dict[str, dict]) -> APIRouter:
                 except asyncio.TimeoutError:
                     await ws.send_json({"type": "state", **director.state(scenario, s)})
                     continue
+                tracelog.event("ws_in", session_id=s.id, role=role, message=msg)
                 if msg.get("type") == "ack" and role == "runtime":
                     await director.acknowledge(scenario, s, str(msg.get("event_id")), bool(msg.get("applied")),
                                                str(msg.get("detail", ""))[:200])

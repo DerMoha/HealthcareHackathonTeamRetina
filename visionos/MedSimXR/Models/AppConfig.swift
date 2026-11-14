@@ -45,6 +45,17 @@ enum AppConfig {
         return URL(string: host.contains("://") ? host : "http://\(host)") ?? URL(string: "http://localhost:8000")!
     }
 
+    /// Settings "Realistic environments": the dressed places of Reality/Pitch (models, photo textures,
+    /// HDRI light, posed people) instead of the procedural rooms. Default on. Launch argument
+    /// `-realisticRooms 0|1` overrides the setting (tests); pitch shots (`-pitch`) always use them.
+    /// Read when a place is built, so a change shows from the next place or Start.
+    static let realisticRoomsKey = "realisticRooms"
+    static var realisticRooms: Bool {
+        if SmokeLog.pitch { return true }
+        if let arg = launchArgument("-realisticRooms") { return !["0", "false", "no", "off"].contains(arg.lowercased()) }
+        return UserDefaults.standard.object(forKey: realisticRoomsKey) as? Bool ?? true
+    }
+
     /// Public ElevenLabs agent ID. nil → fetch a conversation token from the backend.
     static var agentId: String? { value(agentIdKey) }
 }

@@ -1,0 +1,161 @@
+{
+  "_doc": "MedSim Studio template for the continuous journey case trail_trauma_journey_001 (forest trail -> ambulance -> emergency department), the forest-trail variant of road_trauma_journey_001. Everything an instructor can choose is listed here; nothing here adds or changes clinical findings, team results, the order of the places or scoring rules of the case. Hints and companion lines are generic good-practice prompts and non-clinical speech. Not reviewed by a clinician.",
+  "template_id": "trail_trauma_journey_001",
+  "case_id": "trail_trauma_journey_001",
+  "label": "Trail accident: mountain biker, forest trail to hospital (journey)",
+  "summary": "Jordan, 34, has gone over the handlebars of a mountain bike on a forest trail and was found by hikers. The student works with the ambulance crew on the trail, stays with Jordan in the ambulance and hands over to the emergency team at the hospital.",
+  "clinical_review": "Case content is not clinician-reviewed. Variant of road_trauma_journey_001 with the same findings and scoring; the trail setting is not separately reviewed.",
+  "brief_base": "Jordan, 34, has crashed a mountain bike on a forest trail and was found by hikers. Work with the ambulance crew on the trail, look after Jordan in the ambulance and hand over at the hospital. Record your assessment and plan in the notebook.",
+  "environments": [
+    {
+      "id": "daytime",
+      "label": "Daytime, dry trail",
+      "ambient_level": 0.0,
+      "brief": "Setting: a dry, bright afternoon on a forest trail.",
+      "setting_context": "It is a dry, bright afternoon under the trees.",
+      "unsupported_equipment": []
+    },
+    {
+      "id": "wet_autumn",
+      "label": "Wet autumn afternoon",
+      "ambient_level": 0.1,
+      "brief": "Setting: an autumn afternoon after heavy rain; the trail is muddy and covered in wet leaves.",
+      "setting_context": "It is an autumn afternoon after heavy rain. The trail is muddy and slippery with wet leaves, and you are cold and wet.",
+      "unsupported_equipment": []
+    },
+    {
+      "id": "dusk",
+      "label": "Dusk, light fading",
+      "ambient_level": 0.05,
+      "brief": "Setting: early evening; the light under the trees is fading fast and the crew work by head torch.",
+      "setting_context": "It is early evening, the light under the trees is fading and it is getting cold.",
+      "unsupported_equipment": []
+    }
+  ],
+  "unsupported_environments": [
+    {
+      "id": "city_street",
+      "label": "City street",
+      "reason": "A cyclist hit by a car in a street is a different mechanism with a driver and police at the scene. Use the road accident case (road_trauma_journey_001) for that."
+    },
+    {
+      "id": "single_room",
+      "label": "One clinic room",
+      "reason": "This case is a journey across three places (forest trail, ambulance, emergency department) with a different team in each. It cannot be squeezed into a single room."
+    },
+    {
+      "id": "next_day_clinic",
+      "label": "Seen the next day",
+      "reason": "The reviewed timeline is the first hour after the accident. A next-day visit would need a different history and findings."
+    }
+  ],
+  "equipment": [
+    {"id": "xray_forearm", "label": "Forearm X-ray (at the hospital)", "kind": "investigation", "ref": "rt_xray_forearm"},
+    {"id": "ct_head", "label": "CT head (at the hospital)", "kind": "investigation", "ref": "rt_ct_head"},
+    {"id": "bloods", "label": "Blood tests (at the hospital)", "kind": "investigation", "ref": "rt_bloods"}
+  ],
+  "difficulties": [
+    {"id": "guided", "label": "Guided", "hint_policy": "auto", "description": "Coaching hints appear on their own as the journey goes on."},
+    {"id": "standard", "label": "Standard", "hint_policy": "on_request", "description": "Coaching hints only when the student asks for one."},
+    {"id": "challenging", "label": "Challenging", "hint_policy": "off", "description": "No coaching unless the instructor switches it on during the session."}
+  ],
+  "crowdedness": [
+    {"id": "quiet", "label": "Quiet trail", "noise": 0.0, "figures": 0, "scene": "The trail is empty apart from the crew."},
+    {"id": "moderate", "label": "A few hikers", "noise": 0.1, "figures": 2, "scene": "The two hikers who found Jordan wait nearby."},
+    {"id": "busy", "label": "A group of hikers", "noise": 0.2, "figures": 4, "scene": "A walking group has stopped on the trail, talking among themselves and taking photos on their phones."}
+  ],
+  "bystander_behaviors": [
+    {"id": "none", "label": "No bystander"},
+    {"id": "calm_relative", "label": "Calm hiker who found him", "mood": "calm"},
+    {"id": "anxious_relative", "label": "Upset hiker who interrupts", "mood": "anxious"}
+  ],
+  "bystander": {
+    "name": "Alex",
+    "role_label": "Hiker who found him",
+    "context": "Alex, one of the hikers who found you and called the ambulance, is standing nearby.",
+    "anxious_context": "Alex, one of the hikers who found you, is upset and keeps interrupting. It makes you a little tense, but the facts of what happened do not change.",
+    "lines": {
+      "calm": [
+        "We found him just off the path and called you straight away.",
+        "My friend has gone up the trail to stop other bikes coming down.",
+        "I've moved his bike out of the way. Tell me if I can help."
+      ],
+      "anxious": [
+        "We heard a crash and there he was. Is he going to be all right?",
+        "Should I be doing something? Tell me what to do.",
+        "It took ages for you to get up here. Is that bad?",
+        "Sorry. I'll stay out of the way."
+      ]
+    }
+  },
+  "teammate_behaviors": [
+    {"id": "none", "label": "Only the ambulance and hospital teams"},
+    {"id": "nurse_present", "label": "A fellow student rides along from the start"}
+  ],
+  "teammate": {
+    "name": "Noor",
+    "role_label": "Fellow student",
+    "arrival_line": "Hi, I'm Noor, I'm on the ride-along too. Tell me what you need and I'll get it.",
+    "delivery_line": "Done: {item} can be requested now.",
+    "context": "Another student called Noor is on the ride-along and helps the student."
+  },
+  "personalities": {
+    "guided": "Shaken but talkative; answers fully when asked.",
+    "standard": "Shaken and in pain; answers what is asked.",
+    "challenging": "Frightened and short with people; answers only what is asked and needs to be calmed first."
+  },
+  "learning_objectives": [
+    {"id": "scene_safety", "label": "Check the scene is safe and do a structured first look at the patient"},
+    {"id": "team_working", "label": "Work with the team: ask clearly for what you need and listen to what they report"},
+    {"id": "reassess_on_move", "label": "Reassess the patient after every move and every treatment"},
+    {"id": "handover", "label": "Give a clear, structured handover at the hospital"},
+    {"id": "imaging_reasoning", "label": "Choose investigations at the hospital and say what they change", "needs_kind": "investigation"},
+    {"id": "communication_under_pressure", "label": "Keep communicating clearly with worried hikers around you"}
+  ],
+  "hints": [
+    {"id": "introduce", "text": "Introduce yourself to the patient and the crew, and check the scene is safe.", "when": {"type": "no_learner_turns"}},
+    {"id": "permission", "text": "Before you touch the patient, ask for permission.", "when": {"type": "no_examination"}},
+    {"id": "ask_team", "text": "You are not alone: ask the team out loud for what you need, for example a set of observations.", "when": {"type": "always"}},
+    {"id": "compare", "text": "Examine more than one area, and look again after the team has treated the patient.", "when": {"type": "examined_fewer_than", "count": 2}},
+    {"id": "acknowledge_pain", "text": "If an examination hurt, acknowledge it before you carry on.", "when": {"type": "pain_not_acknowledged"}},
+    {"id": "imaging", "text": "At the hospital, decide which investigations would change what happens next.", "when": {"type": "not_ordered"}, "needs_kind": "investigation"},
+    {"id": "write_plan", "text": "Write your assessment and plan in the notebook, then submit.", "when": {"type": "always"}}
+  ],
+  "forbidden_terms": ["diagnos*", "bone visible", "deformed", "deformity", "x-ray shows", "x-ray showed", "ct shows", "ct showed", "blood pressure", "heart rate", "pulse of", "saturation*", "temperature of", "haemorrhag*", "hemorrhag*"],
+  "demo_draft": {
+    "_doc": "Offline stand-in for the AI drafting assistant (assist.py): hand-written, non-clinical, combined per choice. Used unless MEDSIM_LIVE_AI=1.",
+    "scenes": {
+      "daytime": "A dry, bright afternoon on a forest trail: birdsong, dappled light through the trees and the crew's kit spread out on the path, a long carry back to the ambulance waiting on the fire road.",
+      "wet_autumn": "An autumn afternoon after heavy rain, the trail slick with mud and wet leaves. Cold hands and dripping branches make every task slower, then the careful carry to the track, the swaying ambulance and the bright trauma bay follow.",
+      "dusk": "Early evening on a forest trail, the light under the trees fading fast and the crew working by head torch, with the cold setting in and the carry to the ambulance still ahead."
+    },
+    "bystander": {
+      "calm": "{name}, one of the hikers who found Jordan, stands back, answers questions clearly and offers to help.",
+      "anxious": "{name}, one of the hikers who found Jordan, is shaken, keeps coming back over and asks the same questions again, pulling attention away from the crew."
+    },
+    "pressure": {
+      "guided": "Coaching appears on its own as the journey moves from place to place.",
+      "standard": "Coaching only comes when the student asks, so each handover depends on the student's own structure.",
+      "challenging": "There is no coaching at all: the student has to lead the team, the carry and the handover alone."
+    },
+    "personalities": {
+      "guided": "Shaken but talkative, Jordan answers fully, apologises for the fuss and follows instructions as soon as they are explained.",
+      "standard": "Shaken and sore, Jordan speaks in short sentences, asks what is happening, and calms when told plainly what comes next.",
+      "challenging": "Frightened and short with people, Jordan snaps when talked over and only settles once someone introduces themselves and stays with him."
+    },
+    "lines": {
+      "calm": [
+        "Where's best for me to stand so I'm not in your way?",
+        "I can carry some of your kit back down to the track.",
+        "Do you want me to keep the others back a bit?",
+        "I've got his phone. Shall I call someone for him?"
+      ],
+      "anxious": [
+        "We heard a crash and found him on the ground just off the path.",
+        "Is he going to be all right? Somebody tell me something.",
+        "Should I be doing something? I feel useless standing here.",
+        "Do I need to call someone for him? His family?"
+      ]
+    }
+  }
+}

@@ -93,7 +93,7 @@ ELEVENLABS_AGENT_ID = agent_xxxxxxxx       // empty for private agents
 DEVELOPMENT_TEAM = ABCDE12345              // your Apple team ID
 ```
 
-Both values can also be changed at runtime: control panel → Settings (applies on the next Start).
+Both values can also be changed at runtime: Session page → Settings (applies on the next Start).
 Find the backend machine's IP with `ipconfig getifaddr en0` (macOS) or `ipconfig` (Windows);
 headset and backend must be on the same Wi-Fi.
 
@@ -116,6 +116,23 @@ cd visionos && xcodebuild -quiet -project MedSimXR.xcodeproj -scheme MedSimXR \
   case. A case that allows only one value shows it locked. The last choice is remembered. Mood and
   appearance change how the patient talks and looks, never the findings or the scoring.
   Launch arguments `-scenario <case_id> -mood <m> -avatar <a>` preselect them.
+- **Continuous journey case** (`road_trauma_journey_001`, "Road accident: Jordan, 34"): a cyclist
+  knocked off by a car. You work with an AI ambulance crew at the roadside, travel with the patient
+  in the ambulance, and hand over to an AI emergency team at the hospital. The control panel and the
+  notebook's **Team** tab show where you are, who is there, a button per thing the team can do there
+  (observations, bleeding control, splint, pain relief, cannula, pre-alert, antibiotics, …) and
+  **Move on** to the next place. You can also ask the team out loud (the voice agent routes it).
+  Every team line and result comes from the case engine; the feedback is scored per place.
+  Each place is drawn around you (the street with the crashed car, the bicycle and the ambulance;
+  then the inside of the ambulance; then a resus bay), with the patient on a response case, the
+  stretcher or the trolley instead of the clinic stool. Turn the Digital Crown to blend in your room.
+- **Forest-trail variant** (`trail_trauma_journey_001`, "Trail accident: Jordan, 34"): the same
+  patient, injury, team, ambulance, emergency department and scoring, but Jordan went over the
+  handlebars of a mountain bike on a forest trail and was found by hikers; the crew came up a fire
+  road. Its first place's `setting` starts with "Forest trail"; the app's place picker shows a
+  forest for settings containing "forest", "trail" or "woods". Listed as its own case card; the
+  seeded Studio scenario `7B46EL` ("Forest trail with hikers (standard)") launches it by code.
+  Not separately clinician-reviewed.
 - **Control panel during a session**: Stop, Recenter, status, and a **Debug** toggle (examination and
   scripted-question buttons, last finding). Nothing else.
 - **Notebook** (floats beside the patient, pinch to open): History, Examination, Assessment,
@@ -194,7 +211,7 @@ visionos/scripts/scenario_smoke_test.sh --variant studio   # the Studio window i
 Seeded launch codes: `LKGLZX` (quiet clinic, full kit, guided) and `5344E7` (busy walk-in,
 limited kit, challenging). Both are experimental, not clinician-reviewed.
 
-In the app, *Open MedSim Studio* (control panel) browses My scenarios, Downloaded and the
+The app opens on MedSim Studio, which browses My scenarios, Downloaded and the
 Marketplace, launches a scenario without typing its code, and shows debriefs. Authoring and
 the Live Director stay in the web Studio, on the instructor's screen.
 

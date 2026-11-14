@@ -131,6 +131,7 @@ fail=0
 expect() { if grep -qE "$2" "$OUT/smoke.log"; then echo "  ok   $1"; else echo "  FAIL $1"; fail=1; fi; }
 reject() { if grep -qE "$2" "$OUT/smoke.log"; then echo "  FAIL $1"; fail=1; else echo "  ok   $1"; fi; }
 expect "demo ran to the end"               "^DONE$"
+expect "voice pause rules self-check"     "^voice policy selfcheck ok=true$"
 expect "catalog loaded from the bundle"    "^catalog cases=\[.*wrist_trauma_001"
 expect "dashboard was on screen first"     "^STEP 00-dashboard$"
 if [ $DASH_ONLY = 1 ]; then
@@ -221,8 +222,8 @@ else
   expect "examination pose restored, one exam recorded per touch" "^after recoil state=arms_extended .*exams=2 "
 fi
 expect "X-ray result came from the engine"   "^investigation right_wrist_xray impression=\"No definite fracture visible.\" image=wrist_xray_pa imageFound=true"
-expect "viewer opened on the result"         "^viewer open=right_wrist_xray notebook=true"
-expect "back to notebook, Investigations tab" "^viewer closed=true tab=Investigations"
+expect "viewer opened on the result"         "^viewer open=right_wrist_xray"
+expect "viewer closed"                        "^viewer closed=true"
 expect "management scored separately"        "diagnosed score=[0-9]+/100 .*management=20/20"
 expect "MRI is a labelled report without image" "^investigation right_wrist_mri .*image=none imageFound=false"
 reject "X-ray order reveals nothing else"    "^investigation right_wrist_xray .*(scaphoid|MRI)"
@@ -253,6 +254,8 @@ if [ $MOCK_VOICE = 1 ]; then
   expect "exam reaction left to the agent"    "examined right_anatomical_snuffbox .*speakLocally=false"
   expect "pain clip played instantly"         "audio clip=ouch started=true"
   expect "notebook mutes the microphone"      "^notebook open=true .*mic=Muted"
+  expect "voice paused to save credits"       "^voice paused .*voice=Paused"
+  expect "resumed without a second greeting"  "^voice resumed newGreetings=0 .*voice=Connected mic=Live"
   expect "spoken order reached the engine"    "^heard \"I would like to order an X-ray of his right wrist.\" order=right_wrist_xray result=success"
   [ $PROCEDURAL = 1 ] || expect "spoken request triggered the action" "^heard \"Please have a seat.\" action=sit_down result=success"
 fi

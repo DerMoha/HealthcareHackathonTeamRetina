@@ -1,17 +1,20 @@
 import SwiftUI
 import Observation
 
-/// State of the in-headset Studio window, shared with the control panel so either can open
-/// it on a given page. Everything comes from the backend; nothing is cached across launches.
+/// State of the main window (MedSim Studio): which page is shown, and the library it lists. Everything comes from the backend; nothing is cached across launches.
 @MainActor
 @Observable
 final class StudioState {
+    /// Smoke-test hook: scroll the scenario dashboard to its Customize section.
+    var focusCustomize = false
+
     enum Tab: String, CaseIterable, Identifiable {
-        case overview, mine, downloaded, marketplace, debrief, create
+        case overview, session, mine, downloaded, marketplace, debrief, create
         var id: String { rawValue }
         var title: String {
             switch self {
             case .overview: "Overview"
+            case .session: "Session"
             case .mine: "My scenarios"
             case .downloaded: "Downloaded"
             case .marketplace: "Marketplace"
@@ -22,6 +25,7 @@ final class StudioState {
         var icon: String {
             switch self {
             case .overview: "house"
+            case .session: "stethoscope"
             case .mine: "folder"
             case .downloaded: "arrow.down.circle"
             case .marketplace: "storefront"
@@ -94,11 +98,11 @@ final class StudioState {
         messageTab = tab   // the message that led here comes along
     }
 
-    /// Starts a session on a published scenario: the same path as typing the code in the
-    /// control panel and pressing Start Session. Closes the Studio so the patient has the room.
-    func launch(code: String, model: AppModel, openSpace: OpenImmersiveSpaceAction, closeStudio: () -> Void) async {
+    /// Starts a session on a published scenario: the same path as typing the code on the
+    /// Session page and pressing Start Session. Shows the Session page once it runs.
+    func launch(code: String, model: AppModel, openSpace: OpenImmersiveSpaceAction) async {
         guard model.phase == .idle else {
-            error = "A session is running. Stop it in the control panel before launching another scenario."
+            error = "A session is running. Stop it on the Session page before launching another scenario."
             return
         }
         busy = true
@@ -109,7 +113,8 @@ final class StudioState {
         SmokeLog.mark("studio launch code=\(code) phase=\(model.phase) scenario=\(model.scenario?.code ?? "none") error=\(model.lastError ?? "none")")
         if model.phase == .running {
             error = nil
-            closeStudio()
+            tab = .session
+            SmokeLog.mark("studio switched to session tab")
         } else {
             error = model.lastError ?? "The session did not start."
         }

@@ -8,7 +8,9 @@ enum SmokeLog {
     /// demo, so the plain `-autoDemo` script stays out of the way.
     static let studioDemo = ProcessInfo.processInfo.arguments.contains("-studioDemo")
     static let scenarioDemo = ProcessInfo.processInfo.arguments.contains("-scenarioDemo") || studioDemo
-    static let enabled = ProcessInfo.processInfo.arguments.contains("-autoDemo") || scenarioDemo
+    /// `-pitch`: the staged pitch scenes (PitchDemo, visionos/scripts/pitch_shots.sh).
+    static let pitch = ProcessInfo.processInfo.arguments.contains("-pitch")
+    static let enabled = ProcessInfo.processInfo.arguments.contains("-autoDemo") || scenarioDemo || pitch
     private static let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("smoke.log")
 

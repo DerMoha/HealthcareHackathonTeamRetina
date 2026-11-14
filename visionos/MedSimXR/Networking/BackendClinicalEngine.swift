@@ -31,6 +31,8 @@ final class BackendClinicalEngine: ClinicalEngine {
     private struct FitBody: Encodable { var fit: OrthosisFit? }
     private struct CheckBody: Encodable { var check: String }
     private struct ScanBody: Encodable { var regionId: String; var gelApplied: Bool? }
+    private struct StageBody: Encodable { var stageId: String }
+    private struct TeamActionBody: Encodable { var actionId: String }
     private struct Detail: Decodable { var detail: String }
 
     func caseCatalog() async throws -> [CaseInfo] {
@@ -78,6 +80,14 @@ final class BackendClinicalEngine: ClinicalEngine {
 
     func scan(regionId: String, gelApplied: Bool?) async throws -> ScanResult {
         try await send("POST", "\(try path())/scans", ScanBody(regionId: regionId, gelApplied: gelApplied))
+    }
+
+    func advanceStage(_ stageId: String) async throws -> StageResult {
+        try await send("POST", "\(try path())/stage", StageBody(stageId: stageId))
+    }
+
+    func requestTeamAction(_ actionId: String) async throws -> TeamActionResult {
+        try await send("POST", "\(try path())/team-actions", TeamActionBody(actionId: actionId))
     }
 
     func recordInteraction(_ turn: TranscriptTurn) async {

@@ -16,35 +16,28 @@ struct MedSimXRApp: App {
         return AppModel(engine: MockClinicalEngine(), voice: MockVoiceService())
     }()
     @State private var studio = StudioState()
+    @State private var immersion: any ImmersionStyle = Self.room
+    private static let room = ProgressiveImmersionStyle.progressive(0.2...1, initialAmount: 1)
 
     var body: some Scene {
-        WindowGroup {
-            ControlPanelView()
-                .environment(model)
-                .environment(studio)
-        }
-        .defaultSize(width: ControlPanelView.idleSize.width, height: ControlPanelView.idleSize.height)
-        // The dashboard is large; a running session shrinks the panel to a small palette
-        // (the content decides the size).
-        .windowResizability(.contentSize)
-        // Low, like a tool palette: the patient keeps the centre of the view.
-        .defaultWindowPlacement { _, _ in WindowPlacement(.utilityPanel) }
-
-        // MedSim Studio in the headset: library, marketplace, launch and debrief. Authoring and
-        // the Live Director stay in the web Studio (the instructor's screen).
-        WindowGroup(id: StudioView.windowId) {
+        // One window: MedSim Studio, with the session controls on its Session page.
+        WindowGroup(id: "studio") {
             StudioView()
                 .environment(model)
                 .environment(studio)
         }
-        .defaultSize(width: 1000, height: 600)
+        .defaultSize(width: 1280, height: 820)
+        .windowResizability(.contentMinSize)
 
         ImmersiveSpace(id: "patient") {
             ImmersivePatientView()
                 .environment(model)
                 .onAppear { model.immersiveOpen = true }
                 .onDisappear { model.immersiveOpen = false }
+                // pitch shots: without the case's room the patient sits in the wearer's own room
+                .onChange(of: Pitch.shared.hideRoom) { _, hide in immersion = hide ? .mixed : Self.room }
         }
-        .immersionStyle(selection: .constant(.mixed), in: .mixed)
+        // Progressive: the Digital Crown blends the case's room (EnvironmentSet) with the real one.
+        .immersionStyle(selection: $immersion, in: .mixed, Self.room)
     }
 }

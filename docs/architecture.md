@@ -57,6 +57,14 @@ Add a `catalog` (card text, allowed moods and avatars, optional `avatar_model`) 
 (`right_wrist`, `right_forearm`, `left_wrist`, …). The agent prompt needs no change — case
 facts arrive through `{{case_context}}`.
 
+A **continuous journey** case (e.g. `road_trauma_journey_001`: roadside → ambulance → emergency
+department, or its forest-trail variant `trail_trauma_journey_001`) adds a `journey` section: the AI medical team, the places in order, and per place the
+team actions and investigations allowed there (api-contract.md §8). The rubric can then use
+`team_action_any`, `learner_said_in_stage` and `examined_after_action`. In the headset the place
+shows as a sign with the team's figures and its background noise; team members speak scripted
+engine lines with the system voice. The patient agent needs the `request_team_action` client tool
+(elevenlabs/setup.md §5d).
+
 ## Workstream ownership
 
 | Area | Owner |

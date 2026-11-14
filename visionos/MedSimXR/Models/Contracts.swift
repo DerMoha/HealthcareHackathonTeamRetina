@@ -85,6 +85,88 @@ struct UltrasoundInfo: Codable, Hashable, Sendable {
     var regions: [UltrasoundRegion]
 }
 
+// MARK: - Journey (continuous cases: roadside -> ambulance -> hospital)
+
+/// An AI member of the medical team. Every line they say comes from the case engine.
+struct JourneyMember: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var name: String
+    var role: String
+}
+
+/// Something the learner can ask the team to do in one place. Its result stays with the engine.
+struct JourneyAction: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var label: String
+    /// `JourneyMember.id` of whoever does it.
+    var member: String
+}
+
+struct JourneyStage: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var label: String
+    var setting: String
+    var brief: String
+    /// Member ids present here.
+    var team: [String]
+    /// 0...1 background noise for the scene.
+    var noise: Double = 0
+    /// Said in order on arrival (for the first stage: at session start). No clinical facts.
+    var arrival: [JourneyLine] = []
+    var actions: [JourneyAction]
+    /// Investigation ids that can be requested here.
+    var investigations: [String] = []
+}
+
+/// Mirrors `JourneyInfo` in backend/app/models.py. The session starts in `stages[0]`.
+struct JourneyInfo: Codable, Hashable, Sendable {
+    var team: [JourneyMember]
+    var stages: [JourneyStage]
+
+    func member(_ id: String) -> JourneyMember? { team.first { $0.id == id } }
+}
+
+/// What a team member says, in order, when the encounter arrives somewhere.
+struct JourneyLine: Codable, Hashable, Sendable {
+    var member: String
+    var speaker: String
+    var text: String
+}
+
+struct StageResult: Codable, Hashable, Sendable {
+    var stageId: String
+    var label: String
+    /// 0-based position of the new stage.
+    var index: Int
+    var count: Int
+    var arrival: [JourneyLine]
+    /// Context-only note for the voice agent ("" = none).
+    var voiceContext: String
+}
+
+struct TeamActionResult: Codable, Hashable, Identifiable, Sendable {
+    var id = UUID()
+    var stageId: String
+    var actionId: String
+    var label: String
+    var member: JourneyMember
+    /// False: a prerequisite is missing and nothing was done.
+    var done: Bool
+    /// What the team member says.
+    var response: String
+    /// What was done or measured; nil when not done.
+    var result: String?
+    /// May be empty: the patient says nothing.
+    var patientResponse: String
+    /// A spoken event when `patientResponse` is set, else a context-only note.
+    var voiceContext: String
+    var repeatCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case stageId, actionId, label, member, done, response, result, patientResponse, voiceContext, repeatCount
+    }
+}
+
 /// Dashboard metadata of a case. Spoiler-free by contract: never names the diagnosis.
 /// Mirrors `CaseCatalog` in backend/app/models.py, defaults included.
 struct CaseCatalog: Codable, Hashable, Sendable {
@@ -180,6 +262,8 @@ struct CaseInfo: Codable, Hashable, Sendable {
     var catalog: CaseCatalog?
     /// Only cases with an ultrasound machine.
     var ultrasound: UltrasoundInfo?
+    /// Only continuous journey cases.
+    var journey: JourneyInfo?
 }
 
 struct SessionInfo: Codable, Hashable, Sendable {
@@ -242,6 +326,8 @@ struct ScenarioSummary: Codable, Hashable, Identifiable, Sendable {
     var environment: String
     var difficulty: String
     var crowdedness: String
+    /// Journey scenarios: place labels in order (absent from older servers and single encounters).
+    var stages: [String]?
     var id: String { code }
 }
 
@@ -594,6 +680,11 @@ protocol ClinicalEngine: AnyObject {
     /// Ultrasound: one probe contact with a belly region. `gelApplied` is what the scene shows;
     /// the engine's own gel record decides, the flag can only make the scan worse.
     func scan(regionId: String, gelApplied: Bool?) async throws -> ScanResult
+    /// Journey: moves the encounter to the next place (only the next one).
+    func advanceStage(_ stageId: String) async throws -> StageResult
+    /// Journey: asks the team to do something in the current place. A missing prerequisite is
+    /// not an error: the result says `done == false` and what the member answered.
+    func requestTeamAction(_ actionId: String) async throws -> TeamActionResult
     /// Best effort; must never throw into the UI.
     func recordInteraction(_ turn: TranscriptTurn) async
     func diagnose(_ diagnosis: String, notes: ClinicalNotes) async throws -> Feedback
@@ -604,12 +695,19 @@ protocol ClinicalEngine: AnyObject {
 extension ClinicalEngine {
     var bundledCases: [CaseInfo] { [] }
     func startSession(caseId: String) async throws -> SessionInfo { try await startSession(caseId: caseId, config: nil) }
+    func advanceStage(_ stageId: String) async throws -> StageResult { throw ConfigError(errorDescription: "This case has no journey.") }
+    func requestTeamAction(_ actionId: String) async throws -> TeamActionResult {
+        throw ConfigError(errorDescription: "This case has no medical team.")
+    }
 }
 
 enum VoiceStatus: Equatable, Sendable {
     case disconnected
     case connecting
     case connected
+    /// Planned disconnect to save credits (idle, notebook open, or connection time limit).
+    /// The run and its memory stay; `resume()` reconnects without a new greeting.
+    case paused
     case failed(String)
 
     var label: String {
@@ -617,6 +715,7 @@ enum VoiceStatus: Equatable, Sendable {
         case .disconnected: "Disconnected"
         case .connecting: "Connecting…"
         case .connected: "Connected"
+        case .paused: "Paused · patient waiting"
         case .failed(let message): "Error: \(message)"
         }
     }
@@ -645,15 +744,25 @@ protocol VoiceService: AnyObject {
     /// Called when the agent's client tool `order_investigation` fires, with the raw
     /// `investigation` string. Returns the tool result; it never contains the test result.
     var onOrder: ((String) async -> String)? { get set }
+    /// Called when the agent's client tool `request_team_action` fires, with the raw `action`
+    /// string. Returns the tool result ("success: …", "blocked: …", "failure: …").
+    var onTeamAction: ((String) async -> String)? { get set }
+    /// The consultation so far (live and local turns). Read when a paused conversation resumes,
+    /// so the new connection remembers it.
+    var history: (() -> [TranscriptTurn])? { get set }
 
     /// Connects and passes `caseContext` as dynamic variable `case_context`.
     /// `voiceId` (optional) overrides the agent's TTS voice for this conversation; the agent
     /// must allow voice overrides (elevenlabs/setup.md).
     func start(caseContext: String, voiceId: String?) async
+    /// Terminal: ends the run. `resume()` afterwards does nothing; `fetchSummary()` still works.
     func stop() async
-    /// Note-taking mode: while muted the agent must not hear the learner (dictated notes).
-    func setMicMuted(_ muted: Bool) async
-    /// Background information for the agent. Must not make it speak.
+    /// Reconnects a `.paused` run with its memory and without a greeting. Otherwise a no-op.
+    func resume() async
+    /// Note-taking mode: the microphone is muted at once (the agent must not hear dictated notes);
+    /// a notebook left open pauses the conversation. Closing it resumes a pause it caused.
+    func setNotebookOpen(_ open: Bool) async
+    /// Background information for the agent. Must not make it speak. Kept while paused.
     func sendContext(_ text: String) async
     /// Forwards `ExaminationResult.voiceContext`; the agent must speak a reaction.
     func sendExaminationEvent(_ text: String) async
