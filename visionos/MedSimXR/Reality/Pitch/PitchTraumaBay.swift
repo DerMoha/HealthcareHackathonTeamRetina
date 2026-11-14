@@ -11,28 +11,43 @@ enum PitchTraumaBay {
 
         // Floor, walls, ceiling.
         let floor = ModelEntity(mesh: .generatePlane(width: 2 * w, depth: front - back),
-                                materials: [tinted("traumabay_floor", tiling: [8, 10], UIColor(red: 0.74, green: 0.77, blue: 0.78, alpha: 1), roughness: 0.6)])
+                                materials: [PitchKit.material("traumabay_vinyl", tiling: [2 * w / 1.4, (front - back) / 1.4], roughness: 0.75)])
         floor.position = [0, 0, (front + back) / 2]
         set.addChild(floor)
-        let wallTint = UIColor(red: 0.86, green: 0.92, blue: 0.92, alpha: 1)
+        let wallTint = UIColor(red: 0.84, green: 0.85, blue: 0.83, alpha: 1)
         wall(set, size: [2 * w, h], at: [0, h / 2, back], yaw: 0, tint: wallTint)
         wall(set, size: [front - back, h], at: [-w, h / 2, (front + back) / 2], yaw: .pi / 2, tint: wallTint)
         wall(set, size: [front - back, h], at: [w, h / 2, (front + back) / 2], yaw: -.pi / 2, tint: wallTint)
-        let ceiling = ModelEntity(mesh: .generatePlane(width: 2 * w, depth: front - back), materials: [pbr(UIColor(white: 0.93, alpha: 1), 0.9)])
+        let ceiling = ModelEntity(mesh: .generatePlane(width: 2 * w, depth: front - back),
+                                  materials: [PitchKit.material("traumabay_ceiling", tiling: [2 * w / 1.2, (front - back) / 1.2], tint: UIColor(white: 0.8, alpha: 1), roughness: 0.9)])
         ceiling.position = [0, h, (front + back) / 2]
         ceiling.orientation = simd_quatf(angle: .pi, axis: [1, 0, 0])
         set.addChild(ceiling)
-        var panelGlow = UnlitMaterial(color: UIColor(red: 1, green: 0.99, blue: 0.96, alpha: 1))
-        panelGlow.color = .init(tint: UIColor(red: 1, green: 0.99, blue: 0.96, alpha: 1))
-        for x: Float in [-1.5, 1.5] { for z: Float in [-2.2, -0.4, 1.4] { box(set, [0.6, 0.02, 1.2], panelGlow, at: [x, h - 0.01, z]) } }
+        let panelGlow = UnlitMaterial(color: UIColor(red: 0.97, green: 0.97, blue: 0.95, alpha: 1))
+        let alu = PitchKit.material("traumabay_steel", tint: UIColor(white: 0.75, alpha: 1), roughness: 0.5)
+        for x: Float in [-1.5, 1.5] { for z: Float in [-2.2, -0.4, 1.4] {
+            box(set, [0.64, 0.02, 1.24], alu, at: [x, h - 0.008, z])
+            box(set, [0.6, 0.02, 1.2], panelGlow, at: [x, h - 0.012, z])
+        } }
         // Wipe-clean lower wall panels and a bumper rail, round the three walls.
-        let lower = pbr(UIColor(red: 0.42, green: 0.6, blue: 0.68, alpha: 1), 0.35)
-        let rail = pbr(UIColor(white: 0.85, alpha: 1), 0.3, metal: 1)
-        box(set, [2 * w, 1.0, 0.02], lower, at: [0, 0.5, back + 0.011])
-        box(set, [2 * w, 0.06, 0.05], rail, at: [0, 1.02, back + 0.03])
-        for x in [-w + 0.011, w - 0.011] {
-            box(set, [0.02, 1.0, front - back], lower, at: [x, 0.5, (front + back) / 2])
-            box(set, [0.05, 0.06, front - back], rail, at: [x + (x < 0 ? 0.02 : -0.02), 1.02, (front + back) / 2])
+        let lower = PitchKit.material("traumabay_plastic", tiling: [6, 1], tint: UIColor(red: 0.3, green: 0.46, blue: 0.52, alpha: 1), roughness: 0.55)
+        let lowerSide = PitchKit.material("traumabay_plastic", tiling: [8, 1], tint: UIColor(red: 0.3, green: 0.46, blue: 0.52, alpha: 1), roughness: 0.55)
+        let rail = PitchKit.material("traumabay_steel", tint: UIColor(white: 0.9, alpha: 1), roughness: 0.35)
+        let railBody = PitchKit.material("traumabay_plastic", tiling: [10, 0.2], tint: UIColor(white: 0.62, alpha: 1), roughness: 0.5)
+        let railInsert = PitchKit.material("traumabay_plastic", tiling: [10, 0.2], tint: UIColor(red: 0.16, green: 0.26, blue: 0.32, alpha: 1), roughness: 0.4)
+        let skirt = PitchKit.material("traumabay_plastic", tiling: [10, 0.2], tint: UIColor(white: 0.28, alpha: 1), roughness: 0.6)
+        box(set, [2 * w, 1.1, 0.012], lower, at: [0, 0.55, back + 0.006])
+        box(set, [2 * w, 0.14, 0.04], railBody, at: [0, 0.92, back + 0.02], corner: 0.012)
+        box(set, [2 * w, 0.04, 0.008], railInsert, at: [0, 0.92, back + 0.042])
+        box(set, [2 * w, 0.1, 0.02], skirt, at: [0, 0.05, back + 0.01])
+        box(set, [2 * w, 0.02, 0.02], rail, at: [0, 1.11, back + 0.012]) // capping strip
+        for x in [-w + 0.006, w - 0.006] {
+            let o: Float = x < 0 ? 1 : -1
+            box(set, [0.012, 1.1, front - back], lowerSide, at: [x, 0.55, (front + back) / 2])
+            box(set, [0.04, 0.14, front - back], railBody, at: [x + o * 0.014, 0.92, (front + back) / 2], corner: 0.012)
+            box(set, [0.008, 0.04, front - back], railInsert, at: [x + o * 0.036, 0.92, (front + back) / 2])
+            box(set, [0.02, 0.1, front - back], skirt, at: [x + o * 0.004, 0.05, (front + back) / 2])
+            box(set, [0.02, 0.02, front - back], rail, at: [x + o * 0.006, 1.11, (front + back) / 2])
         }
         // Yellow bay box and a hatched keep-clear strip at the head end.
         let yellow = pbr(UIColor(red: 0.98, green: 0.78, blue: 0.08, alpha: 1), 0.55)
@@ -66,20 +81,17 @@ enum PitchTraumaBay {
         cyl(set, 0.14, 0.022, pbr(UIColor(white: 0.95, alpha: 0.6), 0.1), at: [px + 0.09, 1.66, pz + 0.19])
         cyl(set, 0.03, 0.03, pbr(UIColor(red: 0.1, green: 0.6, blue: 0.25, alpha: 1), 0.4), at: [px + 0.09, 1.75, pz + 0.19])
         // Monitor arm and the vitals monitor turned towards the trolley.
-        rod(set, from: [px + 0.15, 1.9, pz], to: [-0.85, 1.9, -0.95], radius: 0.025, rail)
+        rod(set, from: [px + 0.15, 1.9, pz], to: [-0.95, 1.9, -1.0], radius: 0.025, rail)
+        rod(set, from: [-0.95, 1.9, -1.0], to: [-0.82, 1.86, -0.96], radius: 0.022, rail)
+        cyl(set, 0.07, 0.035, pendantWhite, at: [px + 0.15, 1.9, pz])
+        cyl(set, 0.06, 0.032, pendantWhite, at: [-0.95, 1.9, -1.0])
         let monitorYaw: Float = 0.35
         let mon = Entity(); mon.position = [-0.8, 1.86, -0.92]; mon.orientation = simd_quatf(angle: monitorYaw, axis: [0, 1, 0]); set.addChild(mon)
         box(mon, [0.56, 0.42, 0.07], pbr(UIColor(white: 0.16, alpha: 1), 0.45), at: [0, 0, 0], corner: 0.015)
         plane(mon, [0.52, 0.365], vitals(), at: [0, 0.01, 0.036])
 
-        // Wall suction and a second O2 point on a wall rail, left of the sign.
-        box(set, [1.6, 0.08, 0.04], rail, at: [-2.2, 1.42, back + 0.03])
-        cyl(set, 0.22, 0.07, pbr(UIColor(red: 0.85, green: 0.92, blue: 0.95, alpha: 0.5), 0.05), at: [-2.55, 1.22, back + 0.1])
-        cyl(set, 0.03, 0.075, pbr(UIColor(red: 0.1, green: 0.35, blue: 0.7, alpha: 1), 0.4), at: [-2.55, 1.345, back + 0.1])
-        box(set, [0.09, 0.14, 0.07], pendantWhite, at: [-2.3, 1.55, back + 0.06], corner: 0.01)
-        cyl(set, 0.02, 0.04, pbr(UIColor(white: 0.98, alpha: 1), 0.2), at: [-2.3, 1.58, back + 0.1], axis: .z)
-        cyl(set, 0.022, 0.04, pbr(.systemYellow, 0.4), at: [-2.3, 1.48, back + 0.1], axis: .z)
-        rod(set, from: [-2.3, 1.48, back + 0.1], to: [-2.55, 1.36, back + 0.1], radius: 0.006, pbr(UIColor(white: 0.95, alpha: 0.7), 0.2))
+        // Bed-head gas panel on the back wall, left: O2, air and vacuum outlets, sockets, suction unit below.
+        bedHead(set, x: -2.25, y: 1.45, z: back)
 
         // PACS screen high on the back wall, right of the sign.
         box(set, [0.96, 0.6, 0.05], pbr(UIColor(white: 0.12, alpha: 1), 0.4), at: [1.1, 2.2, back + 0.03], corner: 0.01)
@@ -102,11 +114,9 @@ enum PitchTraumaBay {
         box(set, [0.1, 0.2, 0.08], pbr(.white, 0.4), at: [1.75, 1.35, back + 0.05], corner: 0.01)
         box(set, [0.04, 0.04, 0.04], pbr(UIColor(red: 0.2, green: 0.5, blue: 0.85, alpha: 1), 0.4), at: [1.75, 1.23, back + 0.07])
         // Clinical waste bin, shelves with supplies in the right corner.
-        PitchKit.place("traumabay_bin", in: set, at: [1.5, 0, back + 0.35], fit: 0.6)
-        PitchKit.place("traumabay_shelves", in: set, at: [2.75, 0, -2.2], yaw: -.pi / 2, fit: 1.8)
-        for (y, n) in [(Float(0.95), 2), (1.32, 3)] {
-            for i in 0..<n { PitchKit.place("traumabay_medbox", in: set, at: [2.8, y, -2.6 + Float(i) * 0.35], yaw: -.pi / 2, fit: 0.3, shadow: false) }
-        }
+        sharpsBin(set, at: [1.62, 1.08, back])
+        wasteBin(set, at: [1.45, 0, back + 0.3])
+        wireShelves(set, x: w - 0.3, z: -2.25)
         PitchKit.place("traumabay_clock", in: set, at: [0.3, 2.25, back + 0.02], fit: 0.3, shadow: false)
 
         // Curtains on ceiling tracks either side of the bay, pleated.
@@ -142,10 +152,10 @@ enum PitchTraumaBay {
         staff(set, "Patient_female", at: [0.55, 0, -1.55], yaw: -0.25, scrubs: UIColor(red: 0.5, green: 0.12, blue: 0.2, alpha: 1), masked: false, armsForward: false)
 
         // Light: HDRI on everything, shadows from the overhead lamp and the ceiling panels.
-        PitchKit.light(avatarRoot, hdri: "traumabay_ibl", intensity: 0.4)
+        PitchKit.light(avatarRoot, hdri: "traumabay_ibl", intensity: -0.1)
         PitchKit.showShadows(on: floor)
-        PitchKit.spot(set, at: [0.35, h - 0.6, 0.0], target: [0, 0.5, -0.1], intensity: 40000, color: UIColor(red: 1, green: 0.98, blue: 0.93, alpha: 1), angle: 70)
-        PitchKit.sun(set, from: [0.8, 3, 1.2], to: [0, 0, -0.6], intensity: 4200)
+        PitchKit.spot(set, at: [0.35, h - 0.6, 0.0], target: [0, 0.5, -0.1], intensity: 60000, color: UIColor(red: 1, green: 0.97, blue: 0.92, alpha: 1), angle: 75)
+        PitchKit.sun(set, from: [0.8, 3, 1.2], to: [0, 0, -0.6], intensity: 3000, color: UIColor(red: 0.96, green: 0.98, blue: 1, alpha: 1))
         return true
     }
 
@@ -212,6 +222,29 @@ enum PitchTraumaBay {
             box(c, [0.71, 0.006, 0.01], dark, at: [0, y, 0.276])
             rod(c, from: [-0.2, y + 0.08, 0.29], to: [0.2, y + 0.08, 0.29], radius: 0.008, steel)
         }
+        // Drawer labels (ABCDE order) and the numbered tamper seal.
+        let drawers: [(String, UIColor)] = [("MISC / IO", UIColor(white: 0.5, alpha: 1)), ("DRUGS", UIColor(red: 0.55, green: 0.2, blue: 0.7, alpha: 1)),
+                                            ("CIRCULATION", UIColor(red: 0.85, green: 0.1, blue: 0.1, alpha: 1)), ("BREATHING", UIColor(red: 0.15, green: 0.45, blue: 0.85, alpha: 1)),
+                                            ("AIRWAY", UIColor(red: 0.1, green: 0.6, blue: 0.3, alpha: 1))]
+        for (i, d) in drawers.enumerated() {
+            let y = 0.2 + Float(i) * 0.17 + 0.045
+            let label = printed(400, 80) { r in
+                UIColor.white.setFill(); UIBezierPath(rect: r).fill()
+                d.1.setFill(); UIBezierPath(rect: CGRect(x: 0, y: 0, width: 40, height: 80)).fill()
+                text(d.0, at: CGPoint(x: 56, y: 16), size: 40, weight: .heavy, color: .black)
+            }
+            plane(c, [0.2, 0.04], label, at: [-0.21, y, 0.278])
+        }
+        box(c, [0.025, 0.05, 0.006], pbr(UIColor(red: 0.1, green: 0.55, blue: 0.2, alpha: 1), 0.5), at: [0.33, 0.9, 0.28])
+        // Clipboard with the daily check list hooked on the side.
+        box(c, [0.004, 0.3, 0.22], pbr(UIColor(red: 0.45, green: 0.3, blue: 0.18, alpha: 1), 0.6), at: [-0.378, 0.7, 0.05])
+        let check = printed(220, 300) { r in
+            UIColor.white.setFill(); UIBezierPath(rect: r).fill()
+            text("RESUS TROLLEY\nDAILY CHECK", at: CGPoint(x: 12, y: 10), size: 22, weight: .heavy, color: .black)
+            for i in 0..<8 { UIColor(white: 0.6, alpha: 1).setFill(); UIBezierPath(rect: CGRect(x: 12, y: 80 + i * 26, width: 196, height: 2)).fill() }
+        }
+        let cl = ModelEntity(mesh: .generatePlane(width: 0.19, height: 0.26), materials: [check])
+        cl.position = [-0.381, 0.69, 0.05]; cl.orientation = simd_quatf(angle: -.pi / 2, axis: [0, 1, 0]); c.addChild(cl)
         box(c, [0.8, 0.04, 0.6], pbr(UIColor(white: 0.2, alpha: 1), 0.6), at: [0, 1.01, 0], corner: 0.01)
         for x: Float in [-0.3, 0.3] { for z: Float in [-0.22, 0.22] { cyl(c, 0.05, 0.045, dark, at: [x, 0.05, z], axis: .x) } }
         rod(c, from: [-0.38, 0.95, 0.3], to: [0.38, 0.95, 0.3], radius: 0.012, steel)
@@ -230,6 +263,115 @@ enum PitchTraumaBay {
         cyl(c, 0.7, 0.06, pbr(UIColor(white: 0.97, alpha: 1), 0.3), at: [0.44, 0.55, 0])
         cyl(c, 0.1, 0.06, pbr(UIColor(white: 0.9, alpha: 1), 0.3, metal: 1), at: [0.44, 0.95, 0])
         PitchKit.contactShadow(c, at: [0, 0, 0], size: [0.8, 0.6])
+    }
+
+    /// Wall-mounted bed-head trunking: labelled medical gas outlets (O2 white, air black/white, vacuum yellow),
+    /// switched sockets, a nurse-call point, and the suction regulator with its canister on a short rail.
+    private static func bedHead(_ e: Entity, x: Float, y: Float, z: Float) {
+        let body = PitchKit.material("traumabay_plastic", tiling: [3, 0.4], tint: UIColor(white: 0.93, alpha: 1), roughness: 0.4)
+        let trim = PitchKit.material("traumabay_steel", tint: UIColor(white: 0.8, alpha: 1), roughness: 0.4)
+        let width: Float = 1.5
+        box(e, [width, 0.26, 0.07], body, at: [x, y, z + 0.035], corner: 0.015)
+        box(e, [width + 0.01, 0.015, 0.075], trim, at: [x, y + 0.13, z + 0.037])
+        box(e, [width + 0.01, 0.015, 0.075], trim, at: [x, y - 0.13, z + 0.037])
+        let fz = z + 0.071
+        let gases: [(String, UIColor, UIColor)] = [
+            ("O2", UIColor(white: 0.97, alpha: 1), UIColor(white: 0.97, alpha: 1)),
+            ("O2", UIColor(white: 0.97, alpha: 1), UIColor(white: 0.97, alpha: 1)),
+            ("AIR", UIColor(white: 0.08, alpha: 1), UIColor(white: 0.97, alpha: 1)),
+            ("VAC", UIColor(red: 0.98, green: 0.82, blue: 0.1, alpha: 1), UIColor(red: 0.98, green: 0.82, blue: 0.1, alpha: 1)),
+            ("VAC", UIColor(red: 0.98, green: 0.82, blue: 0.1, alpha: 1), UIColor(red: 0.98, green: 0.82, blue: 0.1, alpha: 1)),
+        ]
+        for (i, g) in gases.enumerated() {
+            let gx = x - width / 2 + 0.14 + Float(i) * 0.13
+            // Square fascia plate, coloured collar, chrome socket.
+            box(e, [0.1, 0.1, 0.008], pbr(UIColor(white: 0.98, alpha: 1), 0.35), at: [gx, y + 0.02, fz])
+            cyl(e, 0.016, 0.03, pbr(g.1, 0.35), at: [gx, y + 0.02, fz + 0.012], axis: .z)
+            cyl(e, 0.02, 0.016, pbr(g.2, 0.3), at: [gx, y + 0.02, fz + 0.022], axis: .z)
+            cyl(e, 0.022, 0.007, PitchKit.material("traumabay_steel", roughness: 0.25), at: [gx, y + 0.02, fz + 0.026], axis: .z)
+            let label = printed(120, 40) { r in
+                (g.0 == "AIR" ? UIColor(white: 0.1, alpha: 1) : g.0 == "VAC" ? UIColor(red: 0.98, green: 0.82, blue: 0.1, alpha: 1) : UIColor.white).setFill()
+                UIBezierPath(rect: r).fill()
+                text(g.0, at: CGPoint(x: g.0 == "O2" ? 40 : 26, y: 2), size: 32, weight: .heavy, color: g.0 == "AIR" ? .white : .black)
+            }
+            plane(e, [0.07, 0.022], label, at: [gx, y - 0.068, fz + 0.001])
+        }
+        // Switched sockets (green neon) and the nurse-call handset.
+        for i in 0..<3 {
+            let sx = x + 0.2 + Float(i) * 0.14
+            box(e, [0.1, 0.1, 0.012], pbr(UIColor(white: 0.98, alpha: 1), 0.3), at: [sx, y + 0.02, fz + 0.002], corner: 0.006)
+            for dx: Float in [-0.016, 0.016] { box(e, [0.006, 0.014, 0.004], pbr(UIColor(white: 0.15, alpha: 1), 0.5), at: [sx + dx, y + 0.01, fz + 0.009]) }
+            box(e, [0.012, 0.008, 0.004], UnlitMaterial(color: UIColor(red: 0.3, green: 1, blue: 0.4, alpha: 1)), at: [sx + 0.03, y + 0.05, fz + 0.009])
+        }
+        box(e, [0.08, 0.13, 0.03], pbr(UIColor(white: 0.96, alpha: 1), 0.35), at: [x + 0.66, y + 0.0, fz + 0.012], corner: 0.01)
+        cyl(e, 0.01, 0.018, pbr(UIColor(red: 0.85, green: 0.12, blue: 0.12, alpha: 1), 0.3), at: [x + 0.66, y + 0.03, fz + 0.03], axis: .z)
+        // Suction regulator on the left VAC outlet, tubing to a canister on a rail below.
+        let vx = x - width / 2 + 0.14 + 3 * 0.13
+        box(e, [0.07, 0.11, 0.06], pbr(UIColor(white: 0.95, alpha: 1), 0.3), at: [vx, y - 0.04, fz + 0.06], corner: 0.01)
+        cyl(e, 0.012, 0.03, pbr(UIColor(white: 0.97, alpha: 1), 0.1), at: [vx, y - 0.02, fz + 0.095], axis: .z) // gauge
+        box(e, [0.42, 0.04, 0.03], trim, at: [vx + 0.05, y - 0.33, z + 0.015])
+        cyl(e, 0.2, 0.065, pbr(UIColor(red: 0.85, green: 0.92, blue: 0.95, alpha: 0.55), 0.05), at: [vx + 0.05, y - 0.46, z + 0.1])
+        cyl(e, 0.025, 0.07, pbr(UIColor(red: 0.1, green: 0.35, blue: 0.7, alpha: 1), 0.4), at: [vx + 0.05, y - 0.35, z + 0.1])
+        rod(e, from: [vx, y - 0.1, fz + 0.07], to: [vx + 0.05, y - 0.34, z + 0.1], radius: 0.005, pbr(UIColor(white: 0.95, alpha: 0.7), 0.2))
+    }
+
+    /// Yellow sharps container with an orange lid on a wall bracket.
+    private static func sharpsBin(_ e: Entity, at p: SIMD3<Float>) {
+        box(e, [0.24, 0.03, 0.18], PitchKit.material("traumabay_steel", roughness: 0.4), at: [p.x, p.y - 0.015, p.z + 0.09])
+        box(e, [0.22, 0.26, 0.16], PitchKit.material("traumabay_plastic", tint: UIColor(red: 1, green: 0.8, blue: 0.08, alpha: 1), roughness: 0.45), at: [p.x, p.y + 0.13, p.z + 0.1], corner: 0.015)
+        box(e, [0.23, 0.05, 0.17], PitchKit.material("traumabay_plastic", tint: UIColor(red: 0.95, green: 0.42, blue: 0.06, alpha: 1), roughness: 0.4), at: [p.x, p.y + 0.285, p.z + 0.1], corner: 0.01)
+        let label = printed(220, 120) { r in
+            UIColor(red: 1, green: 0.8, blue: 0.08, alpha: 1).setFill(); UIBezierPath(rect: r).fill()
+            text("DANGER", at: CGPoint(x: 30, y: 6), size: 36, weight: .heavy, color: .black)
+            text("SHARPS ONLY\nfill to line", at: CGPoint(x: 30, y: 50), size: 24, weight: .bold, color: .black)
+        }
+        plane(e, [0.16, 0.09], label, at: [p.x, p.y + 0.13, p.z + 0.181])
+    }
+
+    /// Pedal bin for clinical waste: yellow lid, white body, label.
+    private static func wasteBin(_ e: Entity, at p: SIMD3<Float>) {
+        let body = PitchKit.material("traumabay_plastic", tint: UIColor(white: 0.9, alpha: 1), roughness: 0.45)
+        box(e, [0.36, 0.55, 0.32], body, at: p + [0, 0.285, 0], corner: 0.03)
+        box(e, [0.37, 0.05, 0.33], PitchKit.material("traumabay_plastic", tint: UIColor(red: 1, green: 0.78, blue: 0.05, alpha: 1), roughness: 0.4), at: p + [0, 0.58, 0], corner: 0.02)
+        box(e, [0.16, 0.025, 0.06], PitchKit.material("traumabay_steel", roughness: 0.35), at: p + [0, 0.02, 0.18])
+        let label = printed(240, 120) { r in
+            UIColor(red: 1, green: 0.8, blue: 0.08, alpha: 1).setFill(); UIBezierPath(rect: r).fill()
+            text("CLINICAL\nWASTE", at: CGPoint(x: 26, y: 10), size: 40, weight: .heavy, color: .black)
+        }
+        plane(e, [0.2, 0.1], label, at: p + [0, 0.38, 0.161])
+        PitchKit.contactShadow(e, at: p, size: [0.4, 0.35], opacity: 0.6)
+    }
+
+    /// Chrome wire shelving against the right wall with blue supply bins.
+    private static func wireShelves(_ e: Entity, x: Float, z: Float) {
+        let chrome = PitchKit.material("traumabay_steel", tint: UIColor(white: 0.95, alpha: 1), roughness: 0.2, metallic: 1)
+        let depth: Float = 0.45, len: Float = 1.2
+        for dx: Float in [-depth / 2, depth / 2] { for dz: Float in [-len / 2, len / 2] {
+            cyl(e, 1.8, 0.012, chrome, at: [x + dx, 0.9, z + dz])
+        } }
+        let binColors = [UIColor(red: 0.12, green: 0.38, blue: 0.75, alpha: 1), UIColor(red: 0.12, green: 0.38, blue: 0.75, alpha: 1), UIColor(red: 0.85, green: 0.15, blue: 0.15, alpha: 1)]
+        let items = ["IV CANNULA", "SYRINGES", "DRESSINGS", "SPLINTS", "BANDAGES", "ET TUBES", "GAUZE", "NG TUBES", "SALINE"]
+        var k = 0
+        for (si, y) in [Float(0.2), 0.62, 1.04, 1.46].enumerated() {
+            // Wire deck: a frame and a few cross wires.
+            for dx: Float in [-depth / 2, depth / 2] { box(e, [0.012, 0.012, len], chrome, at: [x + dx, y, z]) }
+            for i in 0..<13 { box(e, [depth, 0.006, 0.006], chrome, at: [x, y, z - len / 2 + Float(i) * len / 12]) }
+            if si == 0 { continue }
+            for i in 0..<3 {
+                let bz = z - 0.4 + Float(i) * 0.4
+                let c = binColors[(si + i) % 3 == 0 ? 2 : 0]
+                box(e, [0.38, 0.17, 0.34], PitchKit.material("traumabay_plastic", tint: c, roughness: 0.45), at: [x, y + 0.09, bz], corner: 0.015)
+                let name = items[k % items.count]; k += 1
+                let label = printed(240, 80) { r in
+                    UIColor.white.setFill(); UIBezierPath(rect: r).fill()
+                    text(name, at: CGPoint(x: 12, y: 18), size: 34, weight: .bold, color: .black)
+                }
+                let l = ModelEntity(mesh: .generatePlane(width: 0.16, height: 0.05), materials: [label])
+                l.position = [x - 0.191, y + 0.1, bz]; l.orientation = simd_quatf(angle: -.pi / 2, axis: [0, 1, 0])
+                e.addChild(l)
+            }
+        }
+        PitchKit.contactShadow(e, at: [x, 0, z], size: [0.5, 1.2], opacity: 0.5)
     }
 
     // MARK: Team
@@ -292,7 +434,8 @@ enum PitchTraumaBay {
         }
         holder.position = p
         holder.orientation = simd_quatf(angle: yaw, axis: [0, 1, 0])
-        PitchKit.contactShadow(holder, at: [0, 0, 0], size: [0.45, 0.35], opacity: 0.5)
+        PitchKit.contactShadow(holder, at: [0, 0, 0.02], size: [0.55, 0.42], opacity: 0.55)
+        PitchKit.contactShadow(holder, at: [0, 0.001, 0.03], size: [0.3, 0.22], opacity: 0.45)
         e.addChild(holder)
     }
 
@@ -379,6 +522,16 @@ enum PitchTraumaBay {
         return m
     }
 
+    /// Same as `drawn` but lit (printed labels and stickers, not screens).
+    private static func printed(_ w: Int, _ h: Int, _ draw: (CGRect) -> Void) -> PhysicallyBasedMaterial {
+        let fmt = UIGraphicsImageRendererFormat(); fmt.scale = 1
+        let img = UIGraphicsImageRenderer(size: CGSize(width: w, height: h), format: fmt).image { _ in draw(CGRect(x: 0, y: 0, width: w, height: h)) }
+        var m = PhysicallyBasedMaterial()
+        m.roughness = 0.6
+        if let cg = img.cgImage, let t = try? TextureResource(image: cg, options: .init(semantic: .color)) { m.baseColor = .init(tint: .white, texture: .init(t)) }
+        return m
+    }
+
     nonisolated private static func text(_ s: String, at p: CGPoint, size: CGFloat, weight: UIFont.Weight, color: UIColor) {
         (s as NSString).draw(at: p, withAttributes: [.font: UIFont.systemFont(ofSize: size, weight: weight), .foregroundColor: color])
     }
@@ -402,7 +555,7 @@ enum PitchTraumaBay {
 
     private static func wall(_ e: Entity, size: SIMD2<Float>, at p: SIMD3<Float>, yaw: Float, tint: UIColor) {
         let m = ModelEntity(mesh: .generatePlane(width: size.x, height: size.y),
-                            materials: [tinted("traumabay_wall", tiling: [size.x / 1.5, size.y / 1.5], tint, roughness: 0.9)])
+                            materials: [PitchKit.material("traumabay_wall", tiling: [size.x / 1.5, size.y / 1.5], tint: tint, roughness: 0.9)])
         m.position = p; m.orientation = simd_quatf(angle: yaw, axis: [0, 1, 0])
         e.addChild(m)
     }
