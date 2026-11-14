@@ -1,11 +1,13 @@
 """Forest-trail variant of the road trauma journey: trail -> ambulance -> emergency department.
 Same patient, findings, team and scoring as road_trauma_journey_001; only the mechanism and the first place differ."""
 import json
+import os
 import re
 
 import pytest
 
 from app import director, main, studio
+from test_journey import FIXTURES, run_parity
 
 TRAIL = "trail_trauma_journey_001"
 ROAD = "road_trauma_journey_001"
@@ -333,3 +335,21 @@ def test_seeded_trail_scenario_launches_by_code(client):
     assert s["scenario"]["code"] == "7B46EL" and s["case"]["case_id"] == TRAIL
     assert s["scenario"]["bystander"]["mood"] == "calm" and len(s["scenario"]["crowd_figures"]) == 2
     assert {i["id"] for i in s["case"]["investigations"]} == {"rt_xray_forearm", "rt_ct_head", "rt_bloods"}
+
+
+# ---------------------------------------------------------------- parity with the Swift offline engine
+
+def test_trail_journey_parity_golden(client):
+    """The road journey's parity run (fixtures/journey_parity_input.json) on the trail case. Golden for
+    visionos/scripts/OfflineEngineCheck. Regenerate after editing the scenario:
+    REGEN_FIXTURES=1 python -m pytest -k trail_journey_parity."""
+    got = run_parity(client, TRAIL)
+    path = FIXTURES / "trail_journey_parity_expected.json"
+    if os.environ.get("REGEN_FIXTURES") or not path.exists():
+        path.write_text(json.dumps(got, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    assert got == json.loads(path.read_text(encoding="utf-8"))
+    road = json.loads((FIXTURES / "journey_parity_expected.json").read_text(encoding="utf-8"))
+    assert [r.get("error") for r in got["results"]] == [r.get("error") for r in road["results"]]
+    assert [(c["id"], c["score"]) for c in got["feedback"]["categories"]] == \
+        [(c["id"], c["score"]) for c in road["feedback"]["categories"]]
+    assert got["feedback"]["total_score"] == road["feedback"]["total_score"]

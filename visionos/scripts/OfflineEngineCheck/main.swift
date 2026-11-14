@@ -440,11 +440,12 @@ do {
     catch let err as OfflineEngineError { check(err.status == 409, "X-ray outside hospital is 409") }
 }
 
-do {
-    let rtId = "road_trauma_journey_001"
+// The same parity run on the forest-trail variant (trail_trauma_journey_001), against its own golden.
+for (rtId, golden) in [("road_trauma_journey_001", "journey_parity_expected.json"),
+                       ("trail_trauma_journey_001", "trail_journey_parity_expected.json")] {
     let fx = root.appendingPathComponent("backend/tests/fixtures")
     if let inData = try? Data(contentsOf: fx.appendingPathComponent("journey_parity_input.json")),
-       let exData = try? Data(contentsOf: fx.appendingPathComponent("journey_parity_expected.json")) {
+       let exData = try? Data(contentsOf: fx.appendingPathComponent(golden)) {
         let input = try JSONSerialization.jsonObject(with: inData) as! [String: Any]
         let cfg = input["config"] as! [String: String]
         let e = try OfflineClinicalEngine(scenarios: [data, Data(contentsOf: root.appendingPathComponent("scenarios/\(rtId).json"))])
@@ -481,11 +482,26 @@ do {
         var f = got["feedback"] as! [String: Any]; f["session_id"] = nil; got["feedback"] = f
         var wf = want["feedback"] as! [String: Any]; wf["session_id"] = nil; want["feedback"] = wf
         let before = parityDiffs
-        diff(got, want, "journey")
-        print("journey parity: \(parityDiffs - before) field difference(s)"); failures += parityDiffs - before
+        diff(got, want, rtId)
+        print("journey parity \(rtId): \(parityDiffs - before) field difference(s)"); failures += parityDiffs - before
     } else {
-        print("journey parity: fixtures not present, skipped")
+        print("journey parity \(rtId): fixtures not present, skipped")
     }
+}
+
+// MARK: Forest-trail variant: bundled next to the road case, first place on the trail
+do {
+    let ids = ["road_trauma_journey_001", "trail_trauma_journey_001"]
+    let e = try OfflineClinicalEngine(scenarios: [data] + ids.map { try Data(contentsOf: root.appendingPathComponent("scenarios/\($0).json")) })
+    check(e.bundledCases.map(\.caseId) == [caseId] + ids, "trail case bundled next to the road case")
+    let trail = e.bundledCases[2].journey
+    check(trail?.stages.map(\.id) == ["scene", "ambulance", "hospital"] && trail?.stages.first?.label == "On the trail"
+          && trail?.stages.first?.setting.hasPrefix("Forest trail") == true, "trail stages and setting")
+    _ = try await e.startSession(caseId: ids[1])
+    let safe = try await e.requestTeamAction("scene_safety")
+    check(safe.done && safe.result?.contains("hikers") == true, "scene check on the trail")
+    do { _ = try await e.requestTeamAction("iv_antibiotics"); check(false, "antibiotics are a hospital action") }
+    catch let err as OfflineEngineError { check(err.status == 409, "wrong place is 409 on the trail") }
 }
 
 print(failures == 0 ? "OfflineEngineCheck: all assertions passed" : "OfflineEngineCheck: \(failures) FAILED")
