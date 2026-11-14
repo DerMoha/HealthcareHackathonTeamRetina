@@ -33,7 +33,7 @@ struct ImmersivePatientView: View {
             if let viewer = attachments.entity(for: "viewer") {
                 // Further out than the notebook and nearer the wearer, so both can be read side by side.
                 // Pitch: left of the patient instead, inside the simulator's fixed view.
-                if SmokeLog.pitch { panels.add(viewer, to: avatar.root, at: [-0.62, 1.38, 0.5], yaw: 0.35, scale: 1.15) }
+                if SmokeLog.pitch { panels.add(viewer, to: avatar.root, at: [-0.36, 1.36, 0.8], yaw: 0.3, scale: 1.3) }
                 else { panels.add(viewer, to: avatar.root, at: [1.0, 1.3, 0.75], yaw: -0.6) }
             }
             avatar.rebuildZones(model.zones)

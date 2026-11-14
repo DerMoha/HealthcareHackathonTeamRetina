@@ -36,11 +36,14 @@
 		1A25FBC26C309092877AF002 /* ReactionPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5A25A3DADF9B4063BE901C /* ReactionPlayer.swift */; };
 		1AC2F91AEAF32FE87D4ACDAD /* traumabay_scrub_diff.jpg in Resources */ = {isa = PBXBuildFile; fileRef = A1F4F1BE0156378ACE86B547 /* traumabay_scrub_diff.jpg */; };
 		1D5832ED12143A117ACC64FE /* props_drape_normal.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 199685A55B5D2F9927EF6261 /* props_drape_normal.jpg */; };
+		1F8A018C0DC9BC0D08632A56 /* uiimaging_xray_forearm_ap.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 29DBEBCC991719C4B2D2E559 /* uiimaging_xray_forearm_ap.jpg */; };
 		215BEA618E8A7332A725BB41 /* clinic_ceiling_diff.jpg in Resources */ = {isa = PBXBuildFile; fileRef = F6875D2A31C3A3C85EF13028 /* clinic_ceiling_diff.jpg */; };
 		23D05D9AE53E1E394B6078C4 /* ImmersivePatientView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 813A01C10B111313CE1DDF90 /* ImmersivePatientView.swift */; };
 		25BCC31074B17D2AEA1F053A /* us_comfort.m4a in Resources */ = {isa = PBXBuildFile; fileRef = ED929DE480E5A2158F85CD0B /* us_comfort.m4a */; };
 		27302329D0AE480B72155EA6 /* right_distal_forearm.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 77F70F9AD13AEC4D287EB3D4 /* right_distal_forearm.m4a */; };
+		2798705205FB44971B640D39 /* uiimaging_xray_wrist_lat.jpg in Resources */ = {isa = PBXBuildFile; fileRef = FDF197E38AFD1B898F61C6BD /* uiimaging_xray_wrist_lat.jpg */; };
 		280B93C210F798420183AF8B /* SmokeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC2A7B7B970B168F87EA0C7 /* SmokeLog.swift */; };
+		2852FFE9F094686CFAF13C6A /* uiimaging_xray_forearm_lat.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 852C8C250143BD153981A90F /* uiimaging_xray_forearm_lat.jpg */; };
 		285E026DB3F833991140ABBB /* traumabay_medbox.usdz in Resources */ = {isa = PBXBuildFile; fileRef = 9F2CC24ED4BE7240F8661285 /* traumabay_medbox.usdz */; };
 		2959E4A10FCE73FED0C8056F /* us_head_bpd.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 0C26F4F3BDDE64227F8CD0F5 /* us_head_bpd.jpg */; };
 		2B18EB1CC30A4B01DF40F97C /* PatientAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F7E76829056B36B7903737C /* PatientAvatar.swift */; };
@@ -258,6 +261,7 @@
 		27893D27C947621E43E88D33 /* ScenarioDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenarioDashboardView.swift; sourceTree = "<group>"; };
 		27E9308B3914DBF89F15CF4C /* props_neoprene_normal.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = props_neoprene_normal.jpg; sourceTree = "<group>"; };
 		28D48E645F2687D80079F1AD /* clinic_splash_rough.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = clinic_splash_rough.jpg; sourceTree = "<group>"; };
+		29DBEBCC991719C4B2D2E559 /* uiimaging_xray_forearm_ap.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = uiimaging_xray_forearm_ap.jpg; sourceTree = "<group>"; };
 		2A6BFD19307A466A1DB622D6 /* traumabay_floor_rough.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = traumabay_floor_rough.jpg; sourceTree = "<group>"; };
 		2BD9435EFEA12AE39D3E0BAC /* clinic_plastic_rough.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = clinic_plastic_rough.jpg; sourceTree = "<group>"; };
 		2D94C9D8A2D18A679D918ECC /* clinic_splash_ao.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = clinic_splash_ao.jpg; sourceTree = "<group>"; };
@@ -320,6 +324,7 @@
 		81597846B956B543B126A6C1 /* antenatal_floor_rough.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = antenatal_floor_rough.jpg; sourceTree = "<group>"; };
 		826A87299F9FC29E91816D56 /* props_steel_normal.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = props_steel_normal.jpg; sourceTree = "<group>"; };
 		83B7B666FEC6D43C3E7EED51 /* clinic_wall_diff.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = clinic_wall_diff.jpg; sourceTree = "<group>"; };
+		852C8C250143BD153981A90F /* uiimaging_xray_forearm_lat.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = uiimaging_xray_forearm_lat.jpg; sourceTree = "<group>"; };
 		85B90974265C58FFFAB6E33D /* Mocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mocks.swift; sourceTree = "<group>"; };
 		870FD8DD945440A47FF1F123 /* left_wrist.m4a */ = {isa = PBXFileReference; path = left_wrist.m4a; sourceTree = "<group>"; };
 		87ED0E452FE02E813528F56E /* MedSimXRApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedSimXRApp.swift; sourceTree = "<group>"; };
@@ -435,6 +440,7 @@
 		FC326BDFA2D4E3021F0BAD2F /* clinic_maple_diff.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = clinic_maple_diff.jpg; sourceTree = "<group>"; };
 		FC4CAFB9F0B80FC7975C9987 /* traumabay_wall_ao.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = traumabay_wall_ao.jpg; sourceTree = "<group>"; };
 		FC9C9B36CB6529DAFB8E3273 /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
+		FDF197E38AFD1B898F61C6BD /* uiimaging_xray_wrist_lat.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = uiimaging_xray_wrist_lat.jpg; sourceTree = "<group>"; };
 		FEC6F610EBDD69348BA15524 /* UltrasoundScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UltrasoundScene.swift; sourceTree = "<group>"; };
 		FEF53ACB82D050988FA827F7 /* mechanism.m4a */ = {isa = PBXFileReference; path = mechanism.m4a; sourceTree = "<group>"; };
 		FEFF639990A0E6A3C69BDF18 /* us_symptoms.m4a */ = {isa = PBXFileReference; path = us_symptoms.m4a; sourceTree = "<group>"; };
@@ -613,6 +619,9 @@
 				65F84BD33B2D9992A19F7046 /* traumabay_wall_diff.jpg */,
 				7CD9B9D8BB7C047048BA64DC /* traumabay_wall_nor.jpg */,
 				F50A55CADD0ACB3AE8F83C0D /* traumabay_wall_rough.jpg */,
+				29DBEBCC991719C4B2D2E559 /* uiimaging_xray_forearm_ap.jpg */,
+				852C8C250143BD153981A90F /* uiimaging_xray_forearm_lat.jpg */,
+				FDF197E38AFD1B898F61C6BD /* uiimaging_xray_wrist_lat.jpg */,
 				CA0E06716AFDF78F78F4622D /* vpstudio_cover_rt-01-roadside.jpg */,
 				00C8D72E0E080DA04EF514A4 /* vpstudio_cover_rt-02-crew.jpg */,
 				96C137E697A209BDDD0F95F4 /* vpstudio_cover_rt-04-ambulance.jpg */,
@@ -1015,6 +1024,9 @@
 				B07D3CBFCF218D159C62E485 /* traumabay_wall_diff.jpg in Resources */,
 				DE63433B358185D639D80B43 /* traumabay_wall_nor.jpg in Resources */,
 				50835750BFE36502C2C4B4E9 /* traumabay_wall_rough.jpg in Resources */,
+				1F8A018C0DC9BC0D08632A56 /* uiimaging_xray_forearm_ap.jpg in Resources */,
+				2852FFE9F094686CFAF13C6A /* uiimaging_xray_forearm_lat.jpg in Resources */,
+				2798705205FB44971B640D39 /* uiimaging_xray_wrist_lat.jpg in Resources */,
 				3A9870994282F82418584A70 /* ultrasound_manifest.json in Resources */,
 				823B163F1D6094C23277C0A1 /* us_abdomen_ac.jpg in Resources */,
 				F781FB3E840EB79C5716AA2E /* us_amniotic_fluid.jpg in Resources */,
