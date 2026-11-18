@@ -2,25 +2,17 @@
 
 # MedSim XR
 
-Alex fell off his bike and hurt his wrist. On Apple Vision Pro, you can sit down with him, ask what happened, examine his wrist, and decide what you’d do next. At the end, you can see what you picked up and what you missed.
-
-That’s **MedSim XR**, the prototype we built as **Team Retina** at Healthcare Hackathon Bayern.
+We’re Team Retina. We built MedSim XR at Healthcare Hackathon Bayern in Erlangen, Germany, on 12–14 November 2026. It’s an Apple Vision Pro prototype for practising patient interviews and physical exams.
 
 ![A virtual patient in the mixed-reality fracture clinic](docs/screenshots/pitch/wrist-01-in-your-room.jpg)
 
-## The healthcare hackathon
+## The hackathon
 
-We built MedSim XR in Erlangen, Germany, on **12–14 November 2026**. Medical Valley EMN brought teams and healthcare mentors together, and we had about 48 hours to turn a challenge into something we could show the jury. [Event recap](https://www.medical-valley-emn.de/en/recap-healthcare-hackathon-bayern-erlangen-2026/)
+Medical Valley EMN organised the event. Teams had about 48 hours to work on a healthcare challenge before presenting their prototypes to a jury. [Event recap](https://www.medical-valley-emn.de/en/recap-healthcare-hackathon-bayern-erlangen-2026/)
 
-We picked **Meet Your AI Patient**, a challenge from **OTH Amberg-Weiden**. The idea was to give medical students a place to practise taking a patient history. Could you walk into a room, talk to a virtual patient, then get feedback on how you handled the conversation? [Challenge brief](https://hackathon.medical-valley-emn.de/meet-your-ai-patient/)
+We worked on OTH Amberg-Weiden’s **Meet Your AI Patient** challenge. The brief was to give medical students a way to practise taking a patient history with a virtual patient and get feedback afterwards. [Challenge brief](https://hackathon.medical-valley-emn.de/meet-your-ai-patient/)
 
-## What we built at the hackathon
-
-If a patient asks, “Can you look at my wrist?”, we wanted you to be able to do just that. You can check where it hurts, look at an X-ray, fit a wrist support, and write down what you think is going on. The conversation can go differently each time, but the case findings stay the same so you can try a different approach and compare how you did.
-
-We also built **MedSim Studio** so an instructor could run the same case in a quiet clinic or a busy walk-in and see how the learner handled it. For the pitch, we mocked up a scene that gets louder or quieter as the learner’s heart rate changes. The readings in that demo were staged.
-
-The cases are fictional and built for practice.
+We started with a wrist injury. You can ask how it happened, check where it hurts, and look at the X-ray before writing down your assessment. The AI handles the conversation. The case defines what you find on examination and how the session is scored, so you can repeat it and see how a different approach changes your result.
 
 ## What you can try
 
@@ -29,7 +21,7 @@ The cases are fictional and built for practice.
 - **Trauma journey** · Coordinate with simulated teammates as one patient moves from the roadside or forest trail through an ambulance to the emergency department.
 - **MedSim Studio** · Configure a case, publish it with a launch code, trigger events with the Live Director, and review the debrief. Try `LKGLZX` (guided clinic), `5344E7` (busy walk-in), or `7B46EL` (forest trail) on a fresh Studio library.
 
-The [demo script](docs/demo-script.md) walks through the wrist case. The [pitch deck](docs/pitch/MedSimXR-pitch.pptx) and [screenshot gallery](docs/screenshots/pitch/README.md) cover the rest of the prototype.
+The [demo script](docs/demo-script.md) walks through the wrist case. For the pitch, we mocked up how the simulation could adjust noise and distractions in response to the learner’s heart rate. That demo used staged readings. [Pitch deck](docs/pitch/MedSimXR-pitch.pptx) · [Screenshots](docs/screenshots/pitch/README.md)
 
 ## Run locally
 
