@@ -2,23 +2,25 @@
 
 # MedSim XR
 
-**MedSim XR is Team Retina’s Apple Vision Pro prototype from Healthcare Hackathon Bayern 2026 in Erlangen, Germany.** We wanted to see whether mixed reality could give learners a repeatable way to practise a whole clinical encounter, from the first conversation through examination, assessment, and feedback.
+Alex fell off his bike and hurt his wrist. On Apple Vision Pro, you can sit down with him, ask what happened, examine his wrist, and decide what you’d do next. At the end, you can see what you picked up and what you missed.
+
+That’s **MedSim XR**, the prototype we built as **Team Retina** at Healthcare Hackathon Bayern.
 
 ![A virtual patient in the mixed-reality fracture clinic](docs/screenshots/pitch/wrist-01-in-your-room.jpg)
 
 ## The healthcare hackathon
 
-Medical Valley EMN brought participants, healthcare experts, and mentors together in Erlangen on **12–14 November 2026**. Teams spent about 48 hours developing prototypes for practical healthcare challenges and presented their work to a jury on the final day. [Medical Valley EMN’s event recap](https://www.medical-valley-emn.de/en/recap-healthcare-hackathon-bayern-erlangen-2026/)
+We built MedSim XR in Erlangen, Germany, on **12–14 November 2026**. Medical Valley EMN brought teams and healthcare mentors together, and we had about 48 hours to turn a challenge into something we could show the jury. [Event recap](https://www.medical-valley-emn.de/en/recap-healthcare-hackathon-bayern-erlangen-2026/)
 
-Our starting point was **Meet Your AI Patient**, the challenge from **OTH Amberg-Weiden**. The brief called for an AI-powered patient on Apple Vision Pro so medical students could practise taking a patient history in a realistic setting. It also called for feedback after each consultation, so learners could see which questions they asked, which details they missed, and how they structured the interview. [Official challenge brief](https://hackathon.medical-valley-emn.de/meet-your-ai-patient/)
+We picked **Meet Your AI Patient**, a challenge from **OTH Amberg-Weiden**. The idea was to give medical students a place to practise taking a patient history. Could you walk into a room, talk to a virtual patient, then get feedback on how you handled the conversation? [Challenge brief](https://hackathon.medical-valley-emn.de/meet-your-ai-patient/)
 
 ## What we built at the hackathon
 
-The Vision Pro app puts a virtual patient in the room. Learners interview and examine the patient, use tools such as an ultrasound probe or wrist support, and record their reasoning before getting a scored debrief. The web-based MedSim Studio gives instructors a way to configure the setting and equipment, introduce distractions during a session, and review how the learner did.
+If a patient asks, “Can you look at my wrist?”, we wanted you to be able to do just that. You can check where it hurts, look at an X-ray, fit a wrist support, and write down what you think is going on. The conversation can go differently each time, but the case findings stay the same so you can try a different approach and compare how you did.
 
-We used AI for the patient conversation and authored cases for the clinical findings and scoring. That lets a learner repeat a case with the same findings while the conversation can take a different course. [Project architecture](docs/architecture.md)
+We also built **MedSim Studio** so an instructor could run the same case in a quiet clinic or a busy walk-in and see how the learner handled it. For the pitch, we mocked up a scene that gets louder or quieter as the learner’s heart rate changes. The readings in that demo were staged.
 
-This archive preserves the prototype, demo materials, and the team's test evidence. The pitch also explored future ideas such as adjusting distractions in response to a learner's heart rate. That concept used staged readings. The cases use fictional patient histories and are intended for education and simulation only.
+The cases are fictional and built for practice.
 
 ## What you can try
 
