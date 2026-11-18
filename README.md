@@ -2,13 +2,21 @@
 
 # MedSim XR
 
-**MedSim XR is a healthcare hackathon prototype built by Team Retina for Apple Vision Pro.** We wanted to see whether mixed reality could give learners a repeatable way to practise a whole clinical encounter, from the first conversation through examination, assessment, and feedback.
+**MedSim XR is Team Retina’s Apple Vision Pro prototype from Healthcare Hackathon Bayern 2026 in Erlangen, Germany.** We wanted to see whether mixed reality could give learners a repeatable way to practise a whole clinical encounter, from the first conversation through examination, assessment, and feedback.
 
 ![A virtual patient in the mixed-reality fracture clinic](docs/screenshots/pitch/wrist-01-in-your-room.jpg)
+
+## The healthcare hackathon
+
+Medical Valley EMN brought participants, healthcare experts, and mentors together in Erlangen on **12–14 November 2026**. Teams spent about 48 hours developing prototypes for practical healthcare challenges and presented their work to a jury on the final day. [Medical Valley EMN’s event recap](https://www.medical-valley-emn.de/en/recap-healthcare-hackathon-bayern-erlangen-2026/)
+
+Our starting point was **Meet Your AI Patient**, the challenge from **OTH Amberg-Weiden**. The brief called for an AI-powered patient on Apple Vision Pro so medical students could practise taking a patient history in a realistic setting. It also called for feedback after each consultation, so learners could see which questions they asked, which details they missed, and how they structured the interview. [Official challenge brief](https://hackathon.medical-valley-emn.de/meet-your-ai-patient/)
 
 ## What we built at the hackathon
 
 The Vision Pro app puts a virtual patient in the room. Learners interview and examine the patient, use tools such as an ultrasound probe or wrist support, and record their reasoning before getting a scored debrief. The web-based MedSim Studio gives instructors a way to configure the setting and equipment, introduce distractions during a session, and review how the learner did.
+
+We used AI for the patient conversation and authored cases for the clinical findings and scoring. That lets a learner repeat a case with the same findings while the conversation can take a different course. [Project architecture](docs/architecture.md)
 
 This archive preserves the prototype, demo materials, and the team's test evidence. The pitch also explored future ideas such as adjusting distractions in response to a learner's heart rate. That concept used staged readings. The cases use fictional patient histories and are intended for education and simulation only.
 
