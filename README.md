@@ -2,11 +2,15 @@
 
 # MedSim XR
 
-MedSim XR is a Team Retina hackathon prototype for Apple Vision Pro. Learners talk to and examine a virtual patient in mixed reality, record their findings, then submit an assessment and get a scored debrief. Instructors use the web-based MedSim Studio to configure scenarios and direct live sessions.
-
-**Project status** · Hackathon snapshot, preserved for reference. For education and simulation only. The cases use fictional patient histories.
+**MedSim XR is a healthcare hackathon prototype built by Team Retina for Apple Vision Pro.** We wanted to see whether mixed reality could give learners a repeatable way to practise a whole clinical encounter, from the first conversation through examination, assessment, and feedback.
 
 ![A virtual patient in the mixed-reality fracture clinic](docs/screenshots/pitch/wrist-01-in-your-room.jpg)
+
+## What we built at the hackathon
+
+The Vision Pro app puts a virtual patient in the room. Learners interview and examine the patient, use tools such as an ultrasound probe or wrist support, and record their reasoning before getting a scored debrief. The web-based MedSim Studio gives instructors a way to configure the setting and equipment, introduce distractions during a session, and review how the learner did.
+
+This archive preserves the prototype, demo materials, and the team's test evidence. The pitch also explored future ideas such as adjusting distractions in response to a learner's heart rate. That concept used staged readings. The cases use fictional patient histories and are intended for education and simulation only.
 
 ## What you can try
 
@@ -15,7 +19,7 @@ MedSim XR is a Team Retina hackathon prototype for Apple Vision Pro. Learners ta
 - **Trauma journey** · Coordinate with simulated teammates as one patient moves from the roadside or forest trail through an ambulance to the emergency department.
 - **MedSim Studio** · Configure a case, publish it with a launch code, trigger events with the Live Director, and review the debrief. Try `LKGLZX` (guided clinic), `5344E7` (busy walk-in), or `7B46EL` (forest trail) on a fresh Studio library.
 
-The [demo script](docs/demo-script.md) walks through the wrist case. The [pitch deck](docs/pitch/MedSimXR-pitch.pptx) and [screenshot gallery](docs/screenshots/pitch/README.md) cover the rest of the prototype. The pitch's heart-rate adaptation is a staged concept.
+The [demo script](docs/demo-script.md) walks through the wrist case. The [pitch deck](docs/pitch/MedSimXR-pitch.pptx) and [screenshot gallery](docs/screenshots/pitch/README.md) cover the rest of the prototype.
 
 ## Run locally
 
