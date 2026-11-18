@@ -1,20 +1,17 @@
 # MedSim XR clinical backend
 
-FastAPI service: single source of truth for examination findings and educational scoring.
-In-memory sessions, no database, no LLM calls. Contract: `../docs/api-contract.md`.
-Python 3.12+.
+FastAPI service for case logic, examination findings, educational scoring, and MedSim Studio. The clinical engine reads the shared JSON case definitions. Active sessions live in memory, and Studio stores its library in a local JSON file. See the [clinical API](../docs/api-contract.md) and [Studio API](../docs/studio-api.md).
 
 ## Setup and run
 
-macOS / Linux:
+Use Python 3.12 or later. From the repository root on macOS or Linux:
 
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-python -m pytest
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --port 8000
 ```
 
 Windows PowerShell:
@@ -23,29 +20,24 @@ Windows PowerShell:
 cd backend
 py -3.12 -m venv .venv
 .venv\Scripts\Activate.ps1      # if blocked: Set-ExecutionPolicy -Scope Process Bypass
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-python -m pytest
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --port 8000
 ```
 
-Interactive API docs: <http://localhost:8000/docs> (OpenAPI at `/openapi.json`).
+Check <http://localhost:8000/health> and open the [interactive API docs](http://localhost:8000/docs). Run the tests with `python -m pytest` from `backend/` in the activated environment.
 
 ## Configuration
 
-Copy `../.env.example` to `../.env` (repo root). Real environment variables win over `.env`.
+The default local setup works without credentials. For optional integrations, copy the root [.env.example](../.env.example) to `.env` in the repository root. Environment variables take precedence.
 
-- `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`: needed only for `GET /elevenlabs/conversation-token`
-  (503 if missing, 502 if ElevenLabs rejects the call). The key is never returned or logged.
-  `ELEVENLABS_API_KEY` alone also enables `POST /elevenlabs/transcribe` (notebook dictation: raw
-  audio body in, `{"text": ...}` out, via ElevenLabs Scribe `scribe_v2`). The app falls back to
-  Apple speech recognition on 503 or any other failure.
+- `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` enable private-agent tokens and the consultation summary. The API key alone enables ElevenLabs Scribe for notebook dictation. See the [voice setup](../elevenlabs/setup.md).
 - `MEDSIM_SCENARIOS_DIR`: override the scenarios folder (default `../scenarios`).
-- `MEDSIM_TRACE=0`: turn off the test-run trace. By default every HTTP exchange (bodies included, secrets masked) and every director/runtime WebSocket frame is appended to `logs/events.jsonl`, and `logs/sessions/<id>.json` holds each session's latest full state (plus the scored debrief once diagnosed), so a restart loses nothing. `MEDSIM_LOG_DIR` moves the folder.
+- `MEDSIM_STUDIO_DB`: override the library file (default `backend/data/studio_library.json`).
+- `MEDSIM_TRACE=0`: disable tracing. By default the backend records API exchanges and director WebSocket frames in `logs/events.jsonl`, and writes session snapshots to `logs/sessions/`. These are inspection records. Active sessions reset on restart. Set `MEDSIM_LOG_DIR` to change the log directory.
 
 ## Reaching the backend from the Vision Pro
 
-The headset connects to `http://<this-machine-LAN-IP>:8000`; set that as `MEDSIM_BACKEND_HOST`.
-Both devices must be on the same Wi-Fi network.
+Append `--host 0.0.0.0` to the Uvicorn command to listen on your trusted local network. Set `MEDSIM_BACKEND_HOST` to the backend machine's LAN address and port, for example `192.168.1.50:8000`. Connect both devices to the same Wi-Fi network.
 
 - macOS: `ipconfig getifaddr en0` (Wi-Fi; try `en1` if empty)
 - Linux: `hostname -I`

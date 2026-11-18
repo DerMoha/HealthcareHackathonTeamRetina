@@ -22,9 +22,7 @@ Mood and appearance need no prompt change. The app folds them into `case_context
 Optional, one voice per appearance: Agent > Security > Overrides > enable **Voice**. Then paste a voice ID for the male and the female patient into the app's Settings (control panel > Settings). The app sends it as the TTS `voice_id` override at conversation start (ElevenLabs Swift SDK 3.4.0 `TTSOverrides`). Without an override the agent's own voice is used for both. NOT verified against a live agent.
 
 ## 3. LLM
-- Preferred: **GPT-6 Luna** (shown in ElevenLabs' LLM list as "GPT-6 Luna", the slug `gpt-6-luna` is my guess, pick it from the dropdown).
-- Verified from the ElevenLabs LLM docs page (fetched during development): the list includes GPT-6 family (6.1 Sol, 6.1 Terra, 6 Astra, 6 Sol, 6 Luna), GPT-5.x, GPT-4.1, GPT-4o, Gemini 3.x Flash variants, Claude Sonnet 5.5 / Haiku 4.5 and others. NOT verified: actual latency/quality of Luna, whether your account/plan can select it, and any per-model pricing.
-- Fallback: **Gemini 3.5 Flash** or **GPT-4.1 Mini** (low latency, widely available). If a model is deprecated or unavailable, simply pick another in Agent > LLM.
+Choose a model from **Agent > LLM** that supports client tools. Use the dashboard test to check that it follows the patient prompt and calls the configured tools before trying it in the app.
 
 ## 4. Voice
 Agent > Voice: pick a natural, warm, young-adult English voice from the library (try "Charlie"-style or similar relaxed male voices; any empathetic conversational voice works). Model: a Flash/Turbo v2.5 model for latency. Note the Voice ID if you want `generate_clips.py` to use the same voice (`ELEVENLABS_VOICE_ID`).

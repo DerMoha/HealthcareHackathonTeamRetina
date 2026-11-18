@@ -1,27 +1,24 @@
 # MedSim Studio
 
-Instructor web interface for MedSim XR: author scenarios, manage the library, direct a live
-session, read the debrief. React 18 + TypeScript + Vite; no other runtime dependencies.
-The HTTP/WebSocket contract is in [`docs/studio-api.md`](../docs/studio-api.md).
+The instructor web interface for MedSim XR. Author scenarios, manage the library, direct live sessions, and review debriefs. The frontend uses React, TypeScript, and Vite.
+
+## Build and serve
+
+With Node.js and npm installed, run these commands from `studio/`.
 
 ```bash
-npm install
-npm run dev      # http://localhost:5173, proxies the API to the backend
-npm run build    # type-check + production build into dist/
+npm ci
+npm run build
 ```
 
-`MEDSIM_BACKEND` sets the dev-proxy target (default `http://localhost:8000`):
+Start or restart the [backend](../backend/README.md), then open <http://localhost:8000/app/>. The backend mounts `studio/dist/` when it starts. The build includes the TypeScript check.
 
-```bash
-MEDSIM_BACKEND=http://localhost:8021 npm run dev
-```
+## Develop locally
 
-The backend serves `dist/` itself at `/app/` (same origin) when it exists, so build once and open
-`http://<backend>/app/`. API paths are root-absolute (`/studio/...`); asset paths are relative.
+With the backend running, use `npm run dev` and open <http://localhost:5173/>. Vite proxies requests to `http://localhost:8000` by default. For a backend on a different port, run `MEDSIM_BACKEND=http://localhost:8021 npm run dev`.
+
+See the [Studio walkthrough](../docs/medsim-studio.md) and the [HTTP and WebSocket contract](../docs/studio-api.md).
 
 ## Pitch screens
 
-`?pitch=1&page=generator|author|publish|marketplace&v=a|b` renders backend-free showcase screens
-(`src/pitch/`, lazy-loaded; the normal app is unchanged). `node scripts/pitch_shots.mjs [name]`
-refreshes the cover images from `docs/screenshots/pitch` and writes
-`docs/screenshots/pitch/studio-web-*.jpg` at 2880x1800 (needs `npm install`, Playwright, python3 + Pillow).
+The query string `?pitch=1&page=generator|author|publish|marketplace&v=a|b` selects a backend-free showcase screen. Use one value for each option. The [screenshot guide](../docs/screenshots/pitch/README.md#re-shooting-one-scene) explains how to regenerate the images.

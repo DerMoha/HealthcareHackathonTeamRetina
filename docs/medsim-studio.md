@@ -104,11 +104,12 @@ template's list are dropped. AI text is marked as such on the scenario.
 ## Demonstration path
 
 ```bash
-# 1. backend (serves the built Studio at /app/)
-cd studio && npm install && npm run build && cd ..
-cd backend && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-# Studio: http://localhost:8000/app/      (development: cd studio && npm run dev)
+# From the repository root, after installing the backend requirements
+cd studio && npm ci && npm run build && cd ..
+cd backend && .venv/bin/python -m uvicorn app.main:app --port 8000
 ```
+
+Open <http://localhost:8000/app/>. For a headset on your local network, use the [backend's LAN setup](../backend/README.md#reaching-the-backend-from-the-vision-pro).
 
 The Studio is a dashboard with a side menu:
 
